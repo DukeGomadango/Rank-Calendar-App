@@ -25,6 +25,14 @@ export default function SettingsPage() {
               イベントマスタの管理
             </Link>
           </li>
+          <li>
+            <Link
+              href="/dashboard/settings/sharing"
+              className="text-pink-500 underline-offset-2 hover:underline"
+            >
+              共有・招待の管理
+            </Link>
+          </li>
         </ul>
       </section>
     </div>

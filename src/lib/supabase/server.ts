@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * サーバーコンポーネント用 Supabase クライアント。
@@ -63,5 +64,20 @@ export async function createSupabaseRouteHandlerClient() {
       },
     },
   });
+}
+
+/**
+ * 招待リンクのトークン検証など、RLS を超えた読み取りが必要な場合のみ使用する。
+ * サーバー専用。SUPABASE_SERVICE_ROLE_KEY を .env.local に設定すること。
+ */
+export function createSupabaseServiceRoleClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY が設定されていません。招待リンク検証には必要です。"
+    );
+  }
+  return createClient(url, serviceKey);
 }
 

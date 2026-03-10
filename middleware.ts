@@ -34,8 +34,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 公開パスはそのまま通す
-  if (PUBLIC_PATHS.has(pathname)) {
+  // 公開パスはそのまま通す（招待リンクは /invite/[calendarId]/[token]）
+  if (PUBLIC_PATHS.has(pathname) || pathname.startsWith("/invite/")) {
     return NextResponse.next();
   }
 
