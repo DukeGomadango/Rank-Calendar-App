@@ -25,12 +25,18 @@ export async function saveScheduleEntry(formData: FormData) {
   const actualPlus = parseNumber(formData.get("actual_plus"));
   const memo = formData.get("memo");
   const skipPassUsed = formData.get("skip_pass_used") === "on";
+  const eventIdRaw = formData.get("event_id");
+  const eventId =
+    typeof eventIdRaw === "string" && eventIdRaw.trim() !== ""
+      ? eventIdRaw
+      : null;
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
     border_plus2: border2,
     border_plus4: border4,
     border_plus6: border6,
+    event_id: eventId,
     memo: typeof memo === "string" && memo.trim() !== "" ? memo : null,
     target_plus: targetPlus,
     actual_plus: actualPlus,

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import { listEventsForCalendar } from "@/lib/data/events";
 import { ScheduleForm } from "@/components/schedule/ScheduleForm";
 import { saveScheduleEntry } from "./actions";
 
@@ -16,6 +17,7 @@ export default async function DashboardHomePage() {
   }
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const events = await listEventsForCalendar(calendar.id);
 
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -49,6 +51,7 @@ export default async function DashboardHomePage() {
           calendarId={calendar.id}
           defaultDate={defaultDate}
           action={saveScheduleEntry}
+          events={events}
         />
       </section>
 

@@ -8,6 +8,7 @@ import {
   getScheduleEntriesInRange,
   type ScheduleEntryRow,
 } from "@/lib/data/schedule-entries";
+import { listEventsForCalendar } from "@/lib/data/events";
 import { saveScheduleEntry } from "../actions";
 import { CalendarWithModal } from "@/components/schedule/CalendarWithModal";
 
@@ -24,6 +25,7 @@ export default async function CalendarPage() {
   }
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const events = await listEventsForCalendar(calendar.id);
 
   const today = dayjs();
   const monthStart = today.startOf("month");
@@ -82,6 +84,7 @@ export default async function CalendarPage() {
       calendarId={calendar.id}
       days={days}
       saveAction={saveScheduleEntry}
+      events={events}
     />
   );
 }

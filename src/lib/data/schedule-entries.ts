@@ -5,6 +5,7 @@ export type ScheduleEntryUpsertInput = {
   border_plus2: number | null;
   border_plus4: number | null;
   border_plus6: number | null;
+  event_id: string | null;
   memo: string | null;
   target_plus: number | null;
   actual_plus: number | null;
@@ -27,6 +28,7 @@ export async function upsertScheduleEntryForDate(
         border_plus2: input.border_plus2,
         border_plus4: input.border_plus4,
         border_plus6: input.border_plus6,
+        event_id: input.event_id,
         memo: input.memo,
         target_plus: input.target_plus,
         actual_plus: input.actual_plus,
@@ -36,7 +38,7 @@ export async function upsertScheduleEntryForDate(
         onConflict: "calendar_id,date",
       }
     )
-    .select("id, date, border_plus2, border_plus4, border_plus6, target_plus, actual_plus, skip_pass_used")
+    .select("id, date, border_plus2, border_plus4, border_plus6, event_id, target_plus, actual_plus, skip_pass_used")
     .single();
 
   if (error) {
@@ -56,6 +58,7 @@ export type ScheduleEntryRow = {
   border_plus2: number | null;
   border_plus4: number | null;
   border_plus6: number | null;
+   event_id: string | null;
   target_plus: number | null;
   actual_plus: number | null;
   skip_pass_used: boolean;
@@ -72,7 +75,7 @@ export async function getScheduleEntriesInRange(
     .schema("iriam")
     .from("schedule_entries")
     .select(
-      "id, date, border_plus2, border_plus4, border_plus6, target_plus, actual_plus, skip_pass_used"
+      "id, date, border_plus2, border_plus4, border_plus6, event_id, target_plus, actual_plus, skip_pass_used"
     )
     .eq("calendar_id", calendarId)
     .gte("date", fromDate)

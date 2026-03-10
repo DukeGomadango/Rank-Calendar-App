@@ -7,6 +7,7 @@ type ScheduleFormProps = {
   calendarId: string;
   defaultDate: string;
   action: (formData: FormData) => void;
+  events?: { id: string; name: string }[];
 };
 
 function SubmitButton() {
@@ -22,7 +23,12 @@ function SubmitButton() {
   );
 }
 
-export function ScheduleForm({ calendarId, defaultDate, action }: ScheduleFormProps) {
+export function ScheduleForm({
+  calendarId,
+  defaultDate,
+  action,
+  events,
+}: ScheduleFormProps) {
   const idPrefix = useId();
 
   return (
@@ -109,6 +115,25 @@ export function ScheduleForm({ calendarId, defaultDate, action }: ScheduleFormPr
           />
         </label>
       </div>
+
+      <label className="flex flex-col gap-1 md:col-span-2" htmlFor={`${idPrefix}-event`}>
+        <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+          参加イベント
+        </span>
+        <select
+          id={`${idPrefix}-event`}
+          name="event_id"
+          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          defaultValue=""
+        >
+          <option value="">（未選択）</option>
+          {events?.map((event) => (
+            <option key={event.id} value={event.id}>
+              {event.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="flex flex-col gap-1 md:col-span-2" htmlFor={`${idPrefix}-memo`}>
         <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">

@@ -26,6 +26,7 @@ type Props = {
   calendarId: string;
   days: DayData[];
   saveAction: (formData: FormData) => void;
+  events: { id: string; name: string }[];
 };
 
 export function CalendarWithModal({
@@ -34,6 +35,7 @@ export function CalendarWithModal({
   calendarId,
   days,
   saveAction,
+  events,
 }: Props) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
@@ -314,6 +316,7 @@ export function CalendarWithModal({
               calendarId={calendarId}
               defaultDate={selectedDate}
               action={saveAction}
+              events={events}
             />
           </div>
         </div>
