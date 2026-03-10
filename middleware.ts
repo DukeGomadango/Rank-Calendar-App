@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
 /**
  * 認証保護用ミドルウェア。
@@ -20,6 +19,7 @@ const PUBLIC_PATHS = new Set<string>([
   "/signup",
   "/privacy",
   "/terms",
+  "/auth/callback",
 ]);
 
 export async function middleware(req: NextRequest) {
@@ -39,27 +39,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Supabase セッションを確認
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient(
-    { req, res },
-    {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    }
-  );
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("redirectTo", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  return res;
+  // TODO: Supabase Auth のミドルウェアサポートが安定したら、
+  // ここでセッション確認を行い、未ログイン時は /login へリダイレクトする。
+  // 現時点では、全てのパスをそのまま通す。
+  return NextResponse.next();
 }
 
 export const config = {
