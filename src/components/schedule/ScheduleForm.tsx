@@ -1,7 +1,9 @@
 'use client';
 
-import { useId } from "react";
+import { useId, useRef } from "react";
 import { useFormStatus } from "react-dom";
+
+import { BorderOcrButton } from "@/components/ocr/BorderOcrButton";
 
 type ScheduleFormProps = {
   calendarId: string;
@@ -30,6 +32,9 @@ export function ScheduleForm({
   events,
 }: ScheduleFormProps) {
   const idPrefix = useId();
+  const border2Ref = useRef<HTMLInputElement | null>(null);
+  const border4Ref = useRef<HTMLInputElement | null>(null);
+  const border6Ref = useRef<HTMLInputElement | null>(null);
 
   return (
     <form action={action} className="grid gap-3 md:grid-cols-2">
@@ -58,6 +63,7 @@ export function ScheduleForm({
             type="number"
             name="border_plus2"
             min={0}
+          ref={border2Ref}
             className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
@@ -70,6 +76,7 @@ export function ScheduleForm({
             type="number"
             name="border_plus4"
             min={0}
+          ref={border4Ref}
             className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
@@ -82,10 +89,17 @@ export function ScheduleForm({
             type="number"
             name="border_plus6"
             min={0}
+          ref={border6Ref}
             className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
       </div>
+
+      <BorderOcrButton
+        border2Ref={border2Ref}
+        border4Ref={border4Ref}
+        border6Ref={border6Ref}
+      />
 
       <div className="grid grid-cols-2 gap-2">
         <label className="flex flex-col gap-1" htmlFor={`${idPrefix}-target`}>
