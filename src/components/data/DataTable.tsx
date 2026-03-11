@@ -5,8 +5,10 @@ import {
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-} from '@tanstack/react-table';
-import dayjs from 'dayjs';
+} from "@tanstack/react-table";
+import dayjs from "dayjs";
+
+import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 
 /** 日付・曜日は必ずあり、他は登録があれば入る */
 type Row = {
@@ -23,68 +25,72 @@ type Row = {
 
 type Props = {
   data: Row[];
+  permissions: CalendarPermissionFlags;
 };
 
-const columns: ColumnDef<Row>[] = [
-  {
-    accessorKey: 'date',
-    header: '日付',
-    cell: ({ row }) =>
-      dayjs(row.original.date).format('YYYY-MM-DD'),
-  },
-  {
-    accessorKey: 'weekday',
-    header: '曜',
-  },
-  {
-    accessorKey: 'target_plus',
-    header: '目標+',
-    cell: ({ getValue }) => {
-      const v = getValue<number | null | undefined>();
-      return v != null ? String(v) : '';
+export function DataTable({ data, permissions }: Props) {
+  const columns: ColumnDef<Row>[] = [
+    {
+      accessorKey: "date",
+      header: "日付",
+      cell: ({ row }) => dayjs(row.original.date).format("YYYY-MM-DD"),
     },
-  },
-  {
-    accessorKey: 'actual_plus',
-    header: '実績+',
-    cell: ({ getValue }) => {
-      const v = getValue<number | null | undefined>();
-      return v != null ? String(v) : '';
+    {
+      accessorKey: "weekday",
+      header: "曜",
     },
-  },
-  {
-    accessorKey: 'border_plus2',
-    header: '+2ボーダー',
-    cell: ({ getValue }) => {
-      const v = getValue<number | null | undefined>();
-      return v != null ? String(v) : '';
+    {
+      accessorKey: "target_plus",
+      header: "目標+",
+      cell: ({ getValue }) => {
+        if (!permissions.canViewTargetActual) return "";
+        const v = getValue<number | null | undefined>();
+        return v != null ? String(v) : "";
+      },
     },
-  },
-  {
-    accessorKey: 'border_plus4',
-    header: '+4ボーダー',
-    cell: ({ getValue }) => {
-      const v = getValue<number | null | undefined>();
-      return v != null ? String(v) : '';
+    {
+      accessorKey: "actual_plus",
+      header: "実績+",
+      cell: ({ getValue }) => {
+        if (!permissions.canViewTargetActual) return "";
+        const v = getValue<number | null | undefined>();
+        return v != null ? String(v) : "";
+      },
     },
-  },
-  {
-    accessorKey: 'border_plus6',
-    header: '+6ボーダー',
-    cell: ({ getValue }) => {
-      const v = getValue<number | null | undefined>();
-      return v != null ? String(v) : '';
+    {
+      accessorKey: "border_plus2",
+      header: "+2ボーダー",
+      cell: ({ getValue }) => {
+        if (!permissions.canViewBorders) return "";
+        const v = getValue<number | null | undefined>();
+        return v != null ? String(v) : "";
+      },
     },
-  },
-  {
-    accessorKey: 'skip_pass_used',
-    header: 'スキップ',
-    cell: ({ getValue }) =>
-      getValue<boolean>() ? '使用' : '',
-  },
-];
+    {
+      accessorKey: "border_plus4",
+      header: "+4ボーダー",
+      cell: ({ getValue }) => {
+        if (!permissions.canViewBorders) return "";
+        const v = getValue<number | null | undefined>();
+        return v != null ? String(v) : "";
+      },
+    },
+    {
+      accessorKey: "border_plus6",
+      header: "+6ボーダー",
+      cell: ({ getValue }) => {
+        if (!permissions.canViewBorders) return "";
+        const v = getValue<number | null | undefined>();
+        return v != null ? String(v) : "";
+      },
+    },
+    {
+      accessorKey: "skip_pass_used",
+      header: "スキップ",
+      cell: ({ getValue }) => (getValue<boolean>() ? "使用" : ""),
+    },
+  ];
 
-export function DataTable({ data }: Props) {
   const table = useReactTable({
     data,
     columns,
@@ -117,10 +123,7 @@ export function DataTable({ data }: Props) {
           {table.getRowModel().rows.map((row) => (
             <tr key={row.id} className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60">
               {row.getVisibleCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  className="px-3 py-1.5 align-top"
-                >
+                <td key={cell.id} className="px-3 py-1.5 align-top">
                   {flexRender(
                     cell.column.columnDef.cell,
                     cell.getContext(),
