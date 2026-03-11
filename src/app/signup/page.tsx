@@ -12,12 +12,16 @@ function SignupForm() {
   const [isPending, startTransition] = useTransition();
   const supabase = createSupabaseBrowserClient();
 
-  const redirectTo =
+  // 本番では NEXT_PUBLIC_APP_URL を設定すると確実（Vercel では https://あなたのドメイン.vercel.app など）
+  const baseUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/auth/callback?redirect_to=${
-          searchParams.get("redirectTo") ?? "/dashboard"
-        }`
+      ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin)
       : undefined;
+  const redirectTo = baseUrl
+    ? `${baseUrl}/auth/callback?redirect_to=${
+        searchParams.get("redirectTo") ?? "/dashboard"
+      }`
+    : undefined;
 
   const handleOAuthSignup = async (provider: "google" | "discord") => {
     setMessage(null);
