@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: "IRIAM Rank Planner",
   description:
     "IRIAMライバー向けの非公式ランク・ボーダー管理ツール。配信スケジュールと+目標を整理できます。",
+  icons: {
+    icon: [{ url: "/icon.png", sizes: "32x32", type: "image/png" }, { url: "/icon.png", sizes: "192x192", type: "image/png" }],
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({

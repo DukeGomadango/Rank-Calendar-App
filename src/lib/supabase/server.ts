@@ -21,16 +21,10 @@ export async function createSupabaseServerClient() {
 
   return createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+      getAll() {
+        return cookieStore.getAll().map((c) => ({ name: c.name, value: c.value }));
       },
-      // Server Component では cookie の書き換えは禁止されているため no-op にする
-      set() {
-        // no-op
-      },
-      remove() {
-        // no-op
-      },
+      // Server Component では cookie の書き換えは禁止されているため省略（setAll は optional）
     },
   });
 }
@@ -53,14 +47,13 @@ export async function createSupabaseRouteHandlerClient() {
 
   return createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+      getAll() {
+        return cookieStore.getAll().map((c) => ({ name: c.name, value: c.value }));
       },
-      set(name: string, value: string, options?: Parameters<typeof cookieStore.set>[1]) {
-        cookieStore.set({ name, value, ...options });
-      },
-      remove(name: string, options?: Parameters<typeof cookieStore.set>[1]) {
-        cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options);
+        });
       },
     },
   });

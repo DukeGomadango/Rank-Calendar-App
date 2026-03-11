@@ -78,10 +78,7 @@ export default async function CalendarPage() {
     const isToday = cursor.isSame(today, "day");
     const isCurrentMonth = cursor.isSame(today, "month");
     const holidayName =
-      // holiday-jp の結果は型的に any 扱いになるので toString だけしておく
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ((await import("holiday-jp")).isHoliday(cursor.toDate()) as any | null)?.name ??
-      null;
+      (await import("holiday-jp")).isHoliday(cursor.toDate())?.name ?? null;
 
     days.push({
       date: dateStr,

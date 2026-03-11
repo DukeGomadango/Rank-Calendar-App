@@ -4,9 +4,9 @@ import { useCallback, useRef, useState } from "react";
 
 type Props = {
   /** +2, +4, +6 ボーダー入力への参照 */
-  border2Ref: React.RefObject<HTMLInputElement>;
-  border4Ref: React.RefObject<HTMLInputElement>;
-  border6Ref: React.RefObject<HTMLInputElement>;
+  border2Ref: React.RefObject<HTMLInputElement | null>;
+  border4Ref: React.RefObject<HTMLInputElement | null>;
+  border6Ref: React.RefObject<HTMLInputElement | null>;
 };
 
 type Status =

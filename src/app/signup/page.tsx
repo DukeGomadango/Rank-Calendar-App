@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useTransition } from "react";
+import { Suspense, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export default function SignupPage() {
+function SignupForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -119,6 +119,27 @@ export default function SignupPage() {
         </p>
       </main>
     </div>
+  );
+}
+
+function SignupFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <main className="w-full max-w-md rounded-2xl border border-zinc-200/60 bg-white/80 p-6 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+        <h1 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          新規登録
+        </h1>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">読み込み中...</p>
+      </main>
+    </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupFallback />}>
+      <SignupForm />
+    </Suspense>
   );
 }
 

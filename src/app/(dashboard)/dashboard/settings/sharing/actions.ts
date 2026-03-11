@@ -17,47 +17,45 @@ import type { PermissionKey } from "@/lib/data/permissions";
 
 const SHARING_PATH = "/dashboard/settings/sharing";
 
-export async function createRole(formData: FormData) {
+export async function createRole(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "未ログイン" };
+  if (!user) throw new Error("未ログイン");
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const name = (formData.get("name") as string)?.trim();
-  if (!name) return { ok: false, error: "ロール名を入力してください" };
+  if (!name) throw new Error("ロール名を入力してください");
 
   await createRoleData(calendar.id, name);
   revalidatePath(SHARING_PATH);
-  return { ok: true };
 }
 
-export async function deleteRole(formData: FormData) {
+export async function deleteRole(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "未ログイン" };
+  if (!user) throw new Error("未ログイン");
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const roleId = formData.get("role_id") as string;
-  if (!roleId) return { ok: false, error: "role_id が必要です" };
+  if (!roleId) throw new Error("role_id が必要です");
 
   await deleteRoleData(roleId, calendar.id);
   revalidatePath(SHARING_PATH);
-  return { ok: true };
 }
 
-export async function saveRolePermissions(formData: FormData) {
+export async function saveRolePermissions(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "未ログイン" };
+  if (!user) throw new Error("未ログイン");
 
   const roleId = formData.get("role_id") as string;
-  if (!roleId) return { ok: false, error: "role_id が必要です" };
+  if (!roleId) throw new Error("role_id が必要です");
 
   const permissions: PermissionKey[] = [];
   for (const key of [
@@ -75,73 +73,68 @@ export async function saveRolePermissions(formData: FormData) {
   }
   await setRolePermissionsData(roleId, permissions);
   revalidatePath(SHARING_PATH);
-  return { ok: true };
 }
 
-export async function createInviteLinkAction() {
+export async function createInviteLinkAction(): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "未ログイン" };
+  if (!user) throw new Error("未ログイン");
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   await createInviteLinkData(calendar.id, user.id, null);
   revalidatePath(SHARING_PATH);
-  return { ok: true };
 }
 
-export async function deleteInviteLink(formData: FormData) {
+export async function deleteInviteLink(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "未ログイン" };
+  if (!user) throw new Error("未ログイン");
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const id = formData.get("invite_link_id") as string;
-  if (!id) return { ok: false, error: "invite_link_id が必要です" };
+  if (!id) throw new Error("invite_link_id が必要です");
 
   await deleteInviteLinkData(id, calendar.id);
   revalidatePath(SHARING_PATH);
-  return { ok: true };
 }
 
-export async function assignRoleToUser(formData: FormData) {
+export async function assignRoleToUser(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "未ログイン" };
+  if (!user) throw new Error("未ログイン");
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const targetUserId = formData.get("user_id") as string;
   const roleId = (formData.get("role_id") as string)?.trim();
-  if (!targetUserId) return { ok: false, error: "user_id が必要です" };
+  if (!targetUserId) throw new Error("user_id が必要です");
   if (!roleId || roleId === "none") {
     const { deleteShare } = await import("@/lib/data/shares");
     await deleteShare(calendar.id, targetUserId);
     revalidatePath(SHARING_PATH);
-    return { ok: true };
+    return;
   }
   await upsertShare(calendar.id, targetUserId, roleId);
   revalidatePath(SHARING_PATH);
-  return { ok: true };
 }
 
-export async function removeShare(formData: FormData) {
+export async function removeShare(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "未ログイン" };
+  if (!user) throw new Error("未ログイン");
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const targetUserId = formData.get("user_id") as string;
-  if (!targetUserId) return { ok: false, error: "user_id が必要です" };
+  if (!targetUserId) throw new Error("user_id が必要です");
 
   const { deleteShare } = await import("@/lib/data/shares");
   await deleteShare(calendar.id, targetUserId);
   revalidatePath(SHARING_PATH);
-  return { ok: true };
 }
