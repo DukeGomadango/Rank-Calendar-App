@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useMemo, useState } from "react";
 import dayjs from "dayjs";
@@ -6,6 +6,7 @@ import "dayjs/locale/ja";
 
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
+import { useViewMode } from "@/lib/view-mode-context";
 import { ScheduleForm } from "./ScheduleForm";
 
 dayjs.locale("ja");
@@ -40,6 +41,9 @@ export function CalendarWithModal({
   saveAction,
   events,
 }: Props) {
+  const { viewMode } = useViewMode();
+  const useSimpleView = !permissions.isOwner && viewMode === "simple";
+
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
 
@@ -138,7 +142,7 @@ export function CalendarWithModal({
                           目{entry.target_plus}
                         </span>
                       )}
-                      {permissions.canViewTargetActual && entry.actual_plus != null && (
+                      {!useSimpleView && permissions.canViewTargetActual && entry.actual_plus != null && (
                         <span className="text-[9px] text-zinc-700 dark:text-zinc-200">
                           実{entry.actual_plus}
                         </span>
@@ -240,7 +244,7 @@ export function CalendarWithModal({
                     </span>{" "}
                     {permissions.canViewTargetActual ? entry.actual_plus ?? "-" : "非公開"}
                   </p>
-                  {permissions.canViewBorders && (
+                  {!useSimpleView && permissions.canViewBorders && (
                     <p className="text-[10px]">
                       +2: {entry.border_plus2 ?? "-"} / +4: {entry.border_plus4 ?? "-"} / +6:{" "}
                       {entry.border_plus6 ?? "-"}

@@ -1,12 +1,15 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ViewModeProvider } from "@/lib/view-mode-context";
+
 type DashboardLayoutProps = {
   children: ReactNode;
 };
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
+    <ViewModeProvider>
     <div className="flex min-h-screen flex-col bg-background">
       {/* モバイル: 上部ヘッダー */}
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white/80 px-4 py-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 sm:hidden">
@@ -103,6 +106,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </ul>
       </nav>
     </div>
+    </ViewModeProvider>
   );
 }
 

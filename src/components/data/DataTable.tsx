@@ -9,6 +9,7 @@ import {
 import dayjs from "dayjs";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
+import { useViewMode } from "@/lib/view-mode-context";
 
 /** 日付・曜日は必ずあり、他は登録があれば入る */
 type Row = {
@@ -29,6 +30,9 @@ type Props = {
 };
 
 export function DataTable({ data, permissions }: Props) {
+  const { viewMode } = useViewMode();
+  const hideBordersInSimple = !permissions.isOwner && viewMode === "simple";
+
   const columns: ColumnDef<Row>[] = [
     {
       accessorKey: "date",
@@ -61,7 +65,7 @@ export function DataTable({ data, permissions }: Props) {
       accessorKey: "border_plus2",
       header: "+2ボーダー",
       cell: ({ getValue }) => {
-        if (!permissions.canViewBorders) return "";
+        if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
         return v != null ? String(v) : "";
       },
@@ -70,7 +74,7 @@ export function DataTable({ data, permissions }: Props) {
       accessorKey: "border_plus4",
       header: "+4ボーダー",
       cell: ({ getValue }) => {
-        if (!permissions.canViewBorders) return "";
+        if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
         return v != null ? String(v) : "";
       },
@@ -79,7 +83,7 @@ export function DataTable({ data, permissions }: Props) {
       accessorKey: "border_plus6",
       header: "+6ボーダー",
       cell: ({ getValue }) => {
-        if (!permissions.canViewBorders) return "";
+        if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
         return v != null ? String(v) : "";
       },
