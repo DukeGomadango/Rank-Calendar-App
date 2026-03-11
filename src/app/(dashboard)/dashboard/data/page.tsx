@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
+import { getCalendarPermissionsForUser } from "@/lib/auth/permission";
 import { DataTable } from "@/components/data/DataTable";
 
 dayjs.locale("ja");
@@ -21,6 +22,22 @@ export default async function DataPage() {
   }
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const permissions = await getCalendarPermissionsForUser(calendar.id, user.id);
+
+  if (!permissions.canViewTable) {
+    return (
+      <div className="space-y-4">
+        <header className="space-y-1">
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            データ
+          </h1>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            このカレンダーのデータテーブルを閲覧する権限がありません。オーナーに権限の付与を依頼してください。
+          </p>
+        </header>
+      </div>
+    );
+  }
 
   const today = dayjs();
   const from = today.subtract(30, "day").format("YYYY-MM-DD");
@@ -56,8 +73,7 @@ export default async function DataPage() {
           {calendar.name ?? "メインカレンダー"} の直近 30 日前〜30 日後のスケジュールを一覧表示します。
         </p>
       </header>
-
-      <DataTable data={rows} />
+      <DataTable data={rows} permissions={permissions} />
     </div>
   );
 }

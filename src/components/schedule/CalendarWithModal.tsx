@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/ja";
 
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
+import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { ScheduleForm } from "./ScheduleForm";
 
 dayjs.locale("ja");
@@ -25,6 +26,7 @@ type Props = {
   monthLabel: string;
   calendarId: string;
   days: DayData[];
+  permissions: CalendarPermissionFlags;
   saveAction: (formData: FormData) => void;
   events: { id: string; name: string }[];
 };
@@ -34,6 +36,7 @@ export function CalendarWithModal({
   monthLabel,
   calendarId,
   days,
+  permissions,
   saveAction,
   events,
 }: Props) {
@@ -99,7 +102,11 @@ export function CalendarWithModal({
             <button
               key={day.date}
               type="button"
-              onClick={() => setSelectedDate(day.date)}
+              onClick={() => {
+                if (permissions.canEditSchedule) {
+                  setSelectedDate(day.date);
+                }
+              }}
               className={`${bg} relative flex min-h-[72px] flex-col border border-zinc-200/80 p-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 dark:border-zinc-800/80`}
             >
               <div className="flex items-center justify-between">
@@ -126,12 +133,12 @@ export function CalendarWithModal({
                       key={entry.id}
                       className="inline-flex items-center rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] text-zinc-700 dark:bg-zinc-50/10 dark:text-zinc-100"
                     >
-                      {entry.target_plus != null && (
+                      {permissions.canViewTargetActual && entry.target_plus != null && (
                         <span className="mr-1 text-[9px] font-semibold text-pink-500">
                           目{entry.target_plus}
                         </span>
                       )}
-                      {entry.actual_plus != null && (
+                      {permissions.canViewTargetActual && entry.actual_plus != null && (
                         <span className="text-[9px] text-zinc-700 dark:text-zinc-200">
                           実{entry.actual_plus}
                         </span>
@@ -196,7 +203,11 @@ export function CalendarWithModal({
             <button
               key={day.date}
               type="button"
-              onClick={() => setSelectedDate(day.date)}
+              onClick={() => {
+                if (permissions.canEditSchedule) {
+                  setSelectedDate(day.date);
+                }
+              }}
               className={`${bg} relative flex min-h-[140px] flex-col border border-zinc-200/80 p-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 dark:border-zinc-800/80`}
             >
               <div className="flex items-center justify-between">
@@ -219,20 +230,22 @@ export function CalendarWithModal({
                 <p className="mt-0.5 text-[10px] text-red-500">{day.holidayName}</p>
               )}
 
-              {entry ? (
+                {entry ? (
                 <div className="mt-2 space-y-1 text-[11px] text-zinc-700 dark:text-zinc-200">
                   <p>
                     <span className="font-semibold text-pink-500">目標+</span>{" "}
-                    {entry.target_plus ?? "-"}{" "}
+                    {permissions.canViewTargetActual ? entry.target_plus ?? "-" : "非公開"}{" "}
                     <span className="ml-2 font-semibold text-zinc-700 dark:text-zinc-200">
                       実績+
                     </span>{" "}
-                    {entry.actual_plus ?? "-"}
+                    {permissions.canViewTargetActual ? entry.actual_plus ?? "-" : "非公開"}
                   </p>
-                  <p className="text-[10px]">
-                    +2: {entry.border_plus2 ?? "-"} / +4: {entry.border_plus4 ?? "-"} / +6:{" "}
-                    {entry.border_plus6 ?? "-"}
-                  </p>
+                  {permissions.canViewBorders && (
+                    <p className="text-[10px]">
+                      +2: {entry.border_plus2 ?? "-"} / +4: {entry.border_plus4 ?? "-"} / +6:{" "}
+                      {entry.border_plus6 ?? "-"}
+                    </p>
+                  )}
                   {entry.skip_pass_used && (
                     <p className="inline-flex rounded bg-zinc-900/10 px-1.5 py-0.5 text-[10px] text-zinc-800 dark:bg-zinc-50/10 dark:text-zinc-100">
                       スキップパス使用日
@@ -291,7 +304,7 @@ export function CalendarWithModal({
 
       {view === "week" ? renderWeekGrid() : renderMonthGrid()}
 
-      {selectedDate && selectedDay && (
+      {permissions.canEditSchedule && selectedDate && selectedDay && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-8">
           <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
             <div className="mb-3 flex items-center justify-between">

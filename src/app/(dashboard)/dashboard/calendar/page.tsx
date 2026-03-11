@@ -9,6 +9,7 @@ import {
   type ScheduleEntryRow,
 } from "@/lib/data/schedule-entries";
 import { listEventsForCalendar } from "@/lib/data/events";
+import { getCalendarPermissionsForUser } from "@/lib/auth/permission";
 import { saveScheduleEntry } from "../actions";
 import { CalendarWithModal } from "@/components/schedule/CalendarWithModal";
 
@@ -25,6 +26,23 @@ export default async function CalendarPage() {
   }
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const permissions = await getCalendarPermissionsForUser(calendar.id, user.id);
+
+  if (!permissions.canViewCalendar) {
+    return (
+      <div className="space-y-4">
+        <header className="space-y-1">
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            カレンダー
+          </h1>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            このカレンダーを閲覧する権限がありません。オーナーに権限の付与を依頼してください。
+          </p>
+        </header>
+      </div>
+    );
+  }
+
   const events = await listEventsForCalendar(calendar.id);
 
   const today = dayjs();
@@ -82,6 +100,7 @@ export default async function CalendarPage() {
       calendarName={calendar.name ?? "メインカレンダー"}
       monthLabel={today.format("YYYY年 M月")}
       calendarId={calendar.id}
+      permissions={permissions}
       days={days}
       saveAction={saveScheduleEntry}
       events={events}

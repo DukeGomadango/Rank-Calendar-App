@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
 import { listEventsForCalendar } from "@/lib/data/events";
+import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
+import { toJstDateString, getJstWeekStart } from "@/lib/domain/calendar";
+import { judgeWeeklyRank, type RankEntry } from "@/lib/domain/rank";
 import { ScheduleForm } from "@/components/schedule/ScheduleForm";
 import { saveScheduleEntry } from "./actions";
 
@@ -18,6 +21,35 @@ export default async function DashboardHomePage() {
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const events = await listEventsForCalendar(calendar.id);
+
+  // JST 基準で今週（月〜日）の範囲を計算
+  const todayJst = toJstDateString(new Date());
+  const weekStartJst = getJstWeekStart(todayJst);
+  const [y, m, d] = weekStartJst.split("-").map((v) => Number.parseInt(v, 10));
+  const startDate = new Date(y, m - 1, d);
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6);
+  const weekEndJst = toJstDateString(endDate);
+
+  const weeklyEntries = await getScheduleEntriesInRange(
+    calendar.id,
+    weekStartJst,
+    weekEndJst
+  );
+
+  const rankEntries: RankEntry[] = weeklyEntries.map((e) => ({
+    date: e.date,
+    actual_plus: e.actual_plus,
+    skip_pass_used: e.skip_pass_used,
+  }));
+  const judgements = judgeWeeklyRank(rankEntries);
+  const thisWeek = judgements.find((j) => j.weekStart === weekStartJst);
+  const totalPlus = thisWeek?.totalPlus ?? 0;
+  const maxPlus = 18;
+  const progressRatio = Math.max(
+    0,
+    Math.min(1, maxPlus === 0 ? 0 : totalPlus / maxPlus)
+  );
 
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -36,6 +68,61 @@ export default async function DashboardHomePage() {
           <span className="font-medium">「{calendar.name ?? "メインカレンダー"}」</span>
           を基準にしたサマリをここに表示していきます。
         </p>
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
+        <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+          今週の+サマリ（JST）
+        </h2>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          月曜はじまりの 1 週間ぶんの +実績合計です。スキップパス使用日は合計から除外し、+0
+          の休み日は 0 としてカウントします。
+        </p>
+        <div className="space-y-2 rounded-lg bg-zinc-50/80 p-3 dark:bg-zinc-950/40">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                今週の実績+ 合計
+              </span>
+              <span className="text-sm font-mono text-pink-600 dark:text-pink-300">
+                {totalPlus} / {maxPlus}
+              </span>
+            </div>
+            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              {weekStartJst} 〜 {weekEndJst}
+            </span>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-200/80 dark:bg-zinc-800">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-pink-500 via-pink-400 to-amber-400 transition-[width]"
+              style={{ width: `${progressRatio * 100}%` }}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <span
+              className={
+                thisWeek?.canRankUpNextDay
+                  ? "inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200"
+                  : "inline-flex items-center rounded-full bg-zinc-200/70 px-2 py-0.5 text-[11px] text-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200"
+              }
+            >
+              {thisWeek?.canRankUpNextDay
+                ? "+18 達成！翌日ランクアップ条件クリア"
+                : "+18 で翌日ランクアップ"}
+            </span>
+            <span
+              className={
+                thisWeek?.reachedIntermediate
+                  ? "inline-flex items-center rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/20 dark:text-sky-200"
+                  : "inline-flex items-center rounded-full bg-zinc-200/70 px-2 py-0.5 text-[11px] text-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200"
+              }
+            >
+              {thisWeek?.reachedIntermediate
+                ? "+12 以上（中間目標クリア）"
+                : "+12 で中間目標"}
+            </span>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
