@@ -57,6 +57,17 @@ export default async function SharingSettingsPage() {
         </p>
       </header>
 
+      {roles.length === 0 && inviteLinks.length === 0 && (
+        <section className="rounded-xl border border-sky-200 bg-sky-50/80 p-4 text-xs dark:border-sky-800 dark:bg-sky-950/30">
+          <p className="font-medium text-sky-800 dark:text-sky-200">
+            リスナーを招待するには
+          </p>
+          <p className="mt-1 text-[11px] text-sky-700 dark:text-sky-300">
+            まず下でロールを追加し、招待リンクを発行してください。リンクを共有した相手が登録すると、招待済み一覧に表示され、ロールを付与してスケジュールを共有できます。
+          </p>
+        </section>
+      )}
+
       {/* ロール */}
       <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
         <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
@@ -191,9 +202,12 @@ export default async function SharingSettingsPage() {
           招待リンクで登録したユーザーにロールを付与すると、その権限でカレンダーを閲覧できます。
         </p>
         {redemptions.length === 0 ? (
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            まだ誰も招待リンクから登録していません。
-          </p>
+          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+            <p>まだ誰も招待リンクから登録していません。</p>
+            <p className="mt-1">
+              招待リンクを発行して共有すると、登録した方がここに表示されます。ロールを付与するとスケジュールを閲覧できるようになります。
+            </p>
+          </div>
         ) : (
           <ul className="space-y-2">
             {redemptions.map((r) => {

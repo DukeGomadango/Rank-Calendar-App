@@ -88,9 +88,14 @@ export default async function EventsSettingsPage() {
           イベント一覧
         </h2>
         {events.length === 0 ? (
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            まだイベントが登録されていません。上のフォームから追加できます。
-          </p>
+          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/80 p-4 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
+            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              まだイベントがありません
+            </p>
+            <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+              イベントを追加すると、スケジュール登録時の「参加イベント」から選べます。上のフォームで追加しましょう。
+            </p>
+          </div>
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {events.map((event) => (

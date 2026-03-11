@@ -63,6 +63,8 @@ export default async function DataPage() {
     cursor = cursor.add(1, "day");
   }
 
+  const hasAnyEntries = entries.length > 0;
+
   return (
     <div className="space-y-4">
       <header className="space-y-1">
@@ -73,6 +75,13 @@ export default async function DataPage() {
           {calendar.name ?? "メインカレンダー"} の直近 30 日前〜30 日後のスケジュールを一覧表示します。
         </p>
       </header>
+      {!hasAnyEntries && (
+        <section className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+          <p>
+            この期間にはまだスケジュールがありません。ホームやカレンダーから登録しましょう。
+          </p>
+        </section>
+      )}
       <DataTable data={rows} permissions={permissions} />
     </div>
   );

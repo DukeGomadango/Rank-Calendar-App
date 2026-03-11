@@ -95,7 +95,17 @@ export default async function CalendarPage() {
     cursor = cursor.add(1, "day");
   }
 
+  const hasAnyEntries = entries.length > 0;
+
   return (
+    <div className="space-y-4">
+      {!hasAnyEntries && (
+        <section className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+          <p>
+            この期間にはまだスケジュールがありません。カレンダーの日付をタップして登録しましょう。
+          </p>
+        </section>
+      )}
     <CalendarWithModal
       calendarName={calendar.name ?? "メインカレンダー"}
       monthLabel={today.format("YYYY年 M月")}
@@ -105,6 +115,7 @@ export default async function CalendarPage() {
       saveAction={saveScheduleEntry}
       events={events}
     />
+    </div>
   );
 }
 

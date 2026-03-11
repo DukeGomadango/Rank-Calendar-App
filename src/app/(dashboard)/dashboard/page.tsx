@@ -57,6 +57,9 @@ export default async function DashboardHomePage() {
   const dd = String(today.getDate()).padStart(2, "0");
   const defaultDate = `${yyyy}-${mm}-${dd}`;
 
+  const hasWeeklySchedule = weeklyEntries.length > 0;
+  const todayEntry = weeklyEntries.find((e) => e.date === defaultDate);
+
   return (
     <div className="space-y-6">
       <section>
@@ -69,6 +72,28 @@ export default async function DashboardHomePage() {
           を基準にしたサマリをここに表示していきます。
         </p>
       </section>
+
+      {!hasWeeklySchedule && (
+        <section
+          id="empty-schedule-cta"
+          className="rounded-xl border border-pink-200 bg-pink-50/80 p-4 text-xs dark:border-pink-800 dark:bg-pink-950/30"
+        >
+          <p className="font-medium text-pink-800 dark:text-pink-200">
+            今週はまだスケジュールがありません
+          </p>
+          <p className="mt-1 text-[11px] text-pink-700 dark:text-pink-300">
+            下のフォームから今日の目標+を登録すると、今週の+サマリに反映されます。
+          </p>
+        </section>
+      )}
+
+      {hasWeeklySchedule && !todayEntry && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] dark:border-amber-800 dark:bg-amber-950/30">
+          <p className="text-amber-800 dark:text-amber-200">
+            今日のスケジュールはまだ登録していません。下のフォームから登録できます。
+          </p>
+        </section>
+      )}
 
       <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
         <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
@@ -142,8 +167,10 @@ export default async function DashboardHomePage() {
         />
       </section>
 
-      <section className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/60 p-4 text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-400">
-        計画どおりの実装を進める中で、まずは Supabase 認証とカレンダー用データ構造を整えた後、このホーム画面に「今週の+サマリ」「直近7実働日のブロック表示」「今日のスケジュールカード」などを配置します。
+      <section className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-400">
+        <p>
+          カレンダー・データタブで他の日も登録・編集できます。設定からイベント追加やリスナー招待ができます。
+        </p>
       </section>
     </div>
   );
