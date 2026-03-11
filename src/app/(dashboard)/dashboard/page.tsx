@@ -6,6 +6,7 @@ import { listEventsForCalendar } from "@/lib/data/events";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { toJstDateString, getJstWeekStart } from "@/lib/domain/calendar";
 import { judgeWeeklyRank, type RankEntry } from "@/lib/domain/rank";
+import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { ScheduleForm } from "@/components/schedule/ScheduleForm";
 import { saveScheduleEntry } from "./actions";
 
@@ -72,6 +73,8 @@ export default async function DashboardHomePage() {
           を基準にしたサマリをここに表示していきます。
         </p>
       </section>
+
+      <OnboardingCard />
 
       {!hasWeeklySchedule && (
         <section
