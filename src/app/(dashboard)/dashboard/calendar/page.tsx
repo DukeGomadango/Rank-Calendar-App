@@ -1,3 +1,4 @@
+/// <reference path="../../../../types/holiday-jp.d.ts" />
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
 import { redirect } from "next/navigation";
