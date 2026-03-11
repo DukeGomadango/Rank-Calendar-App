@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
 
@@ -28,6 +28,7 @@ type Props = {
   calendarId: string;
   days: DayData[];
   permissions: CalendarPermissionFlags;
+  moveEntry: (calendarId: string, fromDate: string, toDate: string) => Promise<void>;
   saveAction: (formData: FormData) => void;
   events: { id: string; name: string }[];
 };
@@ -38,12 +39,14 @@ export function CalendarWithModal({
   calendarId,
   days,
   permissions,
+  moveEntry,
   saveAction,
   events,
 }: Props) {
   const { viewMode } = useViewMode();
   const useSimpleView = !permissions.isOwner && viewMode === "simple";
 
+  const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
 
@@ -102,6 +105,9 @@ export function CalendarWithModal({
 
           const hasEntry = day.entries.length > 0;
 
+          const canDrop =
+            permissions.isOwner && (!day.entries.length || !day.entries[0].skip_pass_used);
+
           return (
             <button
               key={day.date}
@@ -110,6 +116,17 @@ export function CalendarWithModal({
                 if (permissions.canEditSchedule) {
                   setSelectedDate(day.date);
                 }
+              }}
+              onDragOver={(e) => {
+                if (canDrop) e.preventDefault();
+              }}
+              onDrop={(e) => {
+                if (!canDrop || !permissions.isOwner) return;
+                const fromDate = e.dataTransfer.getData("text/plain");
+                if (!fromDate || fromDate === day.date) return;
+                startTransition(() => {
+                  void moveEntry(calendarId, fromDate, day.date);
+                });
               }}
               className={`${bg} relative flex min-h-[72px] flex-col border border-zinc-200/80 p-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 dark:border-zinc-800/80`}
             >
@@ -203,6 +220,9 @@ export function CalendarWithModal({
             ? "bg-pink-50 dark:bg-pink-950/40"
             : "bg-white dark:bg-zinc-900";
 
+          const canDrop =
+            permissions.isOwner && (!entry || !entry.skip_pass_used);
+
           return (
             <button
               key={day.date}
@@ -211,6 +231,17 @@ export function CalendarWithModal({
                 if (permissions.canEditSchedule) {
                   setSelectedDate(day.date);
                 }
+              }}
+              onDragOver={(e) => {
+                if (canDrop) e.preventDefault();
+              }}
+              onDrop={(e) => {
+                if (!canDrop || !permissions.isOwner) return;
+                const fromDate = e.dataTransfer.getData("text/plain");
+                if (!fromDate || fromDate === day.date) return;
+                startTransition(() => {
+                  void moveEntry(calendarId, fromDate, day.date);
+                });
               }}
               className={`${bg} relative flex min-h-[140px] flex-col border border-zinc-200/80 p-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 dark:border-zinc-800/80`}
             >
@@ -307,6 +338,12 @@ export function CalendarWithModal({
       </header>
 
       {view === "week" ? renderWeekGrid() : renderMonthGrid()}
+
+      {isPending && (
+        <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+          日付を移動中です…
+        </p>
+      )}
 
       {permissions.canEditSchedule && selectedDate && selectedDay && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-8">

@@ -1,6 +1,9 @@
 import { revalidatePath } from "next/cache";
 
-import { upsertScheduleEntryForDate } from "@/lib/data/schedule-entries";
+import {
+  upsertScheduleEntryForDate,
+  getScheduleEntriesInRange,
+} from "@/lib/data/schedule-entries";
 
 export async function saveScheduleEntry(formData: FormData) {
   "use server";
@@ -44,6 +47,64 @@ export async function saveScheduleEntry(formData: FormData) {
   });
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/calendar");
+}
+
+/**
+ * スケジュールを別の日付へ移動する（PCカレンダーのドラッグ&ドロップ用）。
+ * calendar_id + date で 1 行だけ持つ前提で、fromDate の1件を toDate へコピーし、元を削除する。
+ */
+export async function moveScheduleEntry(
+  calendarId: string,
+  fromDate: string,
+  toDate: string
+) {
+  "use server";
+
+  if (!calendarId || !fromDate || !toDate || fromDate === toDate) {
+    return;
+  }
+
+  const [existing] = await getScheduleEntriesInRange(
+    calendarId,
+    fromDate,
+    fromDate
+  );
+
+  if (!existing) {
+    return;
+  }
+
+  await upsertScheduleEntryForDate(calendarId, {
+    date: toDate,
+    border_plus2: existing.border_plus2,
+    border_plus4: existing.border_plus4,
+    border_plus6: existing.border_plus6,
+    event_id: existing.event_id,
+    memo: null,
+    target_plus: existing.target_plus,
+    actual_plus: existing.actual_plus,
+    skip_pass_used: existing.skip_pass_used,
+  });
+
+  const supabase = await (await import("@/lib/supabase/server"))
+    .createSupabaseServerClient();
+
+  const { error } = await supabase
+    .schema("iriam")
+    .from("schedule_entries")
+    .delete()
+    .eq("calendar_id", calendarId)
+    .eq("date", fromDate);
+
+  if (error) {
+    throw new Error(
+      `schedule_entries delete failed: ${error.message ?? ""} (code=${
+        error.code ?? "unknown"
+      })`
+    );
+  }
+
   revalidatePath("/dashboard/calendar");
 }
 

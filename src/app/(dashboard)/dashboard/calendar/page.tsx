@@ -10,7 +10,7 @@ import {
 } from "@/lib/data/schedule-entries";
 import { listEventsForCalendar } from "@/lib/data/events";
 import { getCalendarPermissionsForUser } from "@/lib/auth/permission";
-import { saveScheduleEntry } from "../actions";
+import { saveScheduleEntry, moveScheduleEntry } from "../actions";
 import { CalendarWithModal } from "@/components/schedule/CalendarWithModal";
 
 dayjs.locale("ja");
@@ -106,15 +106,16 @@ export default async function CalendarPage() {
           </p>
         </section>
       )}
-    <CalendarWithModal
-      calendarName={calendar.name ?? "メインカレンダー"}
-      monthLabel={today.format("YYYY年 M月")}
-      calendarId={calendar.id}
-      permissions={permissions}
-      days={days}
-      saveAction={saveScheduleEntry}
-      events={events}
-    />
+      <CalendarWithModal
+        calendarName={calendar.name ?? "メインカレンダー"}
+        monthLabel={today.format("YYYY年 M月")}
+        calendarId={calendar.id}
+        permissions={permissions}
+        days={days}
+        moveEntry={moveScheduleEntry}
+        saveAction={saveScheduleEntry}
+        events={events}
+      />
     </div>
   );
 }
