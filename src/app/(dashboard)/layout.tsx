@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { MockScheduleProvider } from "@/lib/mock-schedule-context";
 import { ViewModeProvider } from "@/lib/view-mode-context";
 
 type DashboardLayoutProps = {
@@ -9,6 +10,7 @@ type DashboardLayoutProps = {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
+    <MockScheduleProvider>
     <ViewModeProvider>
     <div className="flex min-h-screen flex-col bg-background">
       {/* モバイル: 上部ヘッダー */}
@@ -107,6 +109,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </nav>
     </div>
     </ViewModeProvider>
+    </MockScheduleProvider>
   );
 }
 

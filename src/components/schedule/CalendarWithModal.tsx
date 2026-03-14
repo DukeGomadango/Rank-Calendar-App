@@ -371,6 +371,8 @@ export function CalendarWithModal({
               defaultDate={selectedDate}
               action={saveAction}
               events={events}
+              defaultTargetPlus={selectedDay?.entries[0]?.target_plus}
+              defaultActualPlus={selectedDay?.entries[0]?.actual_plus}
             />
           </div>
         </div>

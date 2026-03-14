@@ -30,6 +30,16 @@ export async function createEvent(formData: FormData) {
   revalidatePath("/dashboard/settings/events");
 }
 
+/** 開発用モック表示用。何もしないサーバーアクション。 */
+export async function noopCreateEvent(_formData: FormData) {
+  "use server";
+}
+
+/** 開発用モック表示用。何もしないサーバーアクション。 */
+export async function noopDeleteEventAction(_formData: FormData) {
+  "use server";
+}
+
 export async function deleteEventAction(formData: FormData) {
   "use server";
 

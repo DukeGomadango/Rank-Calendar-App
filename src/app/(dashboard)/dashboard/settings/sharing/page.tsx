@@ -18,6 +18,12 @@ import {
   createInviteLinkAction,
   deleteInviteLink,
   assignRoleToUser,
+  noopCreateRole,
+  noopDeleteRole,
+  noopSaveRolePermissions,
+  noopCreateInviteLinkAction,
+  noopDeleteInviteLink,
+  noopAssignRoleToUser,
 } from "./actions";
 import { CopyInviteUrl } from "./CopyInviteUrl";
 
@@ -27,8 +33,109 @@ export default async function SharingSettingsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  const isDevMock = process.env.NODE_ENV === "development" && !user;
+
+  if (!user && !isDevMock) {
     redirect("/login");
+  }
+
+  if (isDevMock) {
+    const calendar = { id: "dev-mock", name: "開発用モック" as string | null };
+    const roles: { id: string; name: string }[] = [];
+    const inviteLinks: { id: string; token: string }[] = [];
+    const redemptions: { id: string; user_id: string; redeemed_at: string; display_name: string | null }[] = [];
+    const shares: { user_id: string; role_id: string }[] = [];
+    const shareByUserId = new Map(shares.map((s) => [s.user_id, s.role_id]));
+    const permsByRoleId = new Map<string, string[]>();
+
+    return (
+      <div className="space-y-6">
+        <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+          <p>開発用モック表示です。データは保存されません。</p>
+        </section>
+        <header className="space-y-1">
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            共有・招待
+          </h1>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            {calendar.name ?? "メインカレンダー"}
+            をリスナーに共有するためのロールと招待リンクを管理します。
+          </p>
+        </header>
+        <section className="rounded-xl border border-sky-200 bg-sky-50/80 p-4 text-xs dark:border-sky-800 dark:bg-sky-950/30">
+          <p className="font-medium text-sky-800 dark:text-sky-200">
+            リスナーを招待するには
+          </p>
+          <p className="mt-1 text-[11px] text-sky-700 dark:text-sky-300">
+            まず下でロールを追加し、招待リンクを発行してください。リンクを共有した相手が登録すると、招待済み一覧に表示され、ロールを付与してスケジュールを共有できます。
+          </p>
+        </section>
+        <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+          <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+            ロール
+          </h2>
+          <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+            ロールごとに「何を見せるか」を権限で設定し、招待したユーザーに付与します。
+          </p>
+          <form action={noopCreateRole} className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+                新規ロール名
+              </span>
+              <input
+                type="text"
+                name="name"
+                required
+                className="w-40 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                placeholder="例）リスナーA"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-md bg-pink-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-pink-600"
+            >
+              追加
+            </button>
+          </form>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            まだロールがありません。上でロール名を入力して追加してください。
+          </p>
+        </section>
+        <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+          <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+            招待リンク
+          </h2>
+          <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+            リンクを共有し、踏んだユーザーを「招待済み」に追加します。ロールは下の「招待済みユーザー」で付与してください。
+          </p>
+          <form action={noopCreateInviteLinkAction}>
+            <button
+              type="submit"
+              className="rounded-md bg-pink-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-pink-600"
+            >
+              招待リンクを発行
+            </button>
+          </form>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            まだ招待リンクがありません。
+          </p>
+        </section>
+        <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+          <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+            招待済みユーザー
+          </h2>
+          <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+            招待リンクで登録したユーザーにロールを付与すると、その権限でカレンダーを閲覧できます。
+          </p>
+          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+            <p>まだ誰も招待リンクから登録していません。</p>
+            <p className="mt-1">
+              招待リンクを発行して共有すると、登録した方がここに表示されます。ロールを付与するとスケジュールを閲覧できるようになります。
+            </p>
+          </div>
+        </section>
+      </div>
+    );
   }
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);

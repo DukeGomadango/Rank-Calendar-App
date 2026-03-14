@@ -138,3 +138,28 @@ export async function removeShare(formData: FormData): Promise<void> {
   await deleteShare(calendar.id, targetUserId);
   revalidatePath(SHARING_PATH);
 }
+
+/** 開発用モック表示用。何もしないサーバーアクション。 */
+export async function noopCreateRole(_formData: FormData): Promise<void> {
+  "use server";
+}
+/** 開発用モック表示用。何もしないサーバーアクション。 */
+export async function noopDeleteRole(_formData: FormData): Promise<void> {
+  "use server";
+}
+/** 開発用モック表示用。何もしないサーバーアクション。 */
+export async function noopSaveRolePermissions(_formData: FormData): Promise<void> {
+  "use server";
+}
+/** 開発用モック表示用。何もしないサーバーアクション。 */
+export async function noopCreateInviteLinkAction(): Promise<void> {
+  "use server";
+}
+/** 開発用モック表示用。何もしないサーバーアクション。 */
+export async function noopDeleteInviteLink(_formData: FormData): Promise<void> {
+  "use server";
+}
+/** 開発用モック表示用。何もしないサーバーアクション。 */
+export async function noopAssignRoleToUser(_formData: FormData): Promise<void> {
+  "use server";
+}

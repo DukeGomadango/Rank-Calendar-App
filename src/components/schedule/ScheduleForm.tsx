@@ -4,12 +4,17 @@ import { useId, useRef } from "react";
 import { useFormStatus } from "react-dom";
 
 import { BorderOcrButton } from "@/components/ocr/BorderOcrButton";
+import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 
 type ScheduleFormProps = {
   calendarId: string;
   defaultDate: string;
   action: (formData: FormData) => void;
   events?: { id: string; name: string }[];
+  /** 既存の目標+（モーダルでその日のデータを開くとき用） */
+  defaultTargetPlus?: number | null;
+  /** 既存の実績+（モーダルでその日のデータを開くとき用） */
+  defaultActualPlus?: number | null;
 };
 
 function SubmitButton() {
@@ -30,6 +35,8 @@ export function ScheduleForm({
   defaultDate,
   action,
   events,
+  defaultTargetPlus,
+  defaultActualPlus,
 }: ScheduleFormProps) {
   const idPrefix = useId();
   const border2Ref = useRef<HTMLInputElement | null>(null);
@@ -106,27 +113,35 @@ export function ScheduleForm({
           <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
             今日の +目標
           </span>
-          <input
+          <select
             id={`${idPrefix}-target`}
-            type="number"
             name="target_plus"
-            min={0}
-            max={6}
+            defaultValue={String(normalizePlusValue(defaultTargetPlus))}
             className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-          />
+          >
+            {PLUS_SELECT_VALUES.map((n) => (
+              <option key={n} value={n}>
+                +{n}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="flex flex-col gap-1" htmlFor={`${idPrefix}-actual`}>
           <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
             今日の +実績
           </span>
-          <input
+          <select
             id={`${idPrefix}-actual`}
-            type="number"
             name="actual_plus"
-            min={0}
-            max={6}
+            defaultValue={String(normalizePlusValue(defaultActualPlus))}
             className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-          />
+          >
+            {PLUS_SELECT_VALUES.map((n) => (
+              <option key={n} value={n}>
+                +{n}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 

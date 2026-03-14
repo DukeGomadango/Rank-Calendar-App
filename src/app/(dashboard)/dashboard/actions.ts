@@ -48,6 +48,7 @@ export async function saveScheduleEntry(formData: FormData) {
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard/data");
 }
 
 /**
@@ -106,5 +107,93 @@ export async function moveScheduleEntry(
   }
 
   revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard/data");
+}
+
+/**
+ * データタブから1セル編集したときに呼ぶ。該当日の既存データに1フィールドだけマージして upsert する。
+ */
+export async function updateScheduleEntryField(
+  calendarId: string,
+  date: string,
+  field: string,
+  value: string | number | boolean
+) {
+  "use server";
+
+  const [existing] = await getScheduleEntriesInRange(calendarId, date, date);
+  const base = {
+    date,
+    border_plus2: existing?.border_plus2 ?? null,
+    border_plus4: existing?.border_plus4 ?? null,
+    border_plus6: existing?.border_plus6 ?? null,
+    event_id: existing?.event_id ?? null,
+    memo: existing?.memo ?? null,
+    target_plus: existing?.target_plus ?? null,
+    actual_plus: existing?.actual_plus ?? null,
+    skip_pass_used: existing?.skip_pass_used ?? false,
+  };
+
+  const num = (v: string | number | boolean): number | null => {
+    if (typeof v === "number") return Number.isNaN(v) ? null : v;
+    if (v === "" || v === null || v === undefined) return null;
+    const n = Number(v);
+    return Number.isNaN(n) ? null : n;
+  };
+  const bool = (v: string | number | boolean): boolean =>
+    v === true || v === "on" || v === "true" || v === 1;
+
+  const patch: Record<string, number | null | boolean> = {};
+  if (field === "target_plus") patch.target_plus = num(value);
+  else if (field === "actual_plus") patch.actual_plus = num(value);
+  else if (field === "border_plus2") patch.border_plus2 = num(value);
+  else if (field === "border_plus4") patch.border_plus4 = num(value);
+  else if (field === "border_plus6") patch.border_plus6 = num(value);
+  else if (field === "skip_pass_used") patch.skip_pass_used = bool(value);
+  else return;
+
+  await upsertScheduleEntryForDate(calendarId, {
+    date,
+    border_plus2: patch.border_plus2 ?? base.border_plus2 ?? null,
+    border_plus4: patch.border_plus4 ?? base.border_plus4 ?? null,
+    border_plus6: patch.border_plus6 ?? base.border_plus6 ?? null,
+    event_id: base.event_id ?? null,
+    memo: base.memo ?? null,
+    target_plus: patch.target_plus ?? base.target_plus ?? null,
+    actual_plus: patch.actual_plus ?? base.actual_plus ?? null,
+    skip_pass_used: field === "skip_pass_used" ? bool(value) : base.skip_pass_used,
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard/data");
+}
+
+/**
+ * 開発用モック表示用。何もしないサーバーアクション。
+ */
+export async function noopMoveEntry(
+  _calendarId: string,
+  _fromDate: string,
+  _toDate: string
+) {
+  "use server";
+}
+
+/**
+ * 開発用モック表示用。何もしないサーバーアクション。
+ */
+export async function noopSaveEntry(_formData: FormData) {
+  "use server";
+}
+
+/** 開発用モック表示用。データタブのセル編集で使用。 */
+export async function noopUpdateScheduleEntryField(
+  _calendarId: string,
+  _date: string,
+  _field: string,
+  _value: string | number | boolean
+) {
+  "use server";
 }
 

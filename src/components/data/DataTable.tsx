@@ -7,8 +7,10 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import dayjs from "dayjs";
+import { useTransition } from "react";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
+import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 import { useViewMode } from "@/lib/view-mode-context";
 
 /** 日付・曜日は必ずあり、他は登録があれば入る */
@@ -24,14 +26,30 @@ type Row = {
   skip_pass_used?: boolean;
 };
 
+type UpdateFieldAction = (
+  calendarId: string,
+  date: string,
+  field: string,
+  value: string | number | boolean
+) => Promise<void>;
+
 type Props = {
   data: Row[];
   permissions: CalendarPermissionFlags;
+  calendarId: string;
+  onUpdateField: UpdateFieldAction;
 };
 
-export function DataTable({ data, permissions }: Props) {
+const inputClass =
+  "w-full min-w-[2.5rem] rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] text-zinc-900 outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50";
+const selectClass =
+  "w-full min-w-[2.5rem] rounded border border-zinc-300 bg-white px-1 py-0.5 text-[11px] text-zinc-900 outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50";
+
+export function DataTable({ data, permissions, calendarId, onUpdateField }: Props) {
+  const [isPending, startTransition] = useTransition();
   const { viewMode } = useViewMode();
   const hideBordersInSimple = !permissions.isOwner && viewMode === "simple";
+  const canEdit = permissions.canEditSchedule;
 
   const columns: ColumnDef<Row>[] = [
     {
@@ -46,52 +64,168 @@ export function DataTable({ data, permissions }: Props) {
     {
       accessorKey: "target_plus",
       header: "目標+",
-      cell: ({ getValue }) => {
+      cell: ({ row, getValue }) => {
         if (!permissions.canViewTargetActual) return "";
         const v = getValue<number | null | undefined>();
-        return v != null ? String(v) : "";
+        const displayVal = normalizePlusValue(v);
+        if (canEdit) {
+          return (
+            <select
+              defaultValue={displayVal}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                startTransition(() =>
+                  onUpdateField(calendarId, row.original.date, "target_plus", next)
+                );
+              }}
+              className={selectClass}
+              disabled={isPending}
+            >
+              {PLUS_SELECT_VALUES.map((n) => (
+                <option key={n} value={n}>
+                  +{n}
+                </option>
+              ))}
+            </select>
+          );
+        }
+        return `+${displayVal}`;
       },
     },
     {
       accessorKey: "actual_plus",
       header: "実績+",
-      cell: ({ getValue }) => {
+      cell: ({ row, getValue }) => {
         if (!permissions.canViewTargetActual) return "";
         const v = getValue<number | null | undefined>();
-        return v != null ? String(v) : "";
+        const displayVal = normalizePlusValue(v);
+        if (canEdit) {
+          return (
+            <select
+              defaultValue={displayVal}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                startTransition(() =>
+                  onUpdateField(calendarId, row.original.date, "actual_plus", next)
+                );
+              }}
+              className={selectClass}
+              disabled={isPending}
+            >
+              {PLUS_SELECT_VALUES.map((n) => (
+                <option key={n} value={n}>
+                  +{n}
+                </option>
+              ))}
+            </select>
+          );
+        }
+        return `+${displayVal}`;
       },
     },
     {
       accessorKey: "border_plus2",
       header: "+2ボーダー",
-      cell: ({ getValue }) => {
+      cell: ({ row, getValue }) => {
         if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
+        if (canEdit) {
+          return (
+            <input
+              type="number"
+              min={0}
+              defaultValue={v != null ? String(v) : ""}
+              onBlur={(e) => {
+                const next = e.target.value;
+                startTransition(() =>
+                  onUpdateField(calendarId, row.original.date, "border_plus2", next === "" ? "" : Number(next))
+                );
+              }}
+              className={inputClass}
+              disabled={isPending}
+            />
+          );
+        }
         return v != null ? String(v) : "";
       },
     },
     {
       accessorKey: "border_plus4",
       header: "+4ボーダー",
-      cell: ({ getValue }) => {
+      cell: ({ row, getValue }) => {
         if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
+        if (canEdit) {
+          return (
+            <input
+              type="number"
+              min={0}
+              defaultValue={v != null ? String(v) : ""}
+              onBlur={(e) => {
+                const next = e.target.value;
+                startTransition(() =>
+                  onUpdateField(calendarId, row.original.date, "border_plus4", next === "" ? "" : Number(next))
+                );
+              }}
+              className={inputClass}
+              disabled={isPending}
+            />
+          );
+        }
         return v != null ? String(v) : "";
       },
     },
     {
       accessorKey: "border_plus6",
       header: "+6ボーダー",
-      cell: ({ getValue }) => {
+      cell: ({ row, getValue }) => {
         if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
+        if (canEdit) {
+          return (
+            <input
+              type="number"
+              min={0}
+              defaultValue={v != null ? String(v) : ""}
+              onBlur={(e) => {
+                const next = e.target.value;
+                startTransition(() =>
+                  onUpdateField(calendarId, row.original.date, "border_plus6", next === "" ? "" : Number(next))
+                );
+              }}
+              className={inputClass}
+              disabled={isPending}
+            />
+          );
+        }
         return v != null ? String(v) : "";
       },
     },
     {
       accessorKey: "skip_pass_used",
       header: "スキップ",
-      cell: ({ getValue }) => (getValue<boolean>() ? "使用" : ""),
+      cell: ({ row, getValue }) => {
+        const checked = !!getValue<boolean>();
+        if (canEdit) {
+          return (
+            <label className="inline-flex items-center gap-1">
+              <input
+                type="checkbox"
+                defaultChecked={checked}
+                onChange={(e) => {
+                  startTransition(() =>
+                    onUpdateField(calendarId, row.original.date, "skip_pass_used", e.target.checked)
+                  );
+                }}
+                className="rounded border-zinc-300 text-pink-500 focus:ring-pink-400"
+                disabled={isPending}
+              />
+              {checked ? "使用" : ""}
+            </label>
+          );
+        }
+        return checked ? "使用" : "";
+      },
     },
   ];
 

@@ -58,7 +58,8 @@ export type ScheduleEntryRow = {
   border_plus2: number | null;
   border_plus4: number | null;
   border_plus6: number | null;
-   event_id: string | null;
+  event_id: string | null;
+  memo: string | null;
   target_plus: number | null;
   actual_plus: number | null;
   skip_pass_used: boolean;
@@ -75,7 +76,7 @@ export async function getScheduleEntriesInRange(
     .schema("iriam")
     .from("schedule_entries")
     .select(
-      "id, date, border_plus2, border_plus4, border_plus6, event_id, target_plus, actual_plus, skip_pass_used"
+      "id, date, border_plus2, border_plus4, border_plus6, event_id, memo, target_plus, actual_plus, skip_pass_used"
     )
     .eq("calendar_id", calendarId)
     .gte("date", fromDate)

@@ -70,6 +70,17 @@ export default function Home() {
             利用規約
           </Link>
         </section>
+
+        {process.env.NODE_ENV === "development" && (
+          <section className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
+            <Link
+              href="/dashboard/calendar"
+              className="text-xs text-amber-600 underline-offset-2 hover:underline dark:text-amber-400"
+            >
+              開発用: カレンダーへ
+            </Link>
+          </section>
+        )}
       </main>
     </div>
   );
