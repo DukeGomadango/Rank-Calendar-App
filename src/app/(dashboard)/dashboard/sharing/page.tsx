@@ -138,6 +138,7 @@ export default async function SharingPage() {
     );
   }
 
+  if (!user) redirect("/login");
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const [roles, inviteLinks, redemptions, shares] = await Promise.all([
     listRolesForCalendar(calendar.id),

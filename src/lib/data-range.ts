@@ -11,8 +11,10 @@ const VALID_DAYS = new Set(DATA_RANGE_OPTIONS.map((o) => o.value));
 
 export const DEFAULT_DATA_RANGE_DAYS = 30;
 
-export function parseDaysParam(value: string | null | undefined): number {
+export type DataRangeDays = (typeof DATA_RANGE_OPTIONS)[number]["value"];
+
+export function parseDaysParam(value: string | null | undefined): DataRangeDays {
   if (value == null) return DEFAULT_DATA_RANGE_DAYS;
-  const n = Number(value);
+  const n = Number(value) as DataRangeDays;
   return VALID_DAYS.has(n) ? n : DEFAULT_DATA_RANGE_DAYS;
 }

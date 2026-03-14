@@ -143,6 +143,9 @@ export async function updateScheduleEntryField(
   const bool = (v: string | number | boolean): boolean =>
     v === true || v === "on" || v === "true" || v === 1;
 
+  const asNumOrNull = (v: number | null | boolean | undefined): number | null =>
+    typeof v === "number" ? v : null;
+
   const patch: Record<string, number | null | boolean> = {};
   if (field === "target_plus") patch.target_plus = num(value);
   else if (field === "actual_plus") patch.actual_plus = num(value);
@@ -154,13 +157,13 @@ export async function updateScheduleEntryField(
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
-    border_plus2: patch.border_plus2 ?? base.border_plus2 ?? null,
-    border_plus4: patch.border_plus4 ?? base.border_plus4 ?? null,
-    border_plus6: patch.border_plus6 ?? base.border_plus6 ?? null,
+    border_plus2: asNumOrNull(patch.border_plus2) ?? base.border_plus2 ?? null,
+    border_plus4: asNumOrNull(patch.border_plus4) ?? base.border_plus4 ?? null,
+    border_plus6: asNumOrNull(patch.border_plus6) ?? base.border_plus6 ?? null,
     event_id: base.event_id ?? null,
     memo: base.memo ?? null,
-    target_plus: patch.target_plus ?? base.target_plus ?? null,
-    actual_plus: patch.actual_plus ?? base.actual_plus ?? null,
+    target_plus: asNumOrNull(patch.target_plus) ?? base.target_plus ?? null,
+    actual_plus: asNumOrNull(patch.actual_plus) ?? base.actual_plus ?? null,
     skip_pass_used: field === "skip_pass_used" ? bool(value) : base.skip_pass_used,
   });
 

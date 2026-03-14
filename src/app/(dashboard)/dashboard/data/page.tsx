@@ -46,10 +46,10 @@ export default async function DataPage(props: PageProps) {
   }
 
   const rawSp = props.searchParams;
-  const resolvedSp =
+  const resolvedSp: { days?: string } =
     rawSp && typeof (rawSp as Promise<unknown>).then === "function"
       ? await (rawSp as Promise<{ days?: string }>)
-      : (rawSp ?? {});
+      : (rawSp ?? {}) as { days?: string };
   const daysRange = parseDaysParam(resolvedSp.days);
 
   if (isDevMock) {
@@ -111,6 +111,7 @@ export default async function DataPage(props: PageProps) {
     );
   }
 
+  if (!user) redirect("/login");
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const permissions = await getCalendarPermissionsForUser(calendar.id, user.id);
 

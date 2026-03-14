@@ -108,6 +108,7 @@ export default async function EventsPage() {
     );
   }
 
+  if (!user) redirect("/login");
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const events = await listEventsForCalendar(calendar.id);
 

@@ -42,7 +42,7 @@ export default async function DashboardHomePage() {
     const judgements = judgeWeeklyRank(rankEntries);
     const thisWeek = judgements.find((j) => j.weekStart === weekStartJst);
     const totalPlus = thisWeek?.totalPlus ?? 0;
-    const maxPlus = 18;
+    const maxPlus: number = 18;
     const progressRatio = Math.max(0, Math.min(1, maxPlus === 0 ? 0 : totalPlus / maxPlus));
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -132,6 +132,7 @@ export default async function DashboardHomePage() {
     );
   }
 
+  if (!user) redirect("/login");
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const events = await listEventsForCalendar(calendar.id);
 

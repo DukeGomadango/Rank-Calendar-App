@@ -21,6 +21,7 @@ import {
   noopSaveEntry,
 } from "../actions";
 import { CalendarMockWrapper } from "@/components/schedule/CalendarMockWrapper";
+import { CalendarWithModal } from "@/components/schedule/CalendarWithModal";
 
 dayjs.locale("ja");
 
@@ -44,7 +45,7 @@ function parseMonthParam(month?: string | string[]): dayjs.Dayjs {
 }
 
 /** week=YYYY-MM-DD の週の日曜日を返す。不正なら今月15日を含む週の日曜。 */
-function parseWeekParam(week?: string | string[], displayMonth: dayjs.Dayjs): string {
+function parseWeekParam(displayMonth: dayjs.Dayjs, week?: string | string[]): string {
   const raw = typeof week === "string" ? week : Array.isArray(week) ? week[0] : undefined;
   if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const parsed = dayjs(raw, "YYYY-MM-DD", true);
@@ -69,12 +70,12 @@ export default async function CalendarPage(props: PageProps) {
   }
 
   const rawSp = props.searchParams;
-  const resolvedSp =
+  const resolvedSp: { month?: string; week?: string } =
     rawSp && typeof (rawSp as Promise<unknown>).then === "function"
       ? await (rawSp as Promise<{ month?: string; week?: string }>)
-      : (rawSp ?? {});
+      : (rawSp ?? {}) as { month?: string; week?: string };
   let displayMonth = parseMonthParam(resolvedSp.month);
-  const currentWeekStart = parseWeekParam(resolvedSp.week, displayMonth);
+  const currentWeekStart = parseWeekParam(displayMonth, resolvedSp.week);
   if (resolvedSp.week && /^\d{4}-\d{2}-\d{2}$/.test(resolvedSp.week) && dayjs(resolvedSp.week, "YYYY-MM-DD", true).isValid()) {
     displayMonth = dayjs(currentWeekStart).startOf("month");
   }
@@ -134,6 +135,7 @@ export default async function CalendarPage(props: PageProps) {
     );
   }
 
+  if (!user) redirect("/login");
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const permissions = await getCalendarPermissionsForUser(calendar.id, user.id);
 
