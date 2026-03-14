@@ -4,6 +4,11 @@ import {
   upsertScheduleEntryForDate,
   getScheduleEntriesInRange,
 } from "@/lib/data/schedule-entries";
+import {
+  getOrCreateCalendarRankState,
+  extendRankResetDate,
+} from "@/lib/data/calendar-rank-state";
+import { compareJstDate } from "@/lib/domain/calendar";
 
 export async function saveScheduleEntry(formData: FormData) {
   "use server";
@@ -143,17 +148,31 @@ export async function updateScheduleEntryField(
   const bool = (v: string | number | boolean): boolean =>
     v === true || v === "on" || v === "true" || v === 1;
 
-  const asNumOrNull = (v: number | null | boolean | undefined): number | null =>
-    typeof v === "number" ? v : null;
+  const asNumOrNull = (
+    v: number | null | boolean | string | undefined
+  ): number | null => (typeof v === "number" ? v : null);
 
-  const patch: Record<string, number | null | boolean> = {};
+  const patch: Record<
+    string,
+    number | null | boolean | string | undefined
+  > = {};
   if (field === "target_plus") patch.target_plus = num(value);
   else if (field === "actual_plus") patch.actual_plus = num(value);
   else if (field === "border_plus2") patch.border_plus2 = num(value);
   else if (field === "border_plus4") patch.border_plus4 = num(value);
   else if (field === "border_plus6") patch.border_plus6 = num(value);
   else if (field === "skip_pass_used") patch.skip_pass_used = bool(value);
+  else if (field === "memo")
+    patch.memo =
+      typeof value === "string" ? (value.trim() || null) : null;
   else return;
+
+  const memoValue =
+    field === "memo" && typeof patch.memo === "string"
+      ? patch.memo
+      : field === "memo" && patch.memo === null
+        ? null
+        : base.memo ?? null;
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
@@ -161,11 +180,26 @@ export async function updateScheduleEntryField(
     border_plus4: asNumOrNull(patch.border_plus4) ?? base.border_plus4 ?? null,
     border_plus6: asNumOrNull(patch.border_plus6) ?? base.border_plus6 ?? null,
     event_id: base.event_id ?? null,
-    memo: base.memo ?? null,
+    memo: memoValue,
     target_plus: asNumOrNull(patch.target_plus) ?? base.target_plus ?? null,
     actual_plus: asNumOrNull(patch.actual_plus) ?? base.actual_plus ?? null,
     skip_pass_used: field === "skip_pass_used" ? bool(value) : base.skip_pass_used,
   });
+
+  if (field === "skip_pass_used" && bool(value)) {
+    const state = await getOrCreateCalendarRankState(calendarId);
+    if (
+      compareJstDate(date, state.rank_cycle_start_date) >= 0 &&
+      compareJstDate(date, state.rank_reset_date) <= 0
+    ) {
+      await extendRankResetDate(
+        calendarId,
+        date,
+        state.rank_cycle_start_date,
+        state.rank_reset_date
+      );
+    }
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/calendar");
@@ -198,5 +232,90 @@ export async function noopUpdateScheduleEntryField(
   _value: string | number | boolean
 ) {
   "use server";
+}
+
+/** 開発用モック表示用。ランクアップ・ランク変更は何もしない。 */
+export async function noopApplyRankUp(_calendarId: string) {
+  "use server";
+}
+
+/** 開発用モック表示用。ランク変更は何もしない。 */
+export async function noopUpdateCurrentRank(
+  _calendarId: string,
+  _newRank: string | null
+) {
+  "use server";
+}
+
+/** 開発用モック表示用。リセット日変更は何もしない。 */
+export async function noopUpdateRankResetDate(
+  _calendarId: string,
+  _newResetDate: string
+) {
+  "use server";
+}
+
+/**
+ * ランクアップを反映: current_rank を1段階上げ、新周期（翌日〜翌+6日）を設定。
+ */
+export async function applyRankUp(calendarId: string) {
+  "use server";
+
+  const { getOrCreateCalendarRankState, applyRankUp: applyRankUpState } = await import(
+    "@/lib/data/calendar-rank-state"
+  );
+  const { toJstDateString } = await import("@/lib/domain/calendar");
+  const state = await getOrCreateCalendarRankState(calendarId);
+  const todayJst = toJstDateString(new Date());
+  await applyRankUpState(calendarId, todayJst, state.current_rank);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard/data");
+}
+
+/**
+ * 現在ランクを手動で更新する（ランク変更UI用）。
+ */
+export async function updateCurrentRank(
+  calendarId: string,
+  newRank: string | null
+) {
+  "use server";
+
+  const { updateCurrentRank: updateRankState } = await import(
+    "@/lib/data/calendar-rank-state"
+  );
+  const { RANK_ORDER } = await import("@/lib/domain/rank");
+  const validRank =
+    newRank && RANK_ORDER.includes(newRank as (typeof RANK_ORDER)[number])
+      ? (newRank as (typeof RANK_ORDER)[number])
+      : null;
+  await updateRankState(calendarId, validRank);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard/data");
+  revalidatePath("/dashboard/settings");
+}
+
+/**
+ * 集計周期のリセット日を手動で設定する（IRIAM の実際の周期に合わせる用）。
+ */
+export async function updateRankResetDate(
+  calendarId: string,
+  newResetDate: string
+) {
+  "use server";
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newResetDate)) {
+    return;
+  }
+  const { updateRankResetDate: updateResetState } = await import(
+    "@/lib/data/calendar-rank-state"
+  );
+  await updateResetState(calendarId, newResetDate);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard/data");
+  revalidatePath("/dashboard/settings");
 }
 

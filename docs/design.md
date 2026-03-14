@@ -5,7 +5,7 @@
 - **シンプルさ**: ランク管理に必要な機能に絞り、余計な依存を増やさない。
 - **プライバシー**: OCR はクライアントのみで実行し、画像をサーバーに送らない。トラッキングを行わない。
 - **権限の明確化**: カレンダー単位でオーナーと共有先を分け、ロールで「何を見せるか」を細かく制御する。
-- **日付は JST 一貫**: アプリ内の日付ロジックはすべて JST（Asia/Tokyo）基準。週は月曜始まり（ISO 週）で統一。
+- **日付は JST 一貫**: アプリ内の日付ロジックはすべて JST（Asia/Tokyo）基準。ランク集計は**ライバーごとの集計周期**（リセット日・ランクアップでリセット）で行い、スキップ使用でリセット日が延長される。
 
 ---
 
@@ -62,6 +62,7 @@
 | **invite_links** | 招待リンク。`calendar_id`, `role_id`, トークン、有効期限など。 |
 | **invite_redemptions** | 招待の利用履歴。誰がどの招待で参加したか。 |
 | **shares** | ユーザーとカレンダーの共有関係。`user_id`, `calendar_id`, `role_id`。 |
+| **calendar_rank_state** | カレンダーごとのランク状態。`current_rank`, `rank_cycle_start_date`, `rank_reset_date`。スキップでリセット日延長、ランクアップで新周期。 |
 
 ### schedule_entries の主なカラム
 
@@ -96,7 +97,7 @@
 ## ドメインロジック
 
 - **`lib/domain/calendar.ts`**: JST 日付文字列（`JstDateString`）、`toJstDateString`, `getJstWeekStart`, `compareJstDate`。
-- **`lib/domain/rank.ts`**: `RankEntry`, `WeeklyRankProgress`, `RankJudgement`。`calculateWeeklyRankProgress`（週ごとの + 集計）、`judgeWeeklyRank`（+18 ランクアップ可、+12 中間目標の判定）。週は月曜始まり、スキップ日は集計から除外。
+- **`lib/domain/rank.ts`**: `RankEntry`, `WeeklyRankProgress`, `RankJudgement`。`calculateWeeklyRankProgress`（月曜週ベースの後方互換用）、`calculateCycleCumulativeByDate`（集計周期内の日別累計）、`judgeCycleRank`（+18 ランクアップ / +12 キープ / 未満ダウン）。**集計周期**は `calendar_rank_state` の `rank_cycle_start_date` 〜 `rank_reset_date`。スキップ日は集計から除外。ランクアップで翌日がゼロ日目（新周期開始）。
 
 ---
 

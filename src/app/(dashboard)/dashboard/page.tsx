@@ -4,12 +4,21 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
 import { listEventsForCalendar } from "@/lib/data/events";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
-import { toJstDateString, getJstWeekStart } from "@/lib/domain/calendar";
-import { judgeWeeklyRank, type RankEntry } from "@/lib/domain/rank";
+import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
+import { toJstDateString, getJstWeekStart, addDays } from "@/lib/domain/calendar";
+import { judgeCycleRank, type RankEntry } from "@/lib/domain/rank";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
+import { CurrentRankBadge } from "@/components/dashboard/CurrentRankBadge";
 import { WeeklyPlusSummary } from "@/components/dashboard/WeeklyPlusSummary";
 import { HomeScheduleCard } from "@/components/schedule/HomeScheduleCard";
-import { saveScheduleEntry, noopSaveEntry } from "./actions";
+import {
+  saveScheduleEntry,
+  noopSaveEntry,
+  applyRankUp,
+  updateCurrentRank,
+  updateRankResetDate,
+  noopApplyRankUp,
+} from "./actions";
 
 const DEV_MOCK_BANNER = (
   <section className="rounded-2xl bg-amber-50/90 p-3 text-[11px] text-amber-800 shadow-sm dark:bg-orange-500/20 dark:text-orange-400">
@@ -34,24 +43,25 @@ export default async function DashboardHomePage() {
     const events: { id: string; name: string }[] = [];
     const todayJst = toJstDateString(new Date());
     const weekStartJst = getJstWeekStart(todayJst);
-    const [y, m, d] = weekStartJst.split("-").map((v) => Number.parseInt(v, 10));
-    const startDate = new Date(y, m - 1, d);
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-    const weekEndJst = toJstDateString(endDate);
-    const rankEntries: RankEntry[] = [];
-    const judgements = judgeWeeklyRank(rankEntries);
-    const thisWeek = judgements.find((j) => j.weekStart === weekStartJst);
-    const totalPlus = thisWeek?.totalPlus ?? 0;
+    const weekEndJst = addDays(weekStartJst, 6);
+    const totalPlus = 0;
     const maxPlus: number = 18;
-    const progressRatio = Math.max(0, Math.min(1, maxPlus === 0 ? 0 : totalPlus / maxPlus));
+    const { canRankUp: canRankUpNextDay, isKeep: reachedIntermediate } =
+      judgeCycleRank(totalPlus);
+    const [ry, rm, rd] = weekEndJst.split("-").map((v) => Number.parseInt(v, 10));
+    const [ty, tm, td] = todayJst.split("-").map((v) => Number.parseInt(v, 10));
+    const resetDateOnly = new Date(ry, rm - 1, rd);
+    const todayDateOnly = new Date(ty, tm - 1, td);
+    const daysUntilReset = Math.max(
+      0,
+      Math.ceil((resetDateOnly.getTime() - todayDateOnly.getTime()) / (24 * 60 * 60 * 1000))
+    );
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
     const defaultDate = `${yyyy}-${mm}-${dd}`;
-    const hasWeeklySchedule = false;
-    const todayEntry = undefined;
+    // モック用: 集計周期は今週で、ランク未設定
 
     return (
       <div className="space-y-6">
@@ -69,6 +79,13 @@ export default async function DashboardHomePage() {
         <OnboardingCard />
         <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8 lg:items-start">
           <div className="space-y-6">
+            <CurrentRankBadge
+              calendarId={calendar.id}
+              currentRank={null}
+              canRankUp={canRankUpNextDay}
+              daysUntilReset={daysUntilReset}
+              onApplyRankUp={noopApplyRankUp}
+            />
             <section
               id="empty-schedule-cta"
               className="rounded-2xl bg-gradient-to-br from-accent-50/90 to-white p-4 text-xs shadow-md dark:from-accent-950/30 dark:to-slate-800"
@@ -77,7 +94,7 @@ export default async function DashboardHomePage() {
                 📅 今週の配信予定を立ててみよう！✨
               </p>
               <p className="mt-1 text-[11px] text-accent-700 dark:text-accent-300">
-                右のフォームから今日の目標+を登録すると、今週の+サマリに反映されます。
+                右のフォームから今日の目標+を登録すると、今の集計周期の+サマリに反映されます。
               </p>
             </section>
             <WeeklyPlusSummary
@@ -85,6 +102,11 @@ export default async function DashboardHomePage() {
               maxPlus={maxPlus}
               weekStartJst={weekStartJst}
               weekEndJst={weekEndJst}
+              canRankUpNextDay={canRankUpNextDay}
+              reachedIntermediate={reachedIntermediate}
+              daysUntilReset={daysUntilReset}
+              weeklyEntries={[]}
+              todayJst={todayJst}
             />
             <section className="rounded-2xl bg-white p-3 text-[11px] text-zinc-600 shadow-sm dark:bg-slate-800 dark:text-zinc-400">
               <p>
@@ -111,19 +133,17 @@ export default async function DashboardHomePage() {
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
   const events = await listEventsForCalendar(calendar.id);
 
-  // JST 基準で今週（月〜日）の範囲を計算
   const todayJst = toJstDateString(new Date());
-  const weekStartJst = getJstWeekStart(todayJst);
-  const [y, m, d] = weekStartJst.split("-").map((v) => Number.parseInt(v, 10));
-  const startDate = new Date(y, m - 1, d);
-  const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 6);
-  const weekEndJst = toJstDateString(endDate);
+  const rankState = await getOrCreateCalendarRankState(calendar.id);
+  const cycleStart = rankState.rank_cycle_start_date;
+  const cycleEnd = rankState.rank_reset_date;
+  const weekStartJst = cycleStart;
+  const weekEndJst = cycleEnd;
 
   const weeklyEntries = await getScheduleEntriesInRange(
     calendar.id,
-    weekStartJst,
-    weekEndJst
+    cycleStart,
+    cycleEnd
   );
 
   const rankEntries: RankEntry[] = weeklyEntries.map((e) => ({
@@ -131,10 +151,21 @@ export default async function DashboardHomePage() {
     actual_plus: e.actual_plus,
     skip_pass_used: e.skip_pass_used,
   }));
-  const judgements = judgeWeeklyRank(rankEntries);
-  const thisWeek = judgements.find((j) => j.weekStart === weekStartJst);
-  const totalPlus = thisWeek?.totalPlus ?? 0;
+  const totalPlus = rankEntries
+    .filter((e) => !e.skip_pass_used)
+    .reduce((sum, e) => sum + (e.actual_plus ?? 0), 0);
+  const { canRankUp: canRankUpNextDay, isKeep: reachedIntermediate } =
+    judgeCycleRank(totalPlus);
   const maxPlus: number = 18;
+
+  const [ry, rm, rd] = cycleEnd.split("-").map((v) => Number.parseInt(v, 10));
+  const [ty, tm, td] = todayJst.split("-").map((v) => Number.parseInt(v, 10));
+  const resetDateOnly = new Date(ry, rm - 1, rd);
+  const todayDateOnly = new Date(ty, tm - 1, td);
+  const daysUntilReset = Math.max(
+    0,
+    Math.ceil((resetDateOnly.getTime() - todayDateOnly.getTime()) / (24 * 60 * 60 * 1000))
+  );
 
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -162,6 +193,13 @@ export default async function DashboardHomePage() {
 
       <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8 lg:items-start">
         <div className="space-y-6">
+          <CurrentRankBadge
+            calendarId={calendar.id}
+            currentRank={rankState.current_rank}
+            canRankUp={canRankUpNextDay}
+            daysUntilReset={daysUntilReset}
+            onApplyRankUp={applyRankUp}
+          />
           {!hasWeeklySchedule && (
             <section
               id="empty-schedule-cta"
@@ -189,8 +227,11 @@ export default async function DashboardHomePage() {
             maxPlus={maxPlus}
             weekStartJst={weekStartJst}
             weekEndJst={weekEndJst}
-            canRankUpNextDay={thisWeek?.canRankUpNextDay}
-            reachedIntermediate={thisWeek?.reachedIntermediate}
+            canRankUpNextDay={canRankUpNextDay}
+            reachedIntermediate={reachedIntermediate}
+            daysUntilReset={daysUntilReset}
+            weeklyEntries={weeklyEntries}
+            todayJst={todayJst}
           />
 
           <section className="rounded-2xl bg-white p-3 text-[11px] text-zinc-600 shadow-sm dark:bg-slate-800 dark:text-zinc-400">

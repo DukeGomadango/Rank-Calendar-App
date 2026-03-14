@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { DataTable } from "./DataTable";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
+import type { EventRow } from "@/lib/data/events";
 import { useMockSchedule } from "@/lib/mock-schedule-context";
 
 export type DataTableRow = {
@@ -15,12 +16,18 @@ export type DataTableRow = {
   target_plus?: number | null;
   actual_plus?: number | null;
   skip_pass_used?: boolean;
+  current_rank?: string | null;
+  rank_score_cumulative?: number | null;
+  memo?: string | null;
+  event_id?: string | null;
 };
 
 type Props = {
   initialRows: DataTableRow[];
   permissions: CalendarPermissionFlags;
   calendarId: string;
+  /** 日付詳細モーダル用。モックでは空配列でよい。 */
+  events?: EventRow[];
 };
 
 /**
@@ -30,6 +37,7 @@ export function DataTableWithMockState({
   initialRows,
   permissions,
   calendarId,
+  events = [],
 }: Props) {
   const ctx = useMockSchedule();
   const rows = useMemo(() => {
@@ -54,6 +62,7 @@ export function DataTableWithMockState({
       permissions={permissions}
       calendarId={calendarId}
       onUpdateField={onUpdateField}
+      events={events}
     />
   );
 }

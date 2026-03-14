@@ -53,3 +53,17 @@ export function compareJstDate(a: JstDateString, b: JstDateString): number {
   return a < b ? -1 : 1;
 }
 
+/**
+ * JST 日付文字列に n 日を加算した日付を返す。
+ * 周期の終了日延長・新周期の reset 計算用。
+ */
+export function addDays(date: JstDateString, n: number): JstDateString {
+  const [y, m, d] = date.split("-").map((v) => Number.parseInt(v, 10));
+  const jsDate = new Date(y, m - 1, d);
+  jsDate.setDate(jsDate.getDate() + n);
+  const year = jsDate.getFullYear();
+  const month = String(jsDate.getMonth() + 1).padStart(2, "0");
+  const day = String(jsDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+

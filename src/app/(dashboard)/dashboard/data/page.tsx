@@ -7,6 +7,10 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
+import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
+import { listEventsForCalendar } from "@/lib/data/events";
+import { calculateCycleCumulativeByDate } from "@/lib/domain/rank";
+import { compareJstDate, getJstWeekStart, addDays } from "@/lib/domain/calendar";
 import {
   getCalendarPermissionsForUser,
   type CalendarPermissionFlags,
@@ -55,6 +59,9 @@ export default async function DataPage(props: PageProps) {
   if (isDevMock) {
     const calendar = { id: "dev-mock", name: "開発用モック" as string | null };
     const today = dayjs();
+    const todayJst = today.format("YYYY-MM-DD");
+    const cycleStart = getJstWeekStart(todayJst);
+    const cycleEnd = addDays(cycleStart, 6);
     const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
     const to = today.add(daysRange, "day").format("YYYY-MM-DD");
     const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -68,13 +75,19 @@ export default async function DataPage(props: PageProps) {
       target_plus?: number | null;
       actual_plus?: number | null;
       skip_pass_used?: boolean;
+      current_rank?: string | null;
+      rank_score_cumulative?: number | null;
     }[] = [];
     let cursor = dayjs(from);
     const end = dayjs(to);
     while (cursor.isSame(end) || cursor.isBefore(end)) {
+      const dateStr = cursor.format("YYYY-MM-DD");
+      const inCycle = dateStr >= cycleStart && dateStr <= cycleEnd;
       rows.push({
-        date: cursor.format("YYYY-MM-DD"),
+        date: dateStr,
         weekday: WEEKDAYS[cursor.day()],
+        current_rank: null,
+        rank_score_cumulative: inCycle ? 0 : null,
       });
       cursor = cursor.add(1, "day");
     }
@@ -106,6 +119,7 @@ export default async function DataPage(props: PageProps) {
           initialRows={rows}
           permissions={DEV_MOCK_PERMISSIONS}
           calendarId={calendar.id}
+          events={[]}
         />
       </div>
     );
@@ -134,11 +148,40 @@ export default async function DataPage(props: PageProps) {
   const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
   const to = today.add(daysRange, "day").format("YYYY-MM-DD");
 
-  const entries = await getScheduleEntriesInRange(calendar.id, from, to);
+  const [entries, events] = await Promise.all([
+    getScheduleEntriesInRange(calendar.id, from, to),
+    listEventsForCalendar(calendar.id),
+  ]);
   const entriesByDate = new Map(entries.map((e) => [e.date, e]));
 
+  const rankState = await getOrCreateCalendarRankState(calendar.id);
+  const cycleStart = rankState.rank_cycle_start_date;
+  const cycleEnd = rankState.rank_reset_date;
+  const rankEntries = entries.map((e) => ({
+    date: e.date,
+    actual_plus: e.actual_plus,
+    skip_pass_used: e.skip_pass_used,
+  }));
+  const cumulativeByDate = calculateCycleCumulativeByDate(
+    rankEntries,
+    cycleStart,
+    cycleEnd
+  );
+
   const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
-  const rows: { date: string; weekday: string; id?: string; border_plus2?: number | null; border_plus4?: number | null; border_plus6?: number | null; target_plus?: number | null; actual_plus?: number | null; skip_pass_used?: boolean }[] = [];
+  const rows: {
+    date: string;
+    weekday: string;
+    id?: string;
+    border_plus2?: number | null;
+    border_plus4?: number | null;
+    border_plus6?: number | null;
+    target_plus?: number | null;
+    actual_plus?: number | null;
+    skip_pass_used?: boolean;
+    current_rank?: string | null;
+    rank_score_cumulative?: number | null;
+  }[] = [];
 
   let cursor = dayjs(from);
   const end = dayjs(to);
@@ -146,10 +189,15 @@ export default async function DataPage(props: PageProps) {
     const dateStr = cursor.format("YYYY-MM-DD");
     const weekday = WEEKDAYS[cursor.day()];
     const entry = entriesByDate.get(dateStr);
+    const inCycle =
+      compareJstDate(dateStr, cycleStart) >= 0 &&
+      compareJstDate(dateStr, cycleEnd) <= 0;
     rows.push({
       date: dateStr,
       weekday,
       ...(entry ?? {}),
+      current_rank: rankState.current_rank ?? null,
+      rank_score_cumulative: inCycle ? (cumulativeByDate[dateStr] ?? null) : null,
     });
     cursor = cursor.add(1, "day");
   }
@@ -184,6 +232,7 @@ export default async function DataPage(props: PageProps) {
         permissions={permissions}
         calendarId={calendar.id}
         onUpdateField={updateScheduleEntryField}
+        events={events}
       />
     </div>
   );

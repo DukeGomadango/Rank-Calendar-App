@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareJstDate, getJstWeekStart, toJstDateString } from "./calendar";
+import { addDays, compareJstDate, getJstWeekStart, toJstDateString } from "./calendar";
 
 describe("calendar domain (JST)", () => {
   it("converts Date to JST date string", () => {
@@ -22,6 +22,13 @@ describe("calendar domain (JST)", () => {
     expect(compareJstDate("2024-01-01", "2024-01-01")).toBe(0);
     expect(compareJstDate("2024-01-01", "2024-01-02")).toBeLessThan(0);
     expect(compareJstDate("2024-02-01", "2024-01-31")).toBeGreaterThan(0);
+  });
+
+  it("addDays adds n days to date string", () => {
+    expect(addDays("2024-01-01", 0)).toBe("2024-01-01");
+    expect(addDays("2024-01-01", 1)).toBe("2024-01-02");
+    expect(addDays("2024-01-31", 1)).toBe("2024-02-01");
+    expect(addDays("2024-01-15", 6)).toBe("2024-01-21");
   });
 });
 
