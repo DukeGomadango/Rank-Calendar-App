@@ -1,8 +1,20 @@
 import type { Metadata } from "next";
 import { Montserrat, Noto_Sans_JP } from "next/font/google";
+import Script from "next/script";
 
 import { JsonLdWebSite } from "@/components/landing/JsonLd";
+import { ThemeProvider } from "@/lib/theme-context";
 import "./globals.css";
+
+/** 初回描画前に html に .dark を付与し、フラッシュを防ぐ */
+const THEME_INIT_SCRIPT = `
+(function(){
+  var t = localStorage.getItem('iriam-theme');
+  if (t === 'dark') document.documentElement.classList.add('dark');
+  else if (t === 'light') document.documentElement.classList.remove('dark');
+  else document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches);
+})();
+`;
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -53,12 +65,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja">
+    <html lang="ja" suppressHydrationWarning>
       <body
         className={`${montserrat.variable} ${notoSansJP.variable} antialiased bg-background text-foreground font-sans`}
       >
-        <JsonLdWebSite />
-        {children}
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
+        <ThemeProvider>
+          <JsonLdWebSite />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

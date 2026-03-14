@@ -4,30 +4,71 @@ import { useState } from "react";
 
 import { ScheduleForm } from "./ScheduleForm";
 
+type TodayEntry = {
+  target_plus?: number | null;
+  actual_plus?: number | null;
+  border_plus2?: number | null;
+  border_plus4?: number | null;
+  border_plus6?: number | null;
+  event_id?: string | null;
+  memo?: string | null;
+  skip_pass_used?: boolean;
+};
+
 type Props = {
+  /** ダッシュボードでは "inline"（常設）、カレンダー等では "modal"（従来のボタン→モーダル） */
+  variant?: "inline" | "modal";
   calendarId: string;
   defaultDate: string;
   action: (formData: FormData) => void;
   events: { id: string; name: string }[];
+  /** 今日の既存エントリ（inline 時の初期値・モーダルでは未使用） */
+  todayEntry?: TodayEntry | null;
 };
 
 export function HomeScheduleCard({
+  variant = "modal",
   calendarId,
   defaultDate,
   action,
   events,
+  todayEntry,
 }: Props) {
   const [open, setOpen] = useState(false);
+
+  if (variant === "inline") {
+    return (
+      <div className="rounded-2xl bg-white p-4 shadow-md dark:bg-slate-800">
+        <h2 className="mb-3 text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+          ✨ 今日のスケジュールを登録
+        </h2>
+        <ScheduleForm
+          calendarId={calendarId}
+          defaultDate={defaultDate}
+          action={action}
+          events={events}
+          defaultTargetPlus={todayEntry?.target_plus}
+          defaultActualPlus={todayEntry?.actual_plus}
+          defaultBorderPlus2={todayEntry?.border_plus2}
+          defaultBorderPlus4={todayEntry?.border_plus4}
+          defaultBorderPlus6={todayEntry?.border_plus6}
+          defaultEventId={todayEntry?.event_id}
+          defaultMemo={todayEntry?.memo}
+          defaultSkipPassUsed={todayEntry?.skip_pass_used}
+        />
+      </div>
+    );
+  }
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="block w-full rounded-xl border border-zinc-200 bg-white/80 p-4 text-left text-xs shadow-sm backdrop-blur transition hover:border-accent-200 hover:bg-accent-50/50 dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-accent-800 dark:hover:bg-accent-950/30"
+        className="block w-full rounded-2xl bg-white p-4 text-left text-xs shadow-md transition hover:bg-accent-50/70 dark:bg-slate-800 dark:hover:bg-accent-950/30"
       >
         <span className="font-medium text-zinc-900 dark:text-zinc-50">
-          今日のスケジュールを登録
+          ✨ 今日のスケジュールを登録
         </span>
       </button>
 
@@ -37,18 +78,18 @@ export function HomeScheduleCard({
           role="dialog"
           aria-labelledby="home-schedule-modal-title"
         >
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="w-full max-w-md rounded-2xl bg-white p-4 text-xs shadow-xl dark:bg-slate-800">
             <div className="mb-3 flex items-center justify-between">
               <h2
                 id="home-schedule-modal-title"
                 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50"
               >
-                今日のスケジュールを登録
+                ✨ 今日のスケジュールを登録
               </h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="rounded-xl px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               >
                 閉じる
               </button>

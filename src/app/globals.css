@@ -1,8 +1,48 @@
 @import "tailwindcss";
 
+/* 手動切替用: .dark が html についているとき dark: を有効にする */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
+  /* ほんのり色づいた極薄い背景（業務ツール感を抑える） */
+  --background: #f8fafc;
   --foreground: #171717;
+  /* ライトモード: アクセント（青系） */
+  --accent-50: #f0f9ff;
+  --accent-100: #e0f2fe;
+  --accent-200: #bae6fd;
+  --accent-300: #7dd3fc;
+  --accent-400: #38bdf8;
+  --accent-500: #0ea5e9;
+  --accent-600: #0284c7;
+  --accent-700: #0369a1;
+  --accent-800: #075985;
+  --accent-900: #0c4a6e;
+  --accent-950: #082f49;
+  /* 円グラフ進捗（ライト: 青系） */
+  --weekly-ring-start: #38bdf8;
+  --weekly-ring-mid: #0ea5e9;
+  --weekly-ring-end: #0284c7;
+}
+
+/* ダークモード: 背景は最も暗く、カードは一段明るく。アクセントはネオンシアン。円グラフは紫→青グラデ */
+html.dark {
+  --background: #020617; /* slate-950: 最も暗い背景で浮き出し感 */
+  --foreground: #ededed;
+  --accent-50: #ecfeff;
+  --accent-100: #cffafe;
+  --accent-200: #a5f3fc;
+  --accent-300: #67e8f9;
+  --accent-400: #22d3ee;
+  --accent-500: #06b6d4;
+  --accent-600: #0891b2;
+  --accent-700: #0e7490;
+  --accent-800: #155e75;
+  --accent-900: #164e63;
+  --accent-950: #083344;
+  --weekly-ring-start: #a855f7;
+  --weekly-ring-mid: #6366f1;
+  --weekly-ring-end: #06b6d4;
 }
 
 @theme inline {
@@ -11,25 +51,18 @@
   /* 欧文: Montserrat、日本語: Noto Sans JP のスタック */
   --font-sans: var(--font-montserrat), var(--font-noto-sans-jp), sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
-  /* 差し色（IRIAM は青系。変更時はここだけ編集） */
-  --color-accent-50: #f0f9ff;
-  --color-accent-100: #e0f2fe;
-  --color-accent-200: #bae6fd;
-  --color-accent-300: #7dd3fc;
-  --color-accent-400: #38bdf8;
-  --color-accent-500: #0ea5e9;
-  --color-accent-600: #0284c7;
-  --color-accent-700: #0369a1;
-  --color-accent-800: #075985;
-  --color-accent-900: #0c4a6e;
-  --color-accent-950: #082f49;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* 差し色: ライトは青系、ダークはネオンシアン（変数で切替） */
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
+  --color-accent-300: var(--accent-300);
+  --color-accent-400: var(--accent-400);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+  --color-accent-800: var(--accent-800);
+  --color-accent-900: var(--accent-900);
+  --color-accent-950: var(--accent-950);
 }
 
 body {

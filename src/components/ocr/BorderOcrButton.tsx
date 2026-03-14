@@ -213,15 +213,34 @@ export function BorderOcrButton({
     }
   }, [border2Ref, border4Ref, border6Ref]);
 
+  const cameraIcon = (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+      <circle cx="12" cy="13" r="3" />
+    </svg>
+  );
+
   return (
-    <div className="space-y-1 md:col-span-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-1">
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
         <button
           type="button"
           onClick={handleClick}
-          className="inline-flex items-center gap-1 rounded-md border border-accent-300 bg-accent-50 px-2 py-1 text-[11px] font-medium text-accent-700 shadow-sm hover:bg-accent-100 focus:outline-none focus:ring-2 focus:ring-accent-300 focus:ring-offset-1 focus:ring-offset-zinc-50 dark:border-accent-500/60 dark:bg-accent-500/10 dark:text-accent-100 dark:hover:bg-accent-500/20 dark:focus:ring-offset-zinc-900"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-accent-400 bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:border-accent-600 hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-2 focus:ring-offset-zinc-50 dark:border-accent-500 dark:bg-accent-600 dark:hover:bg-accent-500 dark:focus:ring-offset-zinc-900"
         >
-          ライバーレポートから読み取る
+          {cameraIcon}
+          スクショを読み込む
         </button>
         <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
           画像はブラウザ内だけで処理され、サーバーには送信・保存されません。

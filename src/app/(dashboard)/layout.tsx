@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { MockScheduleProvider } from "@/lib/mock-schedule-context";
 import { ViewModeProvider } from "@/lib/view-mode-context";
 
@@ -13,8 +14,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <MockScheduleProvider>
     <ViewModeProvider>
     <div className="flex min-h-screen flex-col bg-background">
+      {/* 画面右上に固定: ダークモード切替 */}
+      <div className="fixed top-3 right-3 z-50 sm:top-4 sm:right-4">
+        <ThemeToggle />
+      </div>
+
       {/* モバイル: 上部ヘッダー */}
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white/80 px-4 py-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 sm:hidden">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white/80 px-4 py-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
         <div className="flex flex-col">
           <span className="text-[10px] font-semibold tracking-wide text-accent-500">
             IRIAM rank planner
@@ -33,7 +39,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <div className="flex flex-1">
         {/* PC: 左サイドバー */}
-        <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white/80 px-4 py-6 text-sm shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 sm:flex">
+        <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white/80 px-4 py-6 text-sm shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:flex">
           <div className="mb-6 text-xs font-semibold tracking-wide text-accent-500">
             IRIAM rank planner
           </div>
@@ -83,7 +89,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* モバイル: ボトムナビゲーション */}
-      <nav className="sticky bottom-0 border-t border-zinc-200 bg-white/90 px-2 py-1.5 text-[11px] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90 sm:hidden">
+      <nav className="sticky bottom-0 border-t border-zinc-200 bg-white/90 px-2 py-1.5 text-[11px] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
         <ul className="flex items-stretch justify-between gap-1">
           <li className="flex-1">
             <Link

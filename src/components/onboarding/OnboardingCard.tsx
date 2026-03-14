@@ -26,7 +26,7 @@ export function OnboardingCard() {
     <section
       role="dialog"
       aria-label="はじめてのご利用案内"
-      className="rounded-xl border border-accent-200 bg-gradient-to-br from-accent-50 to-white p-4 text-xs shadow-sm dark:border-accent-800 dark:from-accent-950/40 dark:to-zinc-900"
+      className="rounded-2xl bg-white p-4 text-xs shadow-md dark:bg-slate-800"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-2">
@@ -54,7 +54,7 @@ export function OnboardingCard() {
         <button
           type="button"
           onClick={handleDismiss}
-          className="shrink-0 rounded-md bg-accent-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent-600"
+          className="shrink-0 rounded-xl bg-accent-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent-600"
         >
           はじめる
         </button>
