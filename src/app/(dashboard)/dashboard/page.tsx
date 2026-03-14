@@ -7,7 +7,7 @@ import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { toJstDateString, getJstWeekStart } from "@/lib/domain/calendar";
 import { judgeWeeklyRank, type RankEntry } from "@/lib/domain/rank";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { ScheduleForm } from "@/components/schedule/ScheduleForm";
+import { HomeScheduleCard } from "@/components/schedule/HomeScheduleCard";
 import { saveScheduleEntry, noopSaveEntry } from "./actions";
 
 const DEV_MOCK_BANNER = (
@@ -74,7 +74,7 @@ export default async function DashboardHomePage() {
             今週はまだスケジュールがありません
           </p>
           <p className="mt-1 text-[11px] text-pink-700 dark:text-pink-300">
-            下のフォームから今日の目標+を登録すると、今週の+サマリに反映されます。
+            「今日のスケジュールを登録」のカードから今日の目標+を登録すると、今週の+サマリに反映されます。
           </p>
         </section>
         <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
@@ -115,15 +115,8 @@ export default async function DashboardHomePage() {
             </div>
           </div>
         </section>
-        <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
-          <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
-            今日のスケジュールを登録
-          </h2>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            日付ごとに +ボーダー・目標+・実績+・スキップパス使用有無を登録できます。まずはシンプルに 1
-            日分の情報だけを保存するフォームです。
-          </p>
-          <ScheduleForm
+        <section className="rounded-xl">
+          <HomeScheduleCard
             calendarId={calendar.id}
             defaultDate={defaultDate}
             action={noopSaveEntry}
@@ -204,7 +197,7 @@ export default async function DashboardHomePage() {
             今週はまだスケジュールがありません
           </p>
           <p className="mt-1 text-[11px] text-pink-700 dark:text-pink-300">
-            下のフォームから今日の目標+を登録すると、今週の+サマリに反映されます。
+            「今日のスケジュールを登録」のカードから今日の目標+を登録すると、今週の+サマリに反映されます。
           </p>
         </section>
       )}
@@ -212,7 +205,7 @@ export default async function DashboardHomePage() {
       {hasWeeklySchedule && !todayEntry && (
         <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] dark:border-amber-800 dark:bg-amber-950/30">
           <p className="text-amber-800 dark:text-amber-200">
-            今日のスケジュールはまだ登録していません。下のフォームから登録できます。
+            今日のスケジュールはまだ登録していません。「今日のスケジュールを登録」のカードから登録できます。
           </p>
         </section>
       )}
@@ -272,16 +265,8 @@ export default async function DashboardHomePage() {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
-        <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
-          今日のスケジュールを登録
-        </h2>
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-          日付ごとに +ボーダー・目標+・実績+・スキップパス使用有無を登録できます。まずはシンプルに 1
-          日分の情報だけを保存するフォームです。
-        </p>
-
-        <ScheduleForm
+      <section className="rounded-xl">
+        <HomeScheduleCard
           calendarId={calendar.id}
           defaultDate={defaultDate}
           action={saveScheduleEntry}

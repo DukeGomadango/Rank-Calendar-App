@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
+import { Suspense } from "react";
 
 import { redirect } from "next/navigation";
 
@@ -12,9 +13,13 @@ import {
 } from "@/lib/auth/permission";
 import { DataTable } from "@/components/data/DataTable";
 import { DataTableWithMockState } from "@/components/data/DataTableWithMockState";
+import { DataRangeSelect } from "@/components/data/DataRangeSelect";
+import { parseDaysParam } from "@/lib/data-range";
 import { updateScheduleEntryField } from "../actions";
 
 dayjs.locale("ja");
+
+type PageProps = { searchParams?: Promise<{ days?: string }> | { days?: string } };
 
 const DEV_MOCK_PERMISSIONS: CalendarPermissionFlags = {
   isOwner: true,
@@ -28,7 +33,7 @@ const DEV_MOCK_PERMISSIONS: CalendarPermissionFlags = {
   canViewEvents: true,
 };
 
-export default async function DataPage() {
+export default async function DataPage(props: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -40,11 +45,18 @@ export default async function DataPage() {
     redirect("/login");
   }
 
+  const rawSp = props.searchParams;
+  const resolvedSp =
+    rawSp && typeof (rawSp as Promise<unknown>).then === "function"
+      ? await (rawSp as Promise<{ days?: string }>)
+      : (rawSp ?? {});
+  const daysRange = parseDaysParam(resolvedSp.days);
+
   if (isDevMock) {
     const calendar = { id: "dev-mock", name: "開発用モック" as string | null };
     const today = dayjs();
-    const from = today.subtract(30, "day").format("YYYY-MM-DD");
-    const to = today.add(30, "day").format("YYYY-MM-DD");
+    const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
+    const to = today.add(daysRange, "day").format("YYYY-MM-DD");
     const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
     const rows: {
       date: string;
@@ -71,13 +83,19 @@ export default async function DataPage() {
         <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
           <p>開発用モック表示です。データは保存されません。セルを編集すると画面上にだけ反映されます。</p>
         </section>
-        <header className="space-y-1">
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            データ
-          </h1>
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            {calendar.name ?? "メインカレンダー"} の直近 30 日前〜30 日後のスケジュールを一覧表示します。
-          </p>
+        <header className="flex flex-wrap items-start justify-between gap-2">
+          <div className="space-y-1">
+            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              データ
+            </h1>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              {calendar.name ?? "メインカレンダー"} の今日を中心に前後 {daysRange}
+              日分のスケジュールを一覧表示します。
+            </p>
+          </div>
+          <Suspense fallback={null}>
+            <DataRangeSelect currentDays={daysRange} />
+          </Suspense>
         </header>
         <section className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
           <p>
@@ -112,8 +130,8 @@ export default async function DataPage() {
   }
 
   const today = dayjs();
-  const from = today.subtract(30, "day").format("YYYY-MM-DD");
-  const to = today.add(30, "day").format("YYYY-MM-DD");
+  const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
+  const to = today.add(daysRange, "day").format("YYYY-MM-DD");
 
   const entries = await getScheduleEntriesInRange(calendar.id, from, to);
   const entriesByDate = new Map(entries.map((e) => [e.date, e]));
@@ -139,13 +157,19 @@ export default async function DataPage() {
 
   return (
     <div className="space-y-4">
-      <header className="space-y-1">
-        <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          データ
-        </h1>
-        <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          {calendar.name ?? "メインカレンダー"} の直近 30 日前〜30 日後のスケジュールを一覧表示します。
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-2">
+        <div className="space-y-1">
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            データ
+          </h1>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            {calendar.name ?? "メインカレンダー"} の今日を中心に前後 {daysRange}
+            日分のスケジュールを一覧表示します。
+          </p>
+        </div>
+        <Suspense fallback={null}>
+          <DataRangeSelect currentDays={daysRange} />
+        </Suspense>
       </header>
       {!hasAnyEntries && (
         <section className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">

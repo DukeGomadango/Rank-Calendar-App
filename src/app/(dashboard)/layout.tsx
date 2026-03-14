@@ -57,6 +57,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               データ
             </Link>
             <Link
+              href="/dashboard/events"
+              className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              イベント
+            </Link>
+            <Link
+              href="/dashboard/sharing"
+              className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              共有
+            </Link>
+            <Link
               href="/dashboard/settings"
               className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
@@ -95,6 +107,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               <span className="text-[10px] font-medium">データ</span>
+            </Link>
+          </li>
+          <li className="flex-1">
+            <Link
+              href="/dashboard/events"
+              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              <span className="text-[10px] font-medium">イベント</span>
+            </Link>
+          </li>
+          <li className="flex-1">
+            <Link
+              href="/dashboard/sharing"
+              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              <span className="text-[10px] font-medium">共有</span>
             </Link>
           </li>
           <li className="flex-1">

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
+import Link from "next/link";
 
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
@@ -25,6 +26,10 @@ type DayData = {
 type Props = {
   calendarName: string;
   monthLabel: string;
+  /** 表示中の月 YYYY-MM */
+  currentMonthParam: string;
+  /** 週表示で使う週の開始日（日曜）YYYY-MM-DD */
+  currentWeekStart: string;
   calendarId: string;
   days: DayData[];
   permissions: CalendarPermissionFlags;
@@ -36,6 +41,8 @@ type Props = {
 export function CalendarWithModal({
   calendarName,
   monthLabel,
+  currentMonthParam,
+  currentWeekStart,
   calendarId,
   days,
   permissions,
@@ -54,15 +61,32 @@ export function CalendarWithModal({
     ? days.find((d) => d.date === selectedDate) ?? null
     : null;
 
+  const prevMonthParam = useMemo(() => {
+    const d = dayjs(currentMonthParam, "YYYY-MM").subtract(1, "month");
+    return d.format("YYYY-MM");
+  }, [currentMonthParam]);
+  const nextMonthParam = useMemo(() => {
+    const d = dayjs(currentMonthParam, "YYYY-MM").add(1, "month");
+    return d.format("YYYY-MM");
+  }, [currentMonthParam]);
+
+  const prevWeekStart = useMemo(() => {
+    return dayjs(currentWeekStart).subtract(7, "day").format("YYYY-MM-DD");
+  }, [currentWeekStart]);
+  const nextWeekStart = useMemo(() => {
+    return dayjs(currentWeekStart).add(7, "day").format("YYYY-MM-DD");
+  }, [currentWeekStart]);
+  const prevWeekMonth = useMemo(() => dayjs(prevWeekStart).format("YYYY-MM"), [prevWeekStart]);
+  const nextWeekMonth = useMemo(() => dayjs(nextWeekStart).format("YYYY-MM"), [nextWeekStart]);
+
   const weekDays = useMemo(() => {
-    const ref = dayjs();
-    const start = ref.startOf("week");
-    const end = ref.endOf("week");
+    const start = dayjs(currentWeekStart);
+    const end = start.add(6, "day");
     return days.filter((d) => {
       const t = dayjs(d.date);
       return (t.isSame(start) || t.isAfter(start)) && (t.isSame(end) || t.isBefore(end));
     });
-  }, [days]);
+  }, [days, currentWeekStart]);
 
   const renderMonthGrid = () => (
     <section className="rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
@@ -301,7 +325,7 @@ export function CalendarWithModal({
 
   return (
     <div className="space-y-4">
-      <header className="flex items-baseline justify-between gap-2">
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             カレンダー
@@ -311,7 +335,45 @@ export function CalendarWithModal({
             のスケジュールを表示しています。
           </p>
         </div>
-        <div className="hidden items-center gap-1 rounded-full bg-zinc-100 p-1 text-[11px] text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300 md:flex">
+        <div className="flex items-center gap-2">
+          <nav className="flex items-center gap-0.5 text-zinc-700 dark:text-zinc-200">
+            {view === "month" ? (
+              <>
+                <Link
+                  href={`/dashboard/calendar?month=${prevMonthParam}`}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                  aria-label="前月"
+                >
+                  ‹
+                </Link>
+                <Link
+                  href={`/dashboard/calendar?month=${nextMonthParam}`}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                  aria-label="次月"
+                >
+                  ›
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href={`/dashboard/calendar?month=${prevWeekMonth}&week=${prevWeekStart}`}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                  aria-label="前週"
+                >
+                  ‹
+                </Link>
+                <Link
+                  href={`/dashboard/calendar?month=${nextWeekMonth}&week=${nextWeekStart}`}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                  aria-label="次週"
+                >
+                  ›
+                </Link>
+              </>
+            )}
+          </nav>
+          <div className="hidden items-center gap-1 rounded-full bg-zinc-100 p-1 text-[11px] text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300 md:flex">
           <button
             type="button"
             onClick={() => setView("month")}
@@ -331,9 +393,10 @@ export function CalendarWithModal({
                 ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
                 : ""
             }`}
-          >
+            >
             週
           </button>
+          </div>
         </div>
       </header>
 

@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { ViewModeToggle } from "@/components/settings/ViewModeToggle";
 
 export default function SettingsPage() {
@@ -10,7 +8,7 @@ export default function SettingsPage() {
           設定
         </h1>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          カレンダーごとのイベント・共有・ロールなどを管理します。
+          表示などの設定を行います。
         </p>
       </header>
 
@@ -22,30 +20,6 @@ export default function SettingsPage() {
           リスナーで閲覧するときの表示の濃さを切り替えられます。簡易＝最小限の情報、詳細＝推しと同じ目線で表示（編集はできません）。
         </p>
         <ViewModeToggle />
-      </section>
-
-      <section className="space-y-2 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
-        <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
-          カレンダー設定
-        </h2>
-        <ul className="space-y-1">
-          <li>
-            <Link
-              href="/dashboard/settings/events"
-              className="text-pink-500 underline-offset-2 hover:underline"
-            >
-              イベントマスタの管理
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/dashboard/settings/sharing"
-              className="text-pink-500 underline-offset-2 hover:underline"
-            >
-              共有・招待の管理
-            </Link>
-          </li>
-        </ul>
       </section>
     </div>
   );

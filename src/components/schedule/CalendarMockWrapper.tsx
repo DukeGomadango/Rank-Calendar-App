@@ -18,6 +18,8 @@ type DayData = {
 type Props = {
   calendarName: string;
   monthLabel: string;
+  currentMonthParam: string;
+  currentWeekStart: string;
   calendarId: string;
   days: DayData[];
   permissions: CalendarPermissionFlags;

@@ -36,7 +36,27 @@ const DEV_MOCK_PERMISSIONS: CalendarPermissionFlags = {
   canViewEvents: true,
 };
 
-export default async function CalendarPage() {
+function parseMonthParam(month?: string | string[]): dayjs.Dayjs {
+  const raw = typeof month === "string" ? month : Array.isArray(month) ? month[0] : undefined;
+  if (!raw || !/^\d{4}-\d{2}$/.test(raw)) return dayjs();
+  const parsed = dayjs(raw, "YYYY-MM", true);
+  return parsed.isValid() ? parsed : dayjs();
+}
+
+/** week=YYYY-MM-DD の週の日曜日を返す。不正なら今月15日を含む週の日曜。 */
+function parseWeekParam(week?: string | string[], displayMonth: dayjs.Dayjs): string {
+  const raw = typeof week === "string" ? week : Array.isArray(week) ? week[0] : undefined;
+  if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const parsed = dayjs(raw, "YYYY-MM-DD", true);
+    if (parsed.isValid()) return parsed.startOf("week").format("YYYY-MM-DD");
+  }
+  const ref = displayMonth.date(15);
+  return ref.startOf("week").format("YYYY-MM-DD");
+}
+
+type PageProps = { searchParams?: Promise<{ month?: string; week?: string }> | { month?: string; week?: string } };
+
+export default async function CalendarPage(props: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -48,12 +68,25 @@ export default async function CalendarPage() {
     redirect("/login");
   }
 
+  const rawSp = props.searchParams;
+  const resolvedSp =
+    rawSp && typeof (rawSp as Promise<unknown>).then === "function"
+      ? await (rawSp as Promise<{ month?: string; week?: string }>)
+      : (rawSp ?? {});
+  let displayMonth = parseMonthParam(resolvedSp.month);
+  const currentWeekStart = parseWeekParam(resolvedSp.week, displayMonth);
+  if (resolvedSp.week && /^\d{4}-\d{2}-\d{2}$/.test(resolvedSp.week) && dayjs(resolvedSp.week, "YYYY-MM-DD", true).isValid()) {
+    displayMonth = dayjs(currentWeekStart).startOf("month");
+  }
+  const currentMonthLabel = displayMonth.format("YYYY年 M月");
+  const currentMonthParam = displayMonth.format("YYYY-MM");
+
   if (isDevMock) {
     const calendar = { id: "dev-mock", name: "開発用モック" as string | null };
     const events: { id: string; name: string }[] = [];
     const today = dayjs();
-    const monthStart = today.startOf("month");
-    const monthEnd = today.endOf("month");
+    const monthStart = displayMonth.startOf("month");
+    const monthEnd = displayMonth.endOf("month");
     const fromDate = monthStart.startOf("week").format("YYYY-MM-DD");
     const toDate = monthEnd.endOf("week").format("YYYY-MM-DD");
     const days: {
@@ -73,7 +106,7 @@ export default async function CalendarPage() {
       days.push({
         date: dateStr,
         isToday: cursor.isSame(today, "day"),
-        isCurrentMonth: cursor.isSame(today, "month"),
+        isCurrentMonth: cursor.isSame(displayMonth, "month"),
         weekday: cursor.day(),
         holidayName,
         entries: [],
@@ -87,7 +120,9 @@ export default async function CalendarPage() {
         </section>
         <CalendarMockWrapper
           calendarName={calendar.name ?? "メインカレンダー"}
-          monthLabel={today.format("YYYY年 M月")}
+          monthLabel={currentMonthLabel}
+          currentMonthParam={currentMonthParam}
+          currentWeekStart={currentWeekStart}
           calendarId={calendar.id}
           permissions={DEV_MOCK_PERMISSIONS}
           days={days}
@@ -120,8 +155,8 @@ export default async function CalendarPage() {
   const events = await listEventsForCalendar(calendar.id);
 
   const today = dayjs();
-  const monthStart = today.startOf("month");
-  const monthEnd = today.endOf("month");
+  const monthStart = displayMonth.startOf("month");
+  const monthEnd = displayMonth.endOf("month");
 
   const fromDate = monthStart.startOf("week").format("YYYY-MM-DD");
   const toDate = monthEnd.endOf("week").format("YYYY-MM-DD");
@@ -150,7 +185,7 @@ export default async function CalendarPage() {
     const dateStr = cursor.format("YYYY-MM-DD");
     const weekday = cursor.day();
     const isToday = cursor.isSame(today, "day");
-    const isCurrentMonth = cursor.isSame(today, "month");
+    const isCurrentMonth = cursor.isSame(displayMonth, "month");
     const holidayName =
       (await import("holiday-jp")).isHoliday(cursor.toDate())?.name ?? null;
 
@@ -179,7 +214,9 @@ export default async function CalendarPage() {
       )}
       <CalendarWithModal
         calendarName={calendar.name ?? "メインカレンダー"}
-        monthLabel={today.format("YYYY年 M月")}
+        monthLabel={currentMonthLabel}
+        currentMonthParam={currentMonthParam}
+        currentWeekStart={currentWeekStart}
         calendarId={calendar.id}
         permissions={permissions}
         days={days}
