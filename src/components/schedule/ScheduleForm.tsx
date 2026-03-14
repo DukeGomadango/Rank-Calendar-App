@@ -23,7 +23,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex items-center gap-1 rounded-md bg-pink-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-1 focus:ring-offset-zinc-50 disabled:opacity-60 dark:focus:ring-offset-zinc-900"
+      className="inline-flex items-center gap-1 rounded-md bg-accent-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-1 focus:ring-offset-zinc-50 disabled:opacity-60 dark:focus:ring-offset-zinc-900"
     >
       {pending ? "保存中..." : "保存する"}
     </button>
@@ -56,7 +56,7 @@ export function ScheduleForm({
           type="date"
           name="date"
           defaultValue={defaultDate}
-          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
         />
       </label>
 
@@ -71,7 +71,7 @@ export function ScheduleForm({
             name="border_plus2"
             min={0}
           ref={border2Ref}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
         <label className="flex flex-col gap-1" htmlFor={`${idPrefix}-border4`}>
@@ -84,7 +84,7 @@ export function ScheduleForm({
             name="border_plus4"
             min={0}
           ref={border4Ref}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
         <label className="flex flex-col gap-1" htmlFor={`${idPrefix}-border6`}>
@@ -97,7 +97,7 @@ export function ScheduleForm({
             name="border_plus6"
             min={0}
           ref={border6Ref}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
       </div>
@@ -117,7 +117,7 @@ export function ScheduleForm({
             id={`${idPrefix}-target`}
             name="target_plus"
             defaultValue={String(normalizePlusValue(defaultTargetPlus))}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           >
             {PLUS_SELECT_VALUES.map((n) => (
               <option key={n} value={n}>
@@ -134,7 +134,7 @@ export function ScheduleForm({
             id={`${idPrefix}-actual`}
             name="actual_plus"
             defaultValue={String(normalizePlusValue(defaultActualPlus))}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           >
             {PLUS_SELECT_VALUES.map((n) => (
               <option key={n} value={n}>
@@ -152,7 +152,7 @@ export function ScheduleForm({
         <select
           id={`${idPrefix}-event`}
           name="event_id"
-          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           defaultValue=""
         >
           <option value="">（未選択）</option>
@@ -172,7 +172,7 @@ export function ScheduleForm({
           id={`${idPrefix}-memo`}
           name="memo"
           rows={2}
-          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           placeholder="配信内容や気づきなどをメモできます。"
         />
       </label>
@@ -182,7 +182,7 @@ export function ScheduleForm({
           <input
             type="checkbox"
             name="skip_pass_used"
-            className="h-3 w-3 rounded border-zinc-300 text-pink-500 focus:ring-pink-400 dark:border-zinc-600"
+            className="h-3 w-3 rounded border-zinc-300 text-accent-500 focus:ring-accent-400 dark:border-zinc-600"
           />
           この日はスキップパスを使用した
         </label>

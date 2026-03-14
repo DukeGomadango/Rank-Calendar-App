@@ -68,12 +68,12 @@ export default async function DashboardHomePage() {
         <OnboardingCard />
         <section
           id="empty-schedule-cta"
-          className="rounded-xl border border-pink-200 bg-pink-50/80 p-4 text-xs dark:border-pink-800 dark:bg-pink-950/30"
+          className="rounded-xl border border-accent-200 bg-accent-50/80 p-4 text-xs dark:border-accent-800 dark:bg-accent-950/30"
         >
-          <p className="font-medium text-pink-800 dark:text-pink-200">
+          <p className="font-medium text-accent-800 dark:text-accent-200">
             今週はまだスケジュールがありません
           </p>
-          <p className="mt-1 text-[11px] text-pink-700 dark:text-pink-300">
+          <p className="mt-1 text-[11px] text-accent-700 dark:text-accent-300">
             「今日のスケジュールを登録」のカードから今日の目標+を登録すると、今週の+サマリに反映されます。
           </p>
         </section>
@@ -91,7 +91,7 @@ export default async function DashboardHomePage() {
                 <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                   今週の実績+ 合計
                 </span>
-                <span className="text-sm font-mono text-pink-600 dark:text-pink-300">
+                <span className="text-sm font-mono text-accent-600 dark:text-accent-300">
                   {totalPlus} / {maxPlus}
                 </span>
               </div>
@@ -101,7 +101,7 @@ export default async function DashboardHomePage() {
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-200/80 dark:bg-zinc-800">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-pink-500 via-pink-400 to-amber-400 transition-[width]"
+                className="h-full rounded-full bg-gradient-to-r from-accent-500 via-accent-400 to-accent-300 transition-[width]"
                 style={{ width: `${progressRatio * 100}%` }}
               />
             </div>
@@ -191,12 +191,12 @@ export default async function DashboardHomePage() {
       {!hasWeeklySchedule && (
         <section
           id="empty-schedule-cta"
-          className="rounded-xl border border-pink-200 bg-pink-50/80 p-4 text-xs dark:border-pink-800 dark:bg-pink-950/30"
+          className="rounded-xl border border-accent-200 bg-accent-50/80 p-4 text-xs dark:border-accent-800 dark:bg-accent-950/30"
         >
-          <p className="font-medium text-pink-800 dark:text-pink-200">
+          <p className="font-medium text-accent-800 dark:text-accent-200">
             今週はまだスケジュールがありません
           </p>
-          <p className="mt-1 text-[11px] text-pink-700 dark:text-pink-300">
+          <p className="mt-1 text-[11px] text-accent-700 dark:text-accent-300">
             「今日のスケジュールを登録」のカードから今日の目標+を登録すると、今週の+サマリに反映されます。
           </p>
         </section>
@@ -224,7 +224,7 @@ export default async function DashboardHomePage() {
               <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 今週の実績+ 合計
               </span>
-              <span className="text-sm font-mono text-pink-600 dark:text-pink-300">
+              <span className="text-sm font-mono text-accent-600 dark:text-accent-300">
                 {totalPlus} / {maxPlus}
               </span>
             </div>
@@ -234,7 +234,7 @@ export default async function DashboardHomePage() {
           </div>
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-200/80 dark:bg-zinc-800">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-pink-500 via-pink-400 to-amber-400 transition-[width]"
+              className="h-full rounded-full bg-gradient-to-r from-accent-500 via-accent-400 to-accent-300 transition-[width]"
               style={{ width: `${progressRatio * 100}%` }}
             />
           </div>

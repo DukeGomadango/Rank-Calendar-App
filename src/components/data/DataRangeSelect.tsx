@@ -28,7 +28,7 @@ export function DataRangeSelect({ currentDays }: Props) {
       <select
         value={currentDays}
         onChange={handleChange}
-        className="rounded border border-zinc-300 bg-white px-2 py-1 text-zinc-900 outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50"
+        className="rounded border border-zinc-300 bg-white px-2 py-1 text-zinc-900 outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50"
       >
         {DATA_RANGE_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>

@@ -24,7 +24,7 @@ function InviteInvalidLink({ calendarId, token }: { calendarId: string; token: s
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           <Link
             href={`/login?redirectTo=${encodeURIComponent(`/invite/${calendarId}/${token}`)}`}
-            className="inline-block rounded-md bg-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600"
+            className="inline-block rounded-md bg-accent-500 px-4 py-2 text-sm font-medium text-white hover:bg-accent-600"
           >
             ログイン
           </Link>
@@ -79,7 +79,7 @@ export default async function InviteRedeemPage({ params }: Props) {
         </p>
         <Link
           href="/dashboard"
-          className="mt-4 inline-block rounded-md bg-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600"
+          className="mt-4 inline-block rounded-md bg-accent-500 px-4 py-2 text-sm font-medium text-white hover:bg-accent-600"
         >
           ダッシュボードへ
         </Link>

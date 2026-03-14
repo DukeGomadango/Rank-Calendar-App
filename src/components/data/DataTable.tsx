@@ -41,9 +41,9 @@ type Props = {
 };
 
 const inputClass =
-  "w-full min-w-[2.5rem] rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] text-zinc-900 outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50";
+  "w-full min-w-[2.5rem] rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] text-zinc-900 outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50";
 const selectClass =
-  "w-full min-w-[2.5rem] rounded border border-zinc-300 bg-white px-1 py-0.5 text-[11px] text-zinc-900 outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50";
+  "w-full min-w-[2.5rem] rounded border border-zinc-300 bg-white px-1 py-0.5 text-[11px] text-zinc-900 outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50";
 
 export function DataTable({ data, permissions, calendarId, onUpdateField }: Props) {
   const [isPending, startTransition] = useTransition();
@@ -217,7 +217,7 @@ export function DataTable({ data, permissions, calendarId, onUpdateField }: Prop
                     onUpdateField(calendarId, row.original.date, "skip_pass_used", e.target.checked)
                   );
                 }}
-                className="rounded border-zinc-300 text-pink-500 focus:ring-pink-400"
+                className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
                 disabled={isPending}
               />
               {checked ? "使用" : ""}

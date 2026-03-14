@@ -87,7 +87,7 @@ function SignupForm() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mb-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-900 shadow-sm outline-none ring-pink-500 focus:border-pink-500 focus:ring-1 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              className="mb-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-900 shadow-sm outline-none ring-accent-500 focus:border-accent-500 focus:ring-1 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               placeholder="example@example.com"
             />
             <button
@@ -115,7 +115,7 @@ function SignupForm() {
           すでにアカウントをお持ちの方は{" "}
           <Link
             href="/login"
-            className="font-medium text-pink-500 underline-offset-2 hover:underline"
+            className="font-medium text-accent-500 underline-offset-2 hover:underline"
           >
             ログイン
           </Link>

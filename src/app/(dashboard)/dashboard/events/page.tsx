@@ -57,7 +57,7 @@ export default async function EventsPage() {
                 type="text"
                 name="name"
                 required
-                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 placeholder="例）3月度ランキング、駅ポス etc."
               />
             </label>
@@ -68,7 +68,7 @@ export default async function EventsPage() {
               <input
                 type="date"
                 name="start_date"
-                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -78,13 +78,13 @@ export default async function EventsPage() {
               <input
                 type="date"
                 name="end_date"
-                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               />
             </label>
             <div className="md:col-span-4 flex justify-end">
               <button
                 type="submit"
-                className="inline-flex items-center gap-1 rounded-md bg-pink-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-1 focus:ring-offset-zinc-50 dark:focus:ring-offset-zinc-900"
+                className="inline-flex items-center gap-1 rounded-md bg-accent-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-1 focus:ring-offset-zinc-50 dark:focus:ring-offset-zinc-900"
               >
                 追加する
               </button>
@@ -136,7 +136,7 @@ export default async function EventsPage() {
               type="text"
               name="name"
               required
-              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               placeholder="例）3月度ランキング、駅ポス etc."
             />
           </label>
@@ -147,7 +147,7 @@ export default async function EventsPage() {
             <input
               type="date"
               name="start_date"
-              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -157,13 +157,13 @@ export default async function EventsPage() {
             <input
               type="date"
               name="end_date"
-              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             />
           </label>
           <div className="md:col-span-4 flex justify-end">
             <button
               type="submit"
-              className="inline-flex items-center gap-1 rounded-md bg-pink-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-1 focus:ring-offset-zinc-50 dark:focus:ring-offset-zinc-900"
+              className="inline-flex items-center gap-1 rounded-md bg-accent-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-1 focus:ring-offset-zinc-50 dark:focus:ring-offset-zinc-900"
             >
               追加する
             </button>

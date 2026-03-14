@@ -92,7 +92,7 @@ export default async function SharingPage() {
             </label>
             <button
               type="submit"
-              className="rounded-md bg-pink-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-pink-600"
+              className="rounded-md bg-accent-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-accent-600"
             >
               追加
             </button>
@@ -111,7 +111,7 @@ export default async function SharingPage() {
           <form action={noopCreateInviteLinkAction}>
             <button
               type="submit"
-              className="rounded-md bg-pink-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-pink-600"
+              className="rounded-md bg-accent-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent-600"
             >
               招待リンクを発行
             </button>
@@ -198,7 +198,7 @@ export default async function SharingPage() {
           </label>
           <button
             type="submit"
-            className="rounded-md bg-pink-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-pink-600"
+            className="rounded-md bg-accent-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-accent-600"
           >
             追加
           </button>
@@ -239,7 +239,7 @@ export default async function SharingPage() {
                         type="checkbox"
                         name={`perm_${key}`}
                         defaultChecked={permsByRoleId.get(role.id)?.includes(key)}
-                        className="rounded border-zinc-300 text-pink-500 focus:ring-pink-400"
+                        className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
                       />
                       {PERMISSION_LABELS[key]}
                     </label>
@@ -268,7 +268,7 @@ export default async function SharingPage() {
         <form action={createInviteLinkAction}>
           <button
             type="submit"
-            className="rounded-md bg-pink-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-pink-600"
+            className="rounded-md bg-accent-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent-600"
           >
             招待リンクを発行
           </button>

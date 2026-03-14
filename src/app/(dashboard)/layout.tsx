@@ -16,7 +16,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* モバイル: 上部ヘッダー */}
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white/80 px-4 py-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 sm:hidden">
         <div className="flex flex-col">
-          <span className="text-[10px] font-semibold tracking-wide text-pink-500">
+          <span className="text-[10px] font-semibold tracking-wide text-accent-500">
             IRIAM rank planner
           </span>
           <span className="text-[11px] text-zinc-700 dark:text-zinc-200">
@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="flex flex-1">
         {/* PC: 左サイドバー */}
         <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white/80 px-4 py-6 text-sm shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 sm:flex">
-          <div className="mb-6 text-xs font-semibold tracking-wide text-pink-500">
+          <div className="mb-6 text-xs font-semibold tracking-wide text-accent-500">
             IRIAM rank planner
           </div>
           <nav className="space-y-2 text-zinc-700 dark:text-zinc-200">

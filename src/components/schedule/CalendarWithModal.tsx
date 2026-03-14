@@ -124,7 +124,7 @@ export function CalendarWithModal({
           }
 
           const bg = day.isToday
-            ? "bg-pink-50 dark:bg-pink-950/40"
+            ? "bg-accent-50 dark:bg-accent-950/40"
             : "bg-white dark:bg-zinc-900";
 
           const hasEntry = day.entries.length > 0;
@@ -152,14 +152,14 @@ export function CalendarWithModal({
                   void moveEntry(calendarId, fromDate, day.date);
                 });
               }}
-              className={`${bg} relative flex min-h-[72px] flex-col border border-zinc-200/80 p-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 dark:border-zinc-800/80`}
+              className={`${bg} relative flex min-h-[72px] flex-col border border-zinc-200/80 p-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:border-zinc-800/80`}
             >
               <div className="flex items-center justify-between">
                 <span className={`text-[11px] font-medium ${textColor}`}>
                   {dateObj.date()}
                 </span>
                 {day.isToday && (
-                  <span className="rounded-full bg-pink-500 px-1.5 py-0.5 text-[9px] font-medium text-white">
+                  <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[9px] font-medium text-white">
                     今日
                   </span>
                 )}
@@ -179,7 +179,7 @@ export function CalendarWithModal({
                       className="inline-flex items-center rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] text-zinc-700 dark:bg-zinc-50/10 dark:text-zinc-100"
                     >
                       {permissions.canViewTargetActual && entry.target_plus != null && (
-                        <span className="mr-1 text-[9px] font-semibold text-pink-500">
+                        <span className="mr-1 text-[9px] font-semibold text-accent-500">
                           目{entry.target_plus}
                         </span>
                       )}
@@ -241,7 +241,7 @@ export function CalendarWithModal({
           }
 
           const bg = day.isToday
-            ? "bg-pink-50 dark:bg-pink-950/40"
+            ? "bg-accent-50 dark:bg-accent-950/40"
             : "bg-white dark:bg-zinc-900";
 
           const canDrop =
@@ -267,7 +267,7 @@ export function CalendarWithModal({
                   void moveEntry(calendarId, fromDate, day.date);
                 });
               }}
-              className={`${bg} relative flex min-h-[140px] flex-col border border-zinc-200/80 p-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 dark:border-zinc-800/80`}
+              className={`${bg} relative flex min-h-[140px] flex-col border border-zinc-200/80 p-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:border-zinc-800/80`}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -279,7 +279,7 @@ export function CalendarWithModal({
                   </span>
                 </div>
                 {day.isToday && (
-                  <span className="rounded-full bg-pink-500 px-2 py-0.5 text-[10px] font-medium text-white">
+                  <span className="rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-medium text-white">
                     今日
                   </span>
                 )}
@@ -292,7 +292,7 @@ export function CalendarWithModal({
                 {entry ? (
                 <div className="mt-2 space-y-1 text-[11px] text-zinc-700 dark:text-zinc-200">
                   <p>
-                    <span className="font-semibold text-pink-500">目標+</span>{" "}
+                    <span className="font-semibold text-accent-500">目標+</span>{" "}
                     {permissions.canViewTargetActual ? entry.target_plus ?? "-" : "非公開"}{" "}
                     <span className="ml-2 font-semibold text-zinc-700 dark:text-zinc-200">
                       実績+

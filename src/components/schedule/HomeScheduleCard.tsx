@@ -24,7 +24,7 @@ export function HomeScheduleCard({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="block w-full rounded-xl border border-zinc-200 bg-white/80 p-4 text-left text-xs shadow-sm backdrop-blur transition hover:border-pink-200 hover:bg-pink-50/50 dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-pink-800 dark:hover:bg-pink-950/30"
+        className="block w-full rounded-xl border border-zinc-200 bg-white/80 p-4 text-left text-xs shadow-sm backdrop-blur transition hover:border-accent-200 hover:bg-accent-50/50 dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-accent-800 dark:hover:bg-accent-950/30"
       >
         <span className="font-medium text-zinc-900 dark:text-zinc-50">
           今日のスケジュールを登録

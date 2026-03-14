@@ -219,7 +219,7 @@ export function BorderOcrButton({
         <button
           type="button"
           onClick={handleClick}
-          className="inline-flex items-center gap-1 rounded-md border border-pink-300 bg-pink-50 px-2 py-1 text-[11px] font-medium text-pink-700 shadow-sm hover:bg-pink-100 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-1 focus:ring-offset-zinc-50 dark:border-pink-500/60 dark:bg-pink-500/10 dark:text-pink-100 dark:hover:bg-pink-500/20 dark:focus:ring-offset-zinc-900"
+          className="inline-flex items-center gap-1 rounded-md border border-accent-300 bg-accent-50 px-2 py-1 text-[11px] font-medium text-accent-700 shadow-sm hover:bg-accent-100 focus:outline-none focus:ring-2 focus:ring-accent-300 focus:ring-offset-1 focus:ring-offset-zinc-50 dark:border-accent-500/60 dark:bg-accent-500/10 dark:text-accent-100 dark:hover:bg-accent-500/20 dark:focus:ring-offset-zinc-900"
         >
           ライバーレポートから読み取る
         </button>
