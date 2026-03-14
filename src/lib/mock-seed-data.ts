@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import { addDays, getJstWeekStart } from "@/lib/domain/calendar";
 import type { MockEntry } from "@/lib/mock-schedule-context";
+import type { EventRow } from "@/lib/data/events";
 
 /** 維持用: 基本+1、+6は水曜（index 2）、土曜スキップ。合計12。月〜日。 */
 const KEEP_PLUS = [1, 1, 6, 1, 1, 2, 0] as const;
@@ -56,4 +57,45 @@ export function getMockSeedEntries(todayStr?: string): Record<string, MockEntry>
   }
 
   return result;
+}
+
+/**
+ * 開発用モックのイベント一覧（火曜〜月曜の1週間で配置。カレンダー・イベントタブで共通利用）。
+ */
+export function getMockEvents(todayStr?: string): EventRow[] {
+  const today = todayStr ?? dayjs().format("YYYY-MM-DD");
+  const todayDate = dayjs(today);
+  const daysSinceTue = (todayDate.day() + 5) % 7;
+  const thisWeekTue = todayDate.subtract(daysSinceTue, "day");
+  const thisWeekMon = thisWeekTue.add(6, "day");
+  const prevWeekTue = thisWeekTue.subtract(7, "day");
+  const prevWeekMon = thisWeekTue.subtract(1, "day");
+  const nextWeekTue = thisWeekTue.add(7, "day");
+  const nextWeekMon = thisWeekTue.add(13, "day");
+  return [
+    {
+      id: "mock-ev-1",
+      name: "ミライト Starlight Party",
+      start_date: prevWeekTue.format("YYYY-MM-DD"),
+      end_date: prevWeekMon.format("YYYY-MM-DD"),
+      color: "violet",
+      event_type: "ranking",
+    },
+    {
+      id: "mock-ev-2",
+      name: "背景イベント",
+      start_date: thisWeekTue.format("YYYY-MM-DD"),
+      end_date: thisWeekMon.format("YYYY-MM-DD"),
+      color: "emerald",
+      event_type: "background",
+    },
+    {
+      id: "mock-ev-3",
+      name: "ミライトパーティ",
+      start_date: nextWeekTue.format("YYYY-MM-DD"),
+      end_date: nextWeekMon.format("YYYY-MM-DD"),
+      color: "rose",
+      event_type: "achievement",
+    },
+  ];
 }

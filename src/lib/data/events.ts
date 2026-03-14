@@ -1,10 +1,14 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+export type EventType = "ranking" | "achievement" | "background" | "other";
+
 export type EventRow = {
   id: string;
   name: string;
   start_date: string | null;
   end_date: string | null;
+  color: string | null;
+  event_type: EventType | null;
 };
 
 export async function listEventsForCalendar(
@@ -15,7 +19,7 @@ export async function listEventsForCalendar(
   const { data, error } = await supabase
     .schema("iriam")
     .from("events")
-    .select("id, name, start_date, end_date")
+    .select("id, name, start_date, end_date, color, event_type")
     .eq("calendar_id", calendarId)
     .order("start_date", { ascending: true })
     .order("created_at", { ascending: true });
@@ -35,7 +39,9 @@ export async function createEventForCalendar(
   calendarId: string,
   name: string,
   startDate: string | null,
-  endDate: string | null
+  endDate: string | null,
+  color: string | null = null,
+  eventType: EventType | null = null
 ) {
   const supabase = await createSupabaseServerClient();
 
@@ -47,6 +53,8 @@ export async function createEventForCalendar(
       name,
       start_date: startDate,
       end_date: endDate,
+      color: color || null,
+      event_type: eventType || null,
     });
 
   if (error) {

@@ -8,6 +8,7 @@ import Link from "next/link";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { getRankBarDashedLineClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
+import { getEventColorClasses } from "@/lib/event-colors";
 import { useViewMode } from "@/lib/view-mode-context";
 import { ScheduleForm } from "./ScheduleForm";
 
@@ -130,8 +131,8 @@ type Props = {
   permissions: CalendarPermissionFlags;
   moveEntry: (calendarId: string, fromDate: string, toDate: string) => Promise<void>;
   saveAction: (formData: FormData) => void;
-  /** イベント一覧（start_date/end_date があればその日にブロック表示） */
-  events: { id: string; name: string; start_date?: string | null; end_date?: string | null }[];
+  /** イベント一覧（start_date/end_date があればその日にブロック表示。color で帯の色を指定） */
+  events: { id: string; name: string; start_date?: string | null; end_date?: string | null; color?: string | null }[];
   /** 現在のランク周期（帯表示・canViewRank 時のみ） */
   currentRankCycle?: { start: string; end: string; rank: string | null } | null;
   /** 過去のランク周期履歴（帯表示用） */
@@ -151,9 +152,9 @@ function dateInCycle(date: string, start: string, end: string): boolean {
 
 /** 指定日が含まれるイベントを返す（start_date/end_date を保持して初日・最終日判定に使う） */
 function getEventsOnDate(
-  events: { id: string; name: string; start_date?: string | null; end_date?: string | null }[],
+  events: { id: string; name: string; start_date?: string | null; end_date?: string | null; color?: string | null }[],
   date: string
-): { id: string; name: string; start_date?: string | null; end_date?: string | null }[] {
+): { id: string; name: string; start_date?: string | null; end_date?: string | null; color?: string | null }[] {
   return events.filter((ev) => {
     const start = ev.start_date ?? ev.end_date;
     const end = ev.end_date ?? ev.start_date;
@@ -451,10 +452,11 @@ export function CalendarWithModal({
                           {eventsOnDay.map((ev) => {
                             const isStart = ev.start_date != null && ev.start_date === day.date;
                             const isEnd = ev.end_date != null && ev.end_date === day.date;
+                            const { border, bg, text } = getEventColorClasses(ev.color ?? null);
                             return (
                               <div
                                 key={ev.id}
-                                className={`bg-rose-50/95 py-px text-[10px] font-medium text-rose-800 line-clamp-1 dark:bg-rose-950/60 dark:text-rose-200 ${isStart ? "rounded-l border-l-4 border-rose-400 pl-1 dark:border-rose-500" : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
+                                className={`${bg} py-px text-[10px] font-medium line-clamp-1 ${text} ${isStart ? "rounded-l border-l-4 pl-1 " + border : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
                                 title={ev.name}
                               >
                                 {isStart ? ev.name : "\u00A0"}
@@ -649,19 +651,20 @@ export function CalendarWithModal({
 
               {eventsOnDay.length > 0 && (
                 <div className="mt-1 flex flex-col gap-px -mx-1.5 shrink-0">
-                  {eventsOnDay.map((ev) => {
-                    const isStart = ev.start_date != null && ev.start_date === day.date;
-                    const isEnd = ev.end_date != null && ev.end_date === day.date;
-                    return (
-                      <div
-                        key={ev.id}
-                        className={`bg-rose-50/95 py-0.5 text-[10px] font-medium text-rose-800 line-clamp-1 dark:bg-rose-950/60 dark:text-rose-200 ${isStart ? "rounded-l border-l-4 border-rose-400 pl-2 dark:border-rose-500" : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
-                        title={ev.name}
-                      >
-                        {isStart ? ev.name : "\u00A0"}
-                      </div>
-                    );
-                  })}
+{eventsOnDay.map((ev) => {
+                        const isStart = ev.start_date != null && ev.start_date === day.date;
+                        const isEnd = ev.end_date != null && ev.end_date === day.date;
+                        const { border, bg, text } = getEventColorClasses(ev.color ?? null);
+                        return (
+                          <div
+                            key={ev.id}
+                            className={`${bg} py-0.5 text-[10px] font-medium line-clamp-1 ${text} ${isStart ? "rounded-l border-l-4 pl-2 " + border : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
+                            title={ev.name}
+                          >
+                            {isStart ? ev.name : "\u00A0"}
+                          </div>
+                        );
+                      })}
                 </div>
               )}
 
