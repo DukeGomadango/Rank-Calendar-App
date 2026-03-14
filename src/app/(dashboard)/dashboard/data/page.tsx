@@ -10,7 +10,8 @@ import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
 import { listEventsForCalendar } from "@/lib/data/events";
 import { calculateCycleCumulativeByDate } from "@/lib/domain/rank";
-import { compareJstDate, getJstWeekStart, addDays } from "@/lib/domain/calendar";
+import { compareJstDate, getJstWeekStart, addDays, toJstDateString } from "@/lib/domain/calendar";
+import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import {
   getCalendarPermissionsForUser,
   type CalendarPermissionFlags,
@@ -58,10 +59,27 @@ export default async function DataPage(props: PageProps) {
 
   if (isDevMock) {
     const calendar = { id: "dev-mock", name: "開発用モック" as string | null };
-    const today = dayjs();
-    const todayJst = today.format("YYYY-MM-DD");
+    const todayJst = toJstDateString(new Date());
+    const today = dayjs(todayJst);
     const cycleStart = getJstWeekStart(todayJst);
     const cycleEnd = addDays(cycleStart, 6);
+    const seed = getMockSeedEntries(todayJst);
+    const rankEntriesForCumulative = [];
+    let cursorCycle = cycleStart;
+    while (cursorCycle <= cycleEnd) {
+      const e = seed[cursorCycle];
+      rankEntriesForCumulative.push({
+        date: cursorCycle,
+        actual_plus: e?.actual_plus ?? null,
+        skip_pass_used: e?.skip_pass_used ?? false,
+      });
+      cursorCycle = addDays(cursorCycle, 1);
+    }
+    const cumulativeByDate = calculateCycleCumulativeByDate(
+      rankEntriesForCumulative,
+      cycleStart,
+      cycleEnd
+    );
     const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
     const to = today.add(daysRange, "day").format("YYYY-MM-DD");
     const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -83,14 +101,24 @@ export default async function DataPage(props: PageProps) {
     while (cursor.isSame(end) || cursor.isBefore(end)) {
       const dateStr = cursor.format("YYYY-MM-DD");
       const inCycle = dateStr >= cycleStart && dateStr <= cycleEnd;
+      const entry = seed[dateStr];
       rows.push({
         date: dateStr,
         weekday: WEEKDAYS[cursor.day()],
-        current_rank: null,
-        rank_score_cumulative: inCycle ? 0 : null,
+        target_plus: entry?.target_plus ?? null,
+        actual_plus: entry?.actual_plus ?? null,
+        skip_pass_used: entry?.skip_pass_used ?? false,
+        current_rank: "A1",
+        rank_score_cumulative: inCycle ? (cumulativeByDate[dateStr] ?? null) : null,
       });
       cursor = cursor.add(1, "day");
     }
+    const hasAnyEntries = rows.some(
+      (r) =>
+        r.target_plus != null ||
+        r.actual_plus != null ||
+        (r.skip_pass_used ?? false)
+    );
     return (
       <div className="space-y-4">
         <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
@@ -110,11 +138,13 @@ export default async function DataPage(props: PageProps) {
             <DataRangeSelect currentDays={daysRange} />
           </Suspense>
         </header>
-        <section className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
-          <p>
-            この期間にはまだスケジュールがありません。ホームやカレンダーから登録しましょう。
-          </p>
-        </section>
+        {!hasAnyEntries && (
+          <section className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+            <p>
+              この期間にはまだスケジュールがありません。ホームやカレンダーから登録しましょう。
+            </p>
+          </section>
+        )}
         <DataTableWithMockState
           initialRows={rows}
           permissions={DEV_MOCK_PERMISSIONS}

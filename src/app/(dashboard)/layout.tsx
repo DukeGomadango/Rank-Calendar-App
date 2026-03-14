@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { toJstDateString } from "@/lib/domain/calendar";
+import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import { MockScheduleProvider } from "@/lib/mock-schedule-context";
 import { ViewModeProvider } from "@/lib/view-mode-context";
 
@@ -9,9 +11,16 @@ type DashboardLayoutProps = {
   children: ReactNode;
 };
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default async function DashboardLayout({
+  children,
+}: DashboardLayoutProps) {
+  const initialEntries =
+    process.env.NODE_ENV === "development"
+      ? getMockSeedEntries(toJstDateString(new Date()))
+      : undefined;
+
   return (
-    <MockScheduleProvider>
+    <MockScheduleProvider initialEntries={initialEntries}>
     <ViewModeProvider>
     <div className="flex min-h-screen flex-col bg-background">
       {/* 画面右上に固定: ダークモード切替 */}

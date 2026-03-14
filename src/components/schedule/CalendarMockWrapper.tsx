@@ -26,6 +26,11 @@ type Props = {
   moveEntry: (calendarId: string, fromDate: string, toDate: string) => Promise<void>;
   saveAction: (formData: FormData) => void;
   events: { id: string; name: string }[];
+  currentRankCycle?: { start: string; end: string; rank: string | null } | null;
+  rankCycleHistory?: { cycle_start_date: string; cycle_end_date: string; rank_during: string | null; cycle_total?: number | null }[];
+  forecastLabel?: string | null;
+  nextCycle?: { start: string; end: string; rank: string | null } | null;
+  todayJst?: string | null;
 };
 
 function mockEntryToRow(partial: Record<string, unknown>, date: string): ScheduleEntryRow {

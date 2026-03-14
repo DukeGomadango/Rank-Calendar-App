@@ -37,11 +37,18 @@ export function useMockSchedule(): MockScheduleContextValue | null {
   return useContext(MockScheduleContext);
 }
 
-type MockScheduleProviderProps = { children: ReactNode };
+type MockScheduleProviderProps = {
+  children: ReactNode;
+  /** 開発用: 初回マウント時に使うシード（A1→A2狙い・キープ・スキップ入り1ヶ月分など） */
+  initialEntries?: Record<string, MockEntry>;
+};
 
-export function MockScheduleProvider({ children }: MockScheduleProviderProps) {
+export function MockScheduleProvider({
+  children,
+  initialEntries,
+}: MockScheduleProviderProps) {
   const [entriesByDate, setEntriesByDate] = useState<Record<string, MockEntry>>(
-    {}
+    () => initialEntries ?? {}
   );
 
   const updateField = useCallback(

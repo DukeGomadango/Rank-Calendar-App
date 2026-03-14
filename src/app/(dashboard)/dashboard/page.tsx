@@ -7,6 +7,7 @@ import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
 import { toJstDateString, getJstWeekStart, addDays } from "@/lib/domain/calendar";
 import { judgeCycleRank, type RankEntry } from "@/lib/domain/rank";
+import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { CurrentRankBadge } from "@/components/dashboard/CurrentRankBadge";
 import { WeeklyPlusSummary } from "@/components/dashboard/WeeklyPlusSummary";
@@ -15,8 +16,6 @@ import {
   saveScheduleEntry,
   noopSaveEntry,
   applyRankUp,
-  updateCurrentRank,
-  updateRankResetDate,
   noopApplyRankUp,
 } from "./actions";
 
@@ -44,7 +43,22 @@ export default async function DashboardHomePage() {
     const todayJst = toJstDateString(new Date());
     const weekStartJst = getJstWeekStart(todayJst);
     const weekEndJst = addDays(weekStartJst, 6);
-    const totalPlus = 0;
+    const seed = getMockSeedEntries(todayJst);
+    const rankEntries: RankEntry[] = [];
+    let d = weekStartJst;
+    while (d <= weekEndJst) {
+      const e = seed[d];
+      if (e)
+        rankEntries.push({
+          date: d,
+          actual_plus: e.actual_plus ?? null,
+          skip_pass_used: e.skip_pass_used ?? false,
+        });
+      d = addDays(d, 1);
+    }
+    const totalPlus = rankEntries
+      .filter((e) => !e.skip_pass_used)
+      .reduce((sum, e) => sum + (e.actual_plus ?? 0), 0);
     const maxPlus: number = 18;
     const { canRankUp: canRankUpNextDay, isKeep: reachedIntermediate } =
       judgeCycleRank(totalPlus);
@@ -61,7 +75,32 @@ export default async function DashboardHomePage() {
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
     const defaultDate = `${yyyy}-${mm}-${dd}`;
-    // モック用: 集計周期は今週で、ランク未設定
+    const weeklyEntries = rankEntries.map((e) => {
+      const se = seed[e.date];
+      return {
+        date: e.date,
+        target_plus: se?.target_plus ?? null,
+        actual_plus: e.actual_plus,
+        skip_pass_used: e.skip_pass_used,
+      };
+    });
+    const hasWeeklySchedule = weeklyEntries.some(
+      (e) => e.target_plus != null || e.actual_plus != null || e.skip_pass_used
+    );
+    const todaySeed = seed[defaultDate];
+    const todayEntry = todaySeed
+      ? {
+          date: defaultDate,
+          target_plus: todaySeed.target_plus ?? null,
+          actual_plus: todaySeed.actual_plus ?? null,
+          skip_pass_used: todaySeed.skip_pass_used ?? false,
+          border_plus2: todaySeed.border_plus2 ?? null,
+          border_plus4: todaySeed.border_plus4 ?? null,
+          border_plus6: todaySeed.border_plus6 ?? null,
+          event_id: null,
+          memo: null,
+        }
+      : undefined;
 
     return (
       <div className="space-y-6">
@@ -81,22 +120,31 @@ export default async function DashboardHomePage() {
           <div className="space-y-6">
             <CurrentRankBadge
               calendarId={calendar.id}
-              currentRank={null}
+              currentRank="A1"
               canRankUp={canRankUpNextDay}
               daysUntilReset={daysUntilReset}
               onApplyRankUp={noopApplyRankUp}
             />
-            <section
-              id="empty-schedule-cta"
-              className="rounded-2xl bg-gradient-to-br from-accent-50/90 to-white p-4 text-xs shadow-md dark:from-accent-950/30 dark:to-slate-800"
-            >
-              <p className="font-medium text-accent-800 dark:text-accent-200">
-                📅 今週の配信予定を立ててみよう！✨
-              </p>
-              <p className="mt-1 text-[11px] text-accent-700 dark:text-accent-300">
-                右のフォームから今日の目標+を登録すると、今の集計周期の+サマリに反映されます。
-              </p>
-            </section>
+            {!hasWeeklySchedule && (
+              <section
+                id="empty-schedule-cta"
+                className="rounded-2xl bg-gradient-to-br from-accent-50/90 to-white p-4 text-xs shadow-md dark:from-accent-950/30 dark:to-slate-800"
+              >
+                <p className="font-medium text-accent-800 dark:text-accent-200">
+                  📅 今週の配信予定を立ててみよう！✨
+                </p>
+                <p className="mt-1 text-[11px] text-accent-700 dark:text-accent-300">
+                  右のフォームから今日の目標+を登録すると、今の集計周期の+サマリに反映されます。
+                </p>
+              </section>
+            )}
+            {hasWeeklySchedule && !todayEntry && (
+              <section className="rounded-2xl bg-amber-50/90 p-3 text-[11px] shadow-sm dark:bg-amber-500/15 dark:border dark:border-amber-500/30">
+                <p className="text-amber-800 dark:text-amber-200">
+                  📅 今日の記録、まだだね。右のフォームからサクッと登録しよう！
+                </p>
+              </section>
+            )}
             <WeeklyPlusSummary
               totalPlus={totalPlus}
               maxPlus={maxPlus}
@@ -105,7 +153,7 @@ export default async function DashboardHomePage() {
               canRankUpNextDay={canRankUpNextDay}
               reachedIntermediate={reachedIntermediate}
               daysUntilReset={daysUntilReset}
-              weeklyEntries={[]}
+              weeklyEntries={weeklyEntries}
               todayJst={todayJst}
             />
             <section className="rounded-2xl bg-white p-3 text-[11px] text-zinc-600 shadow-sm dark:bg-slate-800 dark:text-zinc-400">
@@ -121,7 +169,7 @@ export default async function DashboardHomePage() {
               defaultDate={defaultDate}
               action={noopSaveEntry}
               events={events}
-              todayEntry={undefined}
+              todayEntry={todayEntry}
             />
           </section>
         </div>

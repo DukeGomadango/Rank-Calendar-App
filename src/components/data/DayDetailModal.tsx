@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { EventRow } from "@/lib/data/events";
+import { getRankBadgeClass } from "@/lib/rank-styles";
 import { PLUS_SELECT_VALUES } from "@/lib/plus-options";
 
 export type DayDetailRow = {
@@ -108,9 +109,8 @@ export function DayDetailModal({
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    row.current_rank
-                      ? "bg-accent-100 text-accent-800 dark:bg-accent-900/50 dark:text-accent-200"
-                      : "bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400"
+                    getRankBadgeClass(row.current_rank ?? null) ??
+                    "bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400"
                   }`}
                 >
                   {row.current_rank ?? "ランク未設定"}

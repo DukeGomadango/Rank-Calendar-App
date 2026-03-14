@@ -92,8 +92,69 @@ export async function extendRankResetDate(
   }
 }
 
+export type RankCycleHistoryRow = {
+  id: string;
+  calendar_id: string;
+  cycle_start_date: string;
+  cycle_end_date: string;
+  rank_during: RankLabel | null;
+};
+
 /**
- * ランクアップを反映: current_rank を1段階上げ、新周期（翌日〜翌+6日）を設定。
+ * 指定日付範囲と重なるランク周期履歴を取得（カレンダー表示用）。
+ */
+export async function getRankCycleHistory(
+  calendarId: string,
+  fromDate: string,
+  toDate: string
+): Promise<RankCycleHistoryRow[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .schema("iriam")
+    .from("calendar_rank_cycle_history")
+    .select("id, calendar_id, cycle_start_date, cycle_end_date, rank_during")
+    .eq("calendar_id", calendarId)
+    .gte("cycle_end_date", fromDate)
+    .lte("cycle_start_date", toDate)
+    .order("cycle_start_date", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      `calendar_rank_cycle_history select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    );
+  }
+  return (data ?? []) as RankCycleHistoryRow[];
+}
+
+/**
+ * 終了したランク周期を履歴に追加（applyRankUp の内部で使用）。
+ */
+export async function insertRankCycleHistory(
+  calendarId: string,
+  cycleStartDate: string,
+  cycleEndDate: string,
+  rankDuring: RankLabel | null
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .schema("iriam")
+    .from("calendar_rank_cycle_history")
+    .insert({
+      calendar_id: calendarId,
+      cycle_start_date: cycleStartDate,
+      cycle_end_date: cycleEndDate,
+      rank_during: rankDuring,
+    });
+
+  if (error) {
+    throw new Error(
+      `calendar_rank_cycle_history insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    );
+  }
+}
+
+/**
+ * ランクアップを反映: 終了した周期を履歴に保存し、current_rank を1段階上げ、新周期（翌日〜翌+6日）を設定。
  * レコードが無い場合は getOrCreate で作成してから更新する。
  */
 export async function applyRankUp(
@@ -103,10 +164,16 @@ export async function applyRankUp(
 ): Promise<void> {
   const { getNextRank } = await import("@/lib/domain/rank");
   const nextRank = getNextRank(currentRank);
+  const state = await getOrCreateCalendarRankState(calendarId);
   const cycleStartNew = addDays(rankUpAchievedDate, 1);
   const resetDateNew = addDays(cycleStartNew, 6);
 
-  await getOrCreateCalendarRankState(calendarId);
+  await insertRankCycleHistory(
+    calendarId,
+    state.rank_cycle_start_date,
+    rankUpAchievedDate,
+    state.current_rank
+  );
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase

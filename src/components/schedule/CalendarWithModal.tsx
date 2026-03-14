@@ -1,18 +1,105 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
 import Link from "next/link";
 
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
+import { getRankBarDashedLineClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
 import { useViewMode } from "@/lib/view-mode-context";
 import { ScheduleForm } from "./ScheduleForm";
 
 dayjs.locale("ja");
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+/** 目標 vs 実績で達成バッジ（フラット・絵文字なし）。未来日は点線枠で「予定」を示す。 */
+function getAchievementBadge(
+  target: number | null | undefined,
+  actual: number | null | undefined,
+  isFuture?: boolean
+): { type: "achieved" | "not_achieved" | "neutral"; label: string; className: string } {
+  const t = target ?? null;
+  const a = actual ?? null;
+  const futureBorder = isFuture
+    ? " border border-dashed border-zinc-400 dark:border-zinc-500"
+    : "";
+  if (t === null && a === null)
+    return {
+      type: "neutral",
+      label: "—",
+      className:
+        "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400" +
+        futureBorder,
+    };
+  if (t === null)
+    return {
+      type: "neutral",
+      label: `+${a}`,
+      className:
+        "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300" +
+        futureBorder,
+    };
+  const actualVal = a ?? 0;
+  if (actualVal >= t)
+    return {
+      type: "achieved",
+      label: `+${actualVal}`,
+      className:
+        "rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200",
+    };
+  return {
+    type: "not_achieved",
+    label: `+${actualVal}`,
+    className:
+      "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-400" +
+      futureBorder,
+  };
+}
+
+/** 目標と実績を並べて表示する用（目標ラベル＋実績ラベル、実績は達成/未達で色分け） */
+function getTargetActualDisplay(
+  target: number | null | undefined,
+  actual: number | null | undefined,
+  isFuture?: boolean
+): { targetLabel: string; targetClass: string; actualLabel: string; actualClass: string } {
+  const t = target ?? null;
+  const a = actual ?? null;
+  const futureBorder = isFuture
+    ? " border border-dashed border-zinc-400 dark:border-zinc-500"
+    : "";
+  const neutralClass =
+    "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300" +
+    futureBorder;
+  if (t === null && a === null) {
+    return {
+      targetLabel: "—",
+      targetClass: "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400" + futureBorder,
+      actualLabel: "—",
+      actualClass: neutralClass,
+    };
+  }
+  const targetLabel = t !== null ? `+${t}` : "—";
+  const actualVal = a ?? 0;
+  const actualLabel = t !== null ? `+${actualVal}` : (a !== null ? `+${a}` : "—");
+  const achievedClass =
+    "rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200";
+  const notAchievedClass =
+    "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-400" + futureBorder;
+  const actualClass =
+    t === null ? neutralClass : (actualVal >= (t ?? 0) ? achievedClass : notAchievedClass);
+  return {
+    targetLabel,
+    targetClass: t !== null ? neutralClass : "rounded-full bg-zinc-100/80 px-1.5 py-0.5 text-[9px] text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500",
+    actualLabel,
+    actualClass,
+  };
+}
+
+/** スキップ日: 薄い緑（休み・集計外。達成バッジの緑と区別するため teal 系） */
+const SKIP_STRIPE_CLASS = "bg-teal-50 dark:bg-teal-950/60";
 
 type DayData = {
   date: string; // YYYY-MM-DD
@@ -21,6 +108,14 @@ type DayData = {
   weekday: number; // 0=Sun
   holidayName: string | null;
   entries: ScheduleEntryRow[];
+};
+
+type RankCycleBand = {
+  cycle_start_date: string;
+  cycle_end_date: string;
+  rank_during: string | null;
+  /** 過去周期の合計（スキップ除く）。ゴール表示用。 */
+  cycle_total?: number | null;
 };
 
 type Props = {
@@ -35,8 +130,50 @@ type Props = {
   permissions: CalendarPermissionFlags;
   moveEntry: (calendarId: string, fromDate: string, toDate: string) => Promise<void>;
   saveAction: (formData: FormData) => void;
-  events: { id: string; name: string }[];
+  /** イベント一覧（start_date/end_date があればその日にブロック表示） */
+  events: { id: string; name: string; start_date?: string | null; end_date?: string | null }[];
+  /** 現在のランク周期（帯表示・canViewRank 時のみ） */
+  currentRankCycle?: { start: string; end: string; rank: string | null } | null;
+  /** 過去のランク周期履歴（帯表示用） */
+  rankCycleHistory?: RankCycleBand[];
+  /** 目標達成時の予測ラベル（例: 目標達成で → A2） */
+  forecastLabel?: string | null;
+  /** 予測の次のランク周期（点線で表示）。forecastLabel からランクを抽出して設定する。 */
+  nextCycle?: { start: string; end: string; rank: string | null } | null;
+  /** 今日の日付 YYYY-MM-DD（期間の過去/現在/未来判定用）。省略時はクライアントの今日。 */
+  todayJst?: string | null;
 };
+
+/** 日付が周期範囲内か判定 */
+function dateInCycle(date: string, start: string, end: string): boolean {
+  return date >= start && date <= end;
+}
+
+/** 指定日が含まれるイベントを返す（start_date/end_date を保持して初日・最終日判定に使う） */
+function getEventsOnDate(
+  events: { id: string; name: string; start_date?: string | null; end_date?: string | null }[],
+  date: string
+): { id: string; name: string; start_date?: string | null; end_date?: string | null }[] {
+  return events.filter((ev) => {
+    const start = ev.start_date ?? ev.end_date;
+    const end = ev.end_date ?? ev.start_date;
+    if (start == null || end == null) return false;
+    return start <= date && date <= end;
+  });
+}
+
+/** 周期の種別（過去/現在/未来） */
+type PeriodType = "past" | "current" | "future";
+
+function getPeriodType(
+  cycleStart: string,
+  cycleEnd: string,
+  today: string
+): PeriodType {
+  if (cycleEnd < today) return "past";
+  if (cycleStart <= today && today <= cycleEnd) return "current";
+  return "future";
+}
 
 export function CalendarWithModal({
   calendarName,
@@ -49,9 +186,15 @@ export function CalendarWithModal({
   moveEntry,
   saveAction,
   events,
+  currentRankCycle = null,
+  rankCycleHistory = [],
+  forecastLabel = null,
+  nextCycle = null,
+  todayJst,
 }: Props) {
-  const { viewMode } = useViewMode();
+  const { viewMode, setViewMode } = useViewMode();
   const useSimpleView = !permissions.isOwner && viewMode === "simple";
+  const todayStr = todayJst ?? dayjs().format("YYYY-MM-DD");
 
   const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -88,8 +231,98 @@ export function CalendarWithModal({
     });
   }, [days, currentWeekStart]);
 
+  /** この日付が属する周期（現在 > 履歴 > 予測）と周期種別・予測フラグ */
+  const getCycleForDate = useCallback(
+    (date: string): { start: string; end: string; rank: string | null; isCurrent: boolean; cycleTotal?: number | null; periodType: PeriodType; isPredicted?: boolean } | null => {
+      if (!permissions.canViewRank) return null;
+      if (currentRankCycle && dateInCycle(date, currentRankCycle.start, currentRankCycle.end)) {
+        return {
+          start: currentRankCycle.start,
+          end: currentRankCycle.end,
+          rank: currentRankCycle.rank,
+          isCurrent: true,
+          periodType: getPeriodType(currentRankCycle.start, currentRankCycle.end, todayStr),
+        };
+      }
+      for (const h of rankCycleHistory) {
+        if (dateInCycle(date, h.cycle_start_date, h.cycle_end_date)) {
+          return {
+            start: h.cycle_start_date,
+            end: h.cycle_end_date,
+            rank: h.rank_during,
+            isCurrent: false,
+            cycleTotal: h.cycle_total ?? null,
+            periodType: getPeriodType(h.cycle_start_date, h.cycle_end_date, todayStr),
+          };
+        }
+      }
+      if (nextCycle && dateInCycle(date, nextCycle.start, nextCycle.end)) {
+        return {
+          start: nextCycle.start,
+          end: nextCycle.end,
+          rank: nextCycle.rank,
+          isCurrent: false,
+          periodType: "future",
+          isPredicted: true,
+        };
+      }
+      return null;
+    },
+    [permissions.canViewRank, currentRankCycle, rankCycleHistory, nextCycle, todayStr]
+  );
+
+  /** 週行内でバーの角丸: 左端セルで左丸、右端セルで右丸 */
+  const getBarRoundedInRow = useCallback(
+    (date: string, rowDates: string[], cycleStart: string, cycleEnd: string): { roundedLeft: boolean; roundedRight: boolean } => {
+      const inRange = rowDates.filter((d) => dateInCycle(d, cycleStart, cycleEnd));
+      if (inRange.length === 0) return { roundedLeft: false, roundedRight: false };
+      const firstInRow = inRange[0];
+      const lastInRow = inRange[inRange.length - 1];
+      return {
+        roundedLeft: date === firstInRow,
+        roundedRight: date === lastInRow,
+      };
+    },
+    []
+  );
+
+  /** 周期帯の表示用ラベル（ランク＋日付範囲） */
+  const formatCycleBandLabel = (rank: string | null, cycleStart?: string, cycleEnd?: string) => {
+    const r = rank ?? "—";
+    if (cycleStart && cycleEnd) {
+      const s = dayjs(cycleStart).format("M/D");
+      const e = dayjs(cycleEnd).format("M/D");
+      return `${r} ${s}〜${e}`;
+    }
+    return r;
+  };
+
+  /** 期間種別ごとのセル背景（ランク周期に属する日のみ） */
+  const getPeriodCellClass = useCallback((periodType: PeriodType, isToday: boolean): string => {
+    if (isToday && periodType === "current")
+      return "bg-accent-50 dark:bg-accent-950/40";
+    switch (periodType) {
+      case "past":
+        return "bg-zinc-100 dark:bg-zinc-800/90";
+      case "current":
+        return "bg-white dark:bg-zinc-900";
+      case "future":
+        return "bg-zinc-50/70 dark:bg-zinc-900/70 border border-dashed border-zinc-300 dark:border-zinc-600";
+      default:
+        return "bg-white dark:bg-zinc-900";
+    }
+  }, []);
+
+  const monthWeeks = useMemo(() => {
+    const chunks: DayData[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      chunks.push(days.slice(i, i + 7));
+    }
+    return chunks;
+  }, [days]);
+
   const renderMonthGrid = () => (
-    <section className="rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+    <section className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
       <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
         {WEEKDAYS.map((label, idx) => {
           const isSun = idx === 0;
@@ -110,94 +343,171 @@ export function CalendarWithModal({
         })}
       </div>
 
-      <div className="mt-1 grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
-        {days.map((day) => {
-          const dateObj = dayjs(day.date);
-
-          let textColor = "text-zinc-800 dark:text-zinc-100";
-          if (!day.isCurrentMonth) {
-            textColor = "text-zinc-400 dark:text-zinc-500";
-          } else if (day.holidayName || day.weekday === 0) {
-            textColor = "text-red-500";
-          } else if (day.weekday === 6) {
-            textColor = "text-blue-500";
-          }
-
-          const bg = day.isToday
-            ? "bg-accent-50 dark:bg-accent-950/40"
-            : "bg-white dark:bg-zinc-900";
-
-          const hasEntry = day.entries.length > 0;
-
-          const canDrop =
-            permissions.isOwner && (!day.entries.length || !day.entries[0].skip_pass_used);
-
+      <div className="mt-1 flex min-h-0 flex-1 flex-col gap-px">
+        {monthWeeks.map((weekDays, weekIdx) => {
+          const rowDates = weekDays.map((d) => d.date);
           return (
-            <button
-              key={day.date}
-              type="button"
-              onClick={() => {
-                if (permissions.canEditSchedule) {
-                  setSelectedDate(day.date);
-                }
-              }}
-              onDragOver={(e) => {
-                if (canDrop) e.preventDefault();
-              }}
-              onDrop={(e) => {
-                if (!canDrop || !permissions.isOwner) return;
-                const fromDate = e.dataTransfer.getData("text/plain");
-                if (!fromDate || fromDate === day.date) return;
-                startTransition(() => {
-                  void moveEntry(calendarId, fromDate, day.date);
-                });
-              }}
-              className={`${bg} relative flex min-h-[72px] flex-col border border-zinc-200/80 p-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:border-zinc-800/80`}
+            <div
+              key={weekIdx}
+              className="grid min-h-[100px] flex-1 grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800"
             >
-              <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-medium ${textColor}`}>
-                  {dateObj.date()}
-                </span>
-                {day.isToday && (
-                  <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[9px] font-medium text-white">
-                    今日
-                  </span>
-                )}
-              </div>
+              {weekDays.map((day, dayIdx) => {
+                const dateObj = dayjs(day.date);
+                const cycle = getCycleForDate(day.date);
+                const rounded = cycle
+                  ? getBarRoundedInRow(day.date, rowDates, cycle.start, cycle.end)
+                  : null;
+                const bg =
+                  cycle
+                    ? getPeriodCellClass(cycle.periodType, day.isToday)
+                    : day.isToday
+                      ? "bg-accent-50 dark:bg-accent-950/40"
+                      : "bg-white dark:bg-zinc-900";
+                const isCycleEnd = cycle && day.date === cycle.end;
 
-              {day.holidayName && (
-                <span className="mt-0.5 line-clamp-1 text-[9px] text-red-500">
-                  {day.holidayName}
-                </span>
-              )}
+                let textColor = "text-zinc-800 dark:text-zinc-100";
+                if (!day.isCurrentMonth) {
+                  textColor = "text-zinc-400 dark:text-zinc-500";
+                } else if (day.holidayName || day.weekday === 0) {
+                  textColor = "text-red-500";
+                } else if (day.weekday === 6) {
+                  textColor = "text-blue-500";
+                }
+                if (cycle?.periodType === "past") {
+                  textColor = "text-zinc-500 dark:text-zinc-400";
+                }
 
-              {hasEntry && (
-                <div className="mt-1 flex flex-wrap gap-0.5">
-                  {day.entries.map((entry) => (
-                    <span
-                      key={entry.id}
-                      className="inline-flex items-center rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] text-zinc-700 dark:bg-zinc-50/10 dark:text-zinc-100"
-                    >
-                      {permissions.canViewTargetActual && entry.target_plus != null && (
-                        <span className="mr-1 text-[9px] font-semibold text-accent-500">
-                          目{entry.target_plus}
+                const entry = day.entries[0];
+                const isSkip = entry?.skip_pass_used ?? false;
+                const hasEntry = day.entries.length > 0;
+                const canDrop =
+                  permissions.isOwner && (!day.entries.length || !entry?.skip_pass_used);
+                const showEventIcon = permissions.canViewEvents && entry?.event_id;
+                const showMemoIcon = permissions.canViewMemo && entry?.memo?.trim();
+                const eventsOnDay = permissions.canViewEvents ? getEventsOnDate(events, day.date) : [];
+                const showBordersInCell = permissions.canViewBorders && viewMode === "detailed";
+
+                return (
+                  <button
+                    key={day.date}
+                    type="button"
+                    onClick={() => {
+                      if (permissions.canEditSchedule) setSelectedDate(day.date);
+                    }}
+                    onDragOver={(e) => {
+                      if (canDrop) e.preventDefault();
+                    }}
+                    onDrop={(e) => {
+                      if (!canDrop || !permissions.isOwner) return;
+                      const fromDate = e.dataTransfer.getData("text/plain");
+                      if (!fromDate || fromDate === day.date) return;
+                      startTransition(() => void moveEntry(calendarId, fromDate, day.date));
+                    }}
+                    style={{ gridColumn: dayIdx + 1 }}
+                    className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-0 flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
+                  >
+                    {cycle && permissions.canViewRank && (() => {
+                      const showBracket = !isSkip;
+                      const isPhaseStart = day.date === cycle.start;
+                      const isPhaseEnd = day.date === cycle.end;
+                      const vertStrong = !!((rounded?.roundedLeft && isPhaseStart) || (rounded?.roundedRight && isPhaseEnd));
+                      const vertClass = getRankBarVerticalBorderClass(cycle.rank, vertStrong);
+                      return (
+                        <div
+                          className={`mt-0.5 flex items-center gap-0.5 overflow-visible ${showBracket && rounded?.roundedLeft ? "rounded-tl-sm border-l-2 " + vertClass : ""} ${showBracket && rounded?.roundedRight ? "rounded-tr-sm border-r-2 " + vertClass : ""}`}
+                          title={formatCycleBandLabel(cycle.rank, cycle.start, cycle.end) + (cycle.isPredicted ? "（予測）" : "")}
+                        >
+                          {cycle.isPredicted ? (
+                            <div className={`min-w-0 flex-1 h-0 ${getRankBarDashedLineClass(cycle.rank)}`} />
+                          ) : (
+                            <div className={`h-1 min-w-0 flex-1 ${getRankBarLineClass(cycle.rank)}`} />
+                          )}
+                          <span className={`shrink-0 text-[8px] font-medium ${getRankBarTextClass(cycle.rank)}`}>
+                            {cycle.rank ?? "—"}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    <div className="flex flex-1 flex-col p-1">
+                      <div className="flex items-center justify-between gap-0.5">
+                        <span className={`flex items-center gap-0.5 text-[11px] font-medium ${textColor}`}>
+                          {dateObj.date()}
+                          {showEventIcon && <span className="text-[10px]" title="イベント">🎉</span>}
+                          {showMemoIcon && <span className="text-[10px]" title="メモ">📝</span>}
+                        </span>
+                        {day.isToday && (
+                          <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[9px] font-medium text-white shrink-0">
+                            今日
+                          </span>
+                        )}
+                      </div>
+                      {day.holidayName && !isSkip && (
+                        <span className="mt-0.5 line-clamp-1 text-[9px] text-red-500">
+                          {day.holidayName}
                         </span>
                       )}
-                      {!useSimpleView && permissions.canViewTargetActual && entry.actual_plus != null && (
-                        <span className="text-[9px] text-zinc-700 dark:text-zinc-200">
-                          実{entry.actual_plus}
-                        </span>
+                      {eventsOnDay.length > 0 && (
+                        <div className="mt-0.5 flex flex-col gap-px -mx-1.5 shrink-0">
+                          {eventsOnDay.map((ev) => {
+                            const isStart = ev.start_date != null && ev.start_date === day.date;
+                            const isEnd = ev.end_date != null && ev.end_date === day.date;
+                            return (
+                              <div
+                                key={ev.id}
+                                className={`bg-rose-50/95 py-px text-[10px] font-medium text-rose-800 line-clamp-1 dark:bg-rose-950/60 dark:text-rose-200 ${isStart ? "rounded-l border-l-4 border-rose-400 pl-1 dark:border-rose-500" : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
+                                title={ev.name}
+                              >
+                                {isStart ? ev.name : "\u00A0"}
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
-                      {entry.skip_pass_used && (
-                        <span className="ml-1 rounded bg-zinc-900/10 px-1 text-[8px] text-zinc-700 dark:bg-zinc-50/10 dark:text-zinc-100">
-                          スキップ
-                        </span>
+                      {isSkip ? (
+                        <div className="mt-1 flex flex-1 items-center justify-center min-h-0">
+                          <span className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキップパス使用日">
+                            SKIP
+                          </span>
+                        </div>
+                      ) : (
+                        hasEntry && (
+                          <div className="mt-1 flex flex-wrap items-center gap-0.5">
+                            {day.entries.map((e) => {
+                              const disp = getTargetActualDisplay(
+                                e.target_plus,
+                                e.actual_plus,
+                                day.date > todayStr
+                              );
+                              return permissions.canViewTargetActual ? (
+                                <span key={e.id} className="inline-flex items-center gap-0.5">
+                                  <span className={disp.targetClass} title="目標">
+                                    {disp.targetLabel}
+                                  </span>
+                                  <span className="text-[8px] text-zinc-400 dark:text-zinc-500">/</span>
+                                  <span className={disp.actualClass} title="実績">
+                                    {disp.actualLabel}
+                                  </span>
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        )
                       )}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </button>
+                      {showBordersInCell && hasEntry && entry && (
+                        <p className="mt-0.5 line-clamp-1 text-[8px] text-zinc-400 dark:text-zinc-500">
+                          +2:{entry.border_plus2 ?? "-"} +4:{entry.border_plus4 ?? "-"} +6:{entry.border_plus6 ?? "-"}
+                        </p>
+                      )}
+                      {isCycleEnd && permissions.canViewRank && !cycle.isPredicted && cycle.periodType === "past" && cycle.cycleTotal != null && (
+                        <p className="mt-0.5 text-[7px] text-zinc-400 dark:text-zinc-500" title="周期の最終合計">
+                          🏁 +{cycle.cycleTotal}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
       </div>
@@ -205,7 +515,7 @@ export function CalendarWithModal({
   );
 
   const renderWeekGrid = () => (
-    <section className="rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+    <section className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
       <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
         {WEEKDAYS.map((label, idx) => {
           const isSun = idx === 0;
@@ -226,10 +536,22 @@ export function CalendarWithModal({
         })}
       </div>
 
-      <div className="mt-1 grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+      <div className="mt-1 grid min-h-0 flex-1 grid-cols-7 grid-rows-[1fr] gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
         {weekDays.map((day) => {
           const dateObj = dayjs(day.date);
           const entry = day.entries[0];
+          const cycle = getCycleForDate(day.date);
+          const weekRowDates = weekDays.map((d) => d.date);
+          const rounded = cycle
+            ? getBarRoundedInRow(day.date, weekRowDates, cycle.start, cycle.end)
+            : null;
+          const bg =
+            cycle
+              ? getPeriodCellClass(cycle.periodType, day.isToday)
+              : day.isToday
+                ? "bg-accent-50 dark:bg-accent-950/40"
+                : "bg-white dark:bg-zinc-900";
+          const isCycleEnd = cycle && day.date === cycle.end;
 
           let textColor = "text-zinc-800 dark:text-zinc-100";
           if (!day.isCurrentMonth) {
@@ -239,13 +561,16 @@ export function CalendarWithModal({
           } else if (day.weekday === 6) {
             textColor = "text-blue-500";
           }
+          if (cycle?.periodType === "past") {
+            textColor = "text-zinc-500 dark:text-zinc-400";
+          }
 
-          const bg = day.isToday
-            ? "bg-accent-50 dark:bg-accent-950/40"
-            : "bg-white dark:bg-zinc-900";
-
+          const isSkip = entry?.skip_pass_used ?? false;
           const canDrop =
             permissions.isOwner && (!entry || !entry.skip_pass_used);
+          const showEventIcon = permissions.canViewEvents && entry?.event_id;
+          const showMemoIcon = permissions.canViewMemo && entry?.memo?.trim();
+          const eventsOnDay = permissions.canViewEvents ? getEventsOnDate(events, day.date) : [];
 
           return (
             <button
@@ -267,47 +592,104 @@ export function CalendarWithModal({
                   void moveEntry(calendarId, fromDate, day.date);
                 });
               }}
-              className={`${bg} relative flex min-h-[140px] flex-col border border-zinc-200/80 p-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:border-zinc-800/80`}
+              className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-[120px] flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
             >
+              {cycle && permissions.canViewRank && (() => {
+                const showBracket = !isSkip;
+                const isPhaseStart = day.date === cycle.start;
+                const isPhaseEnd = day.date === cycle.end;
+                const vertStrong = !!((rounded?.roundedLeft && isPhaseStart) || (rounded?.roundedRight && isPhaseEnd));
+                const vertClass = getRankBarVerticalBorderClass(cycle.rank, vertStrong);
+                return (
+                  <div
+                    className={`flex items-center gap-0.5 overflow-visible ${showBracket && rounded?.roundedLeft ? "rounded-tl-sm border-l-2 " + vertClass : ""} ${showBracket && rounded?.roundedRight ? "rounded-tr-sm border-r-2 " + vertClass : ""}`}
+                    title={formatCycleBandLabel(cycle.rank, cycle.start, cycle.end) + (cycle.isPredicted ? "（予測）" : "")}
+                  >
+                    {cycle.isPredicted ? (
+<div className={`min-w-0 flex-1 h-0 ${getRankBarDashedLineClass(cycle.rank)}`} />
+                      ) : (
+                        <div className={`h-1 min-w-0 flex-1 ${getRankBarLineClass(cycle.rank)}`} />
+                      )}
+                    <span className={`shrink-0 text-[9px] font-medium ${getRankBarTextClass(cycle.rank)}`}>
+                      {cycle.rank ?? "—"}
+                    </span>
+                  </div>
+                );
+              })()}
+              <div className="flex flex-1 flex-col p-2">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex items-center gap-1">
                   <span className={`text-[12px] font-semibold ${textColor}`}>
                     {dateObj.format("D日")}
                   </span>
-                  <span className="ml-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+                  {showEventIcon && (
+                    <span className="text-[11px]" title="イベント">
+                      🎉
+                    </span>
+                  )}
+                  {showMemoIcon && (
+                    <span className="text-[11px]" title="メモ">
+                      📝
+                    </span>
+                  )}
+                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
                     ({WEEKDAYS[day.weekday]})
                   </span>
                 </div>
                 {day.isToday && (
-                  <span className="rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-medium text-white">
+                  <span className="rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-medium text-white shrink-0">
                     今日
                   </span>
                 )}
               </div>
 
-              {day.holidayName && (
+              {day.holidayName && !isSkip && (
                 <p className="mt-0.5 text-[10px] text-red-500">{day.holidayName}</p>
               )}
 
-                {entry ? (
+              {eventsOnDay.length > 0 && (
+                <div className="mt-1 flex flex-col gap-px -mx-1.5 shrink-0">
+                  {eventsOnDay.map((ev) => {
+                    const isStart = ev.start_date != null && ev.start_date === day.date;
+                    const isEnd = ev.end_date != null && ev.end_date === day.date;
+                    return (
+                      <div
+                        key={ev.id}
+                        className={`bg-rose-50/95 py-0.5 text-[10px] font-medium text-rose-800 line-clamp-1 dark:bg-rose-950/60 dark:text-rose-200 ${isStart ? "rounded-l border-l-4 border-rose-400 pl-2 dark:border-rose-500" : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
+                        title={ev.name}
+                      >
+                        {isStart ? ev.name : "\u00A0"}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isSkip ? (
+                <div className="mt-4 flex flex-1 items-center justify-center min-h-0">
+                  <span className="text-[11px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキップパス使用日">
+                    SKIP
+                  </span>
+                </div>
+              ) : entry ? (
                 <div className="mt-2 space-y-1 text-[11px] text-zinc-700 dark:text-zinc-200">
-                  <p>
-                    <span className="font-semibold text-accent-500">目標+</span>{" "}
-                    {permissions.canViewTargetActual ? entry.target_plus ?? "-" : "非公開"}{" "}
-                    <span className="ml-2 font-semibold text-zinc-700 dark:text-zinc-200">
-                      実績+
-                    </span>{" "}
-                    {permissions.canViewTargetActual ? entry.actual_plus ?? "-" : "非公開"}
-                  </p>
-                  {!useSimpleView && permissions.canViewBorders && (
+                  {permissions.canViewTargetActual && (() => {
+                    const disp = getTargetActualDisplay(entry.target_plus, entry.actual_plus, day.date > todayStr);
+                    return (
+                      <p className="flex flex-wrap items-center gap-1">
+                        <span className={disp.targetClass} title="目標">{disp.targetLabel}</span>
+                        <span className="text-zinc-400">/</span>
+                        <span className={disp.actualClass} title="実績">{disp.actualLabel}</span>
+                      </p>
+                    );
+                  })()}
+                  {permissions.canViewTargetActual === false && (
+                    <p className="text-[10px] text-zinc-500">非公開</p>
+                  )}
+                  {viewMode === "detailed" && permissions.canViewBorders && (
                     <p className="text-[10px]">
                       +2: {entry.border_plus2 ?? "-"} / +4: {entry.border_plus4 ?? "-"} / +6:{" "}
                       {entry.border_plus6 ?? "-"}
-                    </p>
-                  )}
-                  {entry.skip_pass_used && (
-                    <p className="inline-flex rounded bg-zinc-900/10 px-1.5 py-0.5 text-[10px] text-zinc-800 dark:bg-zinc-50/10 dark:text-zinc-100">
-                      スキップパス使用日
                     </p>
                   )}
                 </div>
@@ -316,6 +698,12 @@ export function CalendarWithModal({
                   この週のこの日はまだ登録がありません。
                 </p>
               )}
+              {isCycleEnd && permissions.canViewRank && !cycle.isPredicted && cycle.periodType === "past" && cycle.cycleTotal != null && (
+                <p className="mt-1 text-[9px] text-zinc-400 dark:text-zinc-500" title="周期の最終合計">
+                  🏁 +{cycle.cycleTotal}
+                </p>
+              )}
+              </div>
             </button>
           );
         })}
@@ -396,6 +784,32 @@ export function CalendarWithModal({
             >
             週
           </button>
+          </div>
+          <div className="flex items-center gap-1 rounded-full bg-zinc-100 p-0.5 text-[10px] dark:bg-zinc-800">
+            <button
+              type="button"
+              onClick={() => setViewMode("simple")}
+              className={`rounded-full px-2 py-1 font-medium ${
+                viewMode === "simple"
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                  : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+              }`}
+              title="目標・実績・イベントのみ表示"
+            >
+              簡易
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("detailed")}
+              className={`rounded-full px-2 py-1 font-medium ${
+                viewMode === "detailed"
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                  : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+              }`}
+              title="ボーダー（+2/+4/+6）も表示"
+            >
+              詳細
+            </button>
           </div>
         </div>
       </header>
