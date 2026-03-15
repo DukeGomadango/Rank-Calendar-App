@@ -139,10 +139,12 @@ type Props = {
   rankCycleHistory?: RankCycleBand[];
   /** 目標達成時の予測ラベル（例: 目標達成で → A2） */
   forecastLabel?: string | null;
-  /** 予測の次のランク周期（点線で表示）。forecastLabel からランクを抽出して設定する。 */
-  nextCycle?: { start: string; end: string; rank: string | null } | null;
+  /** 予測の未来ランク周期（点線で表示）。毎周期の見込みで連鎖計算した配列。 */
+  futureCycles?: { start: string; end: string; rank: string }[];
   /** 今日の日付 YYYY-MM-DD（期間の過去/現在/未来判定用）。省略時はクライアントの今日。 */
   todayJst?: string | null;
+  /** スキパ残り枚数。編集モーダルの「スキップパスを使用する(残りn枚)」表示用。 */
+  skipPassRemaining?: number;
 };
 
 /** 日付が周期範囲内か判定 */
@@ -190,8 +192,9 @@ export function CalendarWithModal({
   currentRankCycle = null,
   rankCycleHistory = [],
   forecastLabel = null,
-  nextCycle = null,
+  futureCycles = [],
   todayJst,
+  skipPassRemaining,
 }: Props) {
   const { viewMode, setViewMode } = useViewMode();
   const useSimpleView = !permissions.isOwner && viewMode === "simple";
@@ -204,6 +207,15 @@ export function CalendarWithModal({
   const selectedDay = selectedDate
     ? days.find((d) => d.date === selectedDate) ?? null
     : null;
+
+  const handleSave = useCallback(
+    (formData: FormData) => {
+      startTransition(() => {
+        Promise.resolve(saveAction(formData)).then(() => setSelectedDate(null));
+      });
+    },
+    [saveAction]
+  );
 
   const prevMonthParam = useMemo(() => {
     const d = dayjs(currentMonthParam, "YYYY-MM").subtract(1, "month");
@@ -257,19 +269,21 @@ export function CalendarWithModal({
           };
         }
       }
-      if (nextCycle && dateInCycle(date, nextCycle.start, nextCycle.end)) {
-        return {
-          start: nextCycle.start,
-          end: nextCycle.end,
-          rank: nextCycle.rank,
-          isCurrent: false,
-          periodType: "future",
-          isPredicted: true,
-        };
+      for (const fc of futureCycles) {
+        if (dateInCycle(date, fc.start, fc.end)) {
+          return {
+            start: fc.start,
+            end: fc.end,
+            rank: fc.rank,
+            isCurrent: false,
+            periodType: "future",
+            isPredicted: true,
+          };
+        }
       }
       return null;
     },
-    [permissions.canViewRank, currentRankCycle, rankCycleHistory, nextCycle, todayStr]
+    [permissions.canViewRank, currentRankCycle, rankCycleHistory, futureCycles, todayStr]
   );
 
   /** 週行内でバーの角丸: 左端セルで左丸、右端セルで右丸 */
@@ -467,8 +481,8 @@ export function CalendarWithModal({
                       )}
                       {isSkip ? (
                         <div className="mt-1 flex flex-1 items-center justify-center min-h-0">
-                          <span className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキップパス使用日">
-                            SKIP
+                          <span className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
+                            スキパ
                           </span>
                         </div>
                       ) : (
@@ -670,8 +684,8 @@ export function CalendarWithModal({
 
               {isSkip ? (
                 <div className="mt-4 flex flex-1 items-center justify-center min-h-0">
-                  <span className="text-[11px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキップパス使用日">
-                    SKIP
+                  <span className="text-[11px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
+                    スキパ
                   </span>
                 </div>
               ) : entry ? (
@@ -849,10 +863,12 @@ export function CalendarWithModal({
             <ScheduleForm
               calendarId={calendarId}
               defaultDate={selectedDate}
-              action={saveAction}
+              action={handleSave}
               events={events}
               defaultTargetPlus={selectedDay?.entries[0]?.target_plus}
               defaultActualPlus={selectedDay?.entries[0]?.actual_plus}
+              defaultSkipPassUsed={selectedDay?.entries[0]?.skip_pass_used}
+              skipPassRemaining={skipPassRemaining}
             />
           </div>
         </div>

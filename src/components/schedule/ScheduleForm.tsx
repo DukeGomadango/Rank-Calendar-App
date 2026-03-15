@@ -9,7 +9,7 @@ import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 type ScheduleFormProps = {
   calendarId: string;
   defaultDate: string;
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => void | Promise<void>;
   events?: { id: string; name: string }[];
   defaultTargetPlus?: number | null;
   defaultActualPlus?: number | null;
@@ -19,17 +19,20 @@ type ScheduleFormProps = {
   defaultEventId?: string | null;
   defaultMemo?: string | null;
   defaultSkipPassUsed?: boolean;
+  /** スキパ残り枚数。渡すとラベルに「(残りn枚)」を表示。データタブと連携用。 */
+  skipPassRemaining?: number;
 };
 
-function SubmitButton() {
+function SubmitButton({ isSubmitting }: { isSubmitting?: boolean }) {
   const { pending } = useFormStatus();
+  const loading = isSubmitting ?? pending;
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={loading}
       className="inline-flex items-center gap-1 rounded-xl bg-accent-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-1 focus:ring-offset-zinc-50 disabled:opacity-60 dark:focus:ring-offset-zinc-900"
     >
-      {pending ? "保存中..." : "保存する"}
+      {loading ? "保存中..." : "保存する"}
     </button>
   );
 }
@@ -55,15 +58,28 @@ export function ScheduleForm({
   defaultEventId,
   defaultMemo,
   defaultSkipPassUsed = false,
+  skipPassRemaining,
 }: ScheduleFormProps) {
   const idPrefix = useId();
   const border2Ref = useRef<HTMLInputElement | null>(null);
   const border4Ref = useRef<HTMLInputElement | null>(null);
   const border6Ref = useRef<HTMLInputElement | null>(null);
   const [skipPassUsed, setSkipPassUsed] = useState(defaultSkipPassUsed);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await action(new FormData(e.currentTarget));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <input type="hidden" name="calendar_id" value={calendarId} />
 
       {/* 日付 ＋ スキップパス（同一行） */}
@@ -89,7 +105,8 @@ export function ScheduleForm({
             className="h-3.5 w-3.5 rounded border-zinc-300 text-accent-500 focus:ring-accent-400 dark:border-zinc-600"
           />
           <span className="text-[11px] text-zinc-700 dark:text-zinc-200">
-            スキップパスを使用した
+            スキップパスを使用する
+            {skipPassRemaining != null && ` (残り${skipPassRemaining}枚)`}
           </span>
         </label>
       </div>
@@ -239,7 +256,7 @@ export function ScheduleForm({
       </div>
 
       <div className="flex justify-end">
-        <SubmitButton />
+        <SubmitButton isSubmitting={isSubmitting} />
       </div>
     </form>
   );

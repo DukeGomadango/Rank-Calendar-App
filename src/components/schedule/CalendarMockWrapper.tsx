@@ -29,7 +29,7 @@ type Props = {
   currentRankCycle?: { start: string; end: string; rank: string | null } | null;
   rankCycleHistory?: { cycle_start_date: string; cycle_end_date: string; rank_during: string | null; cycle_total?: number | null }[];
   forecastLabel?: string | null;
-  nextCycle?: { start: string; end: string; rank: string | null } | null;
+  futureCycles?: { start: string; end: string; rank: string }[];
   todayJst?: string | null;
 };
 

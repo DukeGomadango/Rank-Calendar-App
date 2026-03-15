@@ -18,14 +18,14 @@
 | `/signup` | 新規登録 | 不要 |
 | `/privacy` | プライバシーポリシー | 不要 |
 | `/terms` | 利用規約 | 不要 |
-| `/dashboard` | ダッシュボードホーム（今週の + サマリ、今日のスケジュール登録、オンボーディング） | 要 |
+| `/dashboard` | ダッシュボードホーム（今週の + サマリ、ランク表示、今日のスケジュール登録、オンボーディング） | 要 |
 | `/dashboard/calendar` | カレンダー（スケジュール・月/週表示） | 要 |
 | `/dashboard/data` | データ表（日付範囲指定・テーブル表示） | 要 |
 | `/dashboard/events` | イベント一覧・管理 | 要 |
 | `/dashboard/sharing` | 共有・招待（ロール作成、招待リンク発行） | 要 |
-| `/dashboard/settings` | 設定トップ | 要 |
-| `/dashboard/settings/events` | イベント設定 | 要 |
-| `/dashboard/settings/sharing` | 共有設定 | 要 |
+| `/dashboard/settings` | 設定トップ（アカウント、ランク設定、表示設定、データ管理、危険ゾーン、アプリ情報） | 要 |
+| `/dashboard/settings/events` | 旧URL → `/dashboard/events` へリダイレクト | 要 |
+| `/dashboard/settings/sharing` | 旧URL → `/dashboard/sharing` へリダイレクト | 要 |
 | `/invite/[calendarId]/[token]` | 招待リンクでの参加（トークン検証・redeem） | 要（招待受け入れ時） |
 
 ---
@@ -54,7 +54,8 @@
 
 - **カレンダー**: 月表示・週表示でスケジュールとイベントを表示。日付クリックで登録・編集。
 - **データ表**: 日付範囲を指定し、テーブル形式で一覧表示・編集。@tanstack/react-table を使用。
-- 表示モード: **簡易表示（simple）** と **詳細表示（detailed）** を切り替え可能（ViewModeProvider / localStorage `iriam_view_mode`）。
+- 表示モード: **簡易表示（simple）** と **詳細表示（detailed）** を切り替え可能（ViewModeProvider / localStorage `iriam_view_mode`）。設定画面の「表示設定」で変更可能。
+- **テーマ**: ライト/ダーク/システムの切り替え（ThemeProvider / localStorage `iriam-theme`）。ダッシュボード右上の ThemeToggle で変更可能。
 
 ### 3. イベント
 
@@ -86,8 +87,9 @@
 
 ## 非機能要件（現状の整理）
 
-- **認証**: Supabase Auth（メール or OAuth）。セッションはサーバー・クライアントで Supabase クライアント経由で利用。
+- **認証**: Supabase Auth（メール or OAuth）。セッションはサーバー・クライアントで Supabase クライアント（@supabase/auth-helpers-nextjs）経由で利用。
 - **データ永続化**: Supabase（PostgreSQL）。スキーマは `iriam`。
 - **プライバシー**: OCR 画像はサーバーに送信・保存しない。トラッキングは行わない方針。
 - **多言語・タイムゾーン**: 日付は JST（Asia/Tokyo）基準。UI は日本語を想定。
+- **テーマ**: ライト/ダーク/システム対応。localStorage で永続化し、初回描画時のフラッシュを抑えるスクリプトをルートで実行。
 - **利用料金**: 現時点では無料で提供。

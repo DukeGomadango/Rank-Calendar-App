@@ -67,3 +67,22 @@ export function addDays(date: JstDateString, n: number): JstDateString {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * 周期の終了日を返す。基準7日間にスキップが N 日あれば終了日は開始日 + 6 + N 日。
+ * 表示・applyRankUp で共通利用。
+ */
+export function getCycleEndDateIncludingSkips(
+  cycleStart: JstDateString,
+  entriesByDate: Map<string, { skip_pass_used?: boolean }>
+): JstDateString {
+  let skipCount = 0;
+  let c = cycleStart;
+  const baseEnd = addDays(cycleStart, 6);
+  while (c <= baseEnd) {
+    const entry = entriesByDate.get(c);
+    if (entry?.skip_pass_used) skipCount += 1;
+    c = addDays(c, 1);
+  }
+  return addDays(cycleStart, 6 + skipCount);
+}
+

@@ -3,6 +3,7 @@ import {
   calculateCycleCumulativeByDate,
   calculateWeeklyRankProgress,
   getNextRank,
+  getPreviousRank,
   judgeCycleRank,
   judgeWeeklyRank,
 } from "./rank";
@@ -107,6 +108,16 @@ describe("rank domain", () => {
       expect(getNextRank("D")).toBe("C1");
       expect(getNextRank("C5")).toBe("B1");
       expect(getNextRank("S3")).toBe(null);
+    });
+  });
+
+  describe("getPreviousRank", () => {
+    it("returns previous rank in order", () => {
+      expect(getPreviousRank(null)).toBe(null);
+      expect(getPreviousRank("D")).toBe(null);
+      expect(getPreviousRank("C1")).toBe("D");
+      expect(getPreviousRank("C5")).toBe("C4");
+      expect(getPreviousRank("S3")).toBe("S2");
     });
   });
 });

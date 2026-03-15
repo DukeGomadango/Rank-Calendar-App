@@ -152,3 +152,11 @@ export function getNextRank(current: RankLabel | null): RankLabel | null {
   return RANK_ORDER[i + 1];
 }
 
+/** 現在ランクの1つ下のランクを返す。D の場合は null（これ以上ダウンなし）。 */
+export function getPreviousRank(current: RankLabel | null): RankLabel | null {
+  if (current == null) return null;
+  const i = RANK_ORDER.indexOf(current);
+  if (i <= 0) return null;
+  return RANK_ORDER[i - 1];
+}
+

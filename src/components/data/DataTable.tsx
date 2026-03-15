@@ -7,6 +7,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import dayjs from "dayjs";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
@@ -15,7 +16,7 @@ import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 import { useViewMode } from "@/lib/view-mode-context";
 import { DayDetailModal, type DayDetailRow } from "./DayDetailModal";
 
-/** 日付・曜日は必ずあり、他は登録があれば入る。ランク・ランクスコアは周期対応時のみ。 */
+/** 日付・曜日は必ずあり、他は登録があれば入る。ランク・ランクスコアは周期対応時のみ。skip_pass_remaining_as_of はその日時点のスキパ枚数。 */
 type Row = {
   date: string;
   weekday: string;
@@ -28,6 +29,7 @@ type Row = {
   skip_pass_used?: boolean;
   current_rank?: string | null;
   rank_score_cumulative?: number | null;
+  skip_pass_remaining_as_of?: number | null;
   memo?: string | null;
   event_id?: string | null;
 };
@@ -39,6 +41,13 @@ type UpdateFieldAction = (
   value: string | number | boolean
 ) => Promise<void>;
 
+/** 指定日のスキパ枚数スナップショットを編集する（データタブで行ごとに編集）。 */
+type UpdateSkipPassSnapshotAction = (
+  calendarId: string,
+  asOfDate: string,
+  value: number
+) => Promise<void>;
+
 type Props = {
   data: Row[];
   permissions: CalendarPermissionFlags;
@@ -46,6 +55,8 @@ type Props = {
   onUpdateField: UpdateFieldAction;
   /** 日付詳細モーダル用。渡さない場合は「開く」を出さない。 */
   events?: EventRow[];
+  /** スキパ枚数（行ごと）の編集時に呼ぶ。渡すと「スキパ枚数」列が各行で編集可能になる。 */
+  onUpdateSkipPassSnapshot?: UpdateSkipPassSnapshotAction;
 };
 
 /** 通常時は枠線なし、hover/focus 時のみ枠線（モダンなテーブルUX） */
@@ -65,7 +76,9 @@ export function DataTable({
   calendarId,
   onUpdateField,
   events = [],
+  onUpdateSkipPassSnapshot,
 }: Props) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [detailRow, setDetailRow] = useState<Row | null>(null);
   const { viewMode } = useViewMode();
@@ -345,7 +358,9 @@ export function DataTable({
                 defaultChecked={checked}
                 onChange={(e) => {
                   startTransition(() =>
-                    onUpdateField(calendarId, row.original.date, "skip_pass_used", e.target.checked)
+                    onUpdateField(calendarId, row.original.date, "skip_pass_used", e.target.checked).then(
+                      () => router.refresh()
+                    )
                   );
                 }}
                 className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
@@ -356,6 +371,38 @@ export function DataTable({
           );
         }
         return checked ? "使用" : "";
+      },
+    },
+    {
+      id: "skip_pass_remaining",
+      header: "スキパ枚数",
+      cell: ({ row }: { row: { original: Row } }) => {
+        const asOf = row.original.skip_pass_remaining_as_of;
+        const date = row.original.date;
+        if (canEdit && onUpdateSkipPassSnapshot) {
+          return (
+            <input
+              key={`${date}-${asOf ?? ""}`}
+              type="number"
+              min={0}
+              max={10}
+              defaultValue={asOf ?? ""}
+              onBlur={(e) => {
+                const v = Number(e.target.value);
+                if (!Number.isNaN(v) && v >= 0 && v <= 10) {
+                  startTransition(() =>
+                    onUpdateSkipPassSnapshot(calendarId, date, v).then(() =>
+                      router.refresh()
+                    )
+                  );
+                }
+              }}
+              className={`${inputClass} w-12`}
+              disabled={isPending}
+            />
+          );
+        }
+        return asOf != null ? String(asOf) : "—";
       },
     },
     {

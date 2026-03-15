@@ -7,6 +7,10 @@ import {
 import {
   getOrCreateCalendarRankState,
   extendRankResetDate,
+  decrementSkipPassRemaining,
+  updateSkipPassRemaining as updateSkipPassRemainingState,
+  setSkipPassSnapshot,
+  ensureSkipPassIncrementForLastWeek,
 } from "@/lib/data/calendar-rank-state";
 import { compareJstDate } from "@/lib/domain/calendar";
 
@@ -50,6 +54,24 @@ export async function saveScheduleEntry(formData: FormData) {
     actual_plus: actualPlus,
     skip_pass_used: skipPassUsed,
   });
+
+  if (skipPassUsed) {
+    const state = await getOrCreateCalendarRankState(calendarId);
+    if (
+      compareJstDate(date, state.rank_cycle_start_date) >= 0 &&
+      compareJstDate(date, state.rank_reset_date) <= 0
+    ) {
+      await extendRankResetDate(
+        calendarId,
+        date,
+        state.rank_cycle_start_date,
+        state.rank_reset_date
+      );
+    }
+    await decrementSkipPassRemaining(calendarId, date);
+  }
+
+  await ensureSkipPassIncrementForLastWeek(calendarId);
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/calendar");
@@ -110,6 +132,8 @@ export async function moveScheduleEntry(
       })`
     );
   }
+
+  await ensureSkipPassIncrementForLastWeek(calendarId);
 
   revalidatePath("/dashboard/calendar");
   revalidatePath("/dashboard/data");
@@ -199,10 +223,40 @@ export async function updateScheduleEntryField(
         state.rank_reset_date
       );
     }
+    await decrementSkipPassRemaining(calendarId, date);
   }
+
+  await ensureSkipPassIncrementForLastWeek(calendarId);
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard/data");
+}
+
+/**
+ * データタブからスキパ残り枚数を手動更新する。0〜10にクランプ。
+ */
+export async function updateSkipPassRemaining(
+  calendarId: string,
+  value: number
+) {
+  "use server";
+  await updateSkipPassRemainingState(calendarId, value);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/data");
+}
+
+/**
+ * データタブから指定日のスキパ枚数スナップショットを編集する。
+ */
+export async function updateSkipPassSnapshot(
+  calendarId: string,
+  asOfDate: string,
+  value: number
+) {
+  "use server";
+  await setSkipPassSnapshot(calendarId, asOfDate, value);
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/data");
 }
 

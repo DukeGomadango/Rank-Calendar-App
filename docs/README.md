@@ -28,6 +28,7 @@
 
 ## クイックリファレンス
 
-- **技術スタック**: Next.js 16 (App Router), React 19, Tailwind CSS v4, Supabase（認証・PostgreSQL）
-- **主要ルート**: `/`（ランディング）, `/dashboard`（ホーム）, `/dashboard/calendar`, `/dashboard/data`, `/dashboard/events`, `/dashboard/sharing`, `/dashboard/settings`
-- **DB スキーマ**: Supabase の `iriam` スキーマ（`calendars`, `schedule_entries`, `events`, 共有・招待関連テーブル）
+- **技術スタック**: Next.js 16 (App Router), React 19, Tailwind CSS v4, Supabase（認証・PostgreSQL）, dayjs, holiday-jp, @tanstack/react-table, tesseract.js（OCR）
+- **主要ルート**: `/`（ランディング）, `/dashboard`（ホーム）, `/dashboard/calendar`, `/dashboard/data`, `/dashboard/events`, `/dashboard/sharing`, `/dashboard/settings`。旧URL `/dashboard/settings/events`, `/dashboard/settings/sharing` はそれぞれ `/dashboard/events`, `/dashboard/sharing` へリダイレクト。
+- **テーマ**: ライト/ダーク/システム切替（localStorage `iriam-theme`）。ルートレイアウトで ThemeProvider を利用。
+- **DB スキーマ**: Supabase の `iriam` スキーマ（`calendars`, `schedule_entries`, `events`, `calendar_rank_state`, 共有・招待関連テーブル）

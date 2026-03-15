@@ -7,10 +7,11 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
-import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
+import { getOrCreateCalendarRankState, ensureSkipPassIncrementForLastWeek, getSkipPassSnapshotsBefore, type SkipPassSnapshotRow } from "@/lib/data/calendar-rank-state";
 import { listEventsForCalendar } from "@/lib/data/events";
 import { calculateCycleCumulativeByDate } from "@/lib/domain/rank";
 import { compareJstDate, getJstWeekStart, addDays, toJstDateString } from "@/lib/domain/calendar";
+import { getPredictedSkipPassRemaining, type EntryForPrediction } from "@/lib/domain/skip-pass-prediction";
 import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import {
   getCalendarPermissionsForUser,
@@ -20,7 +21,7 @@ import { DataTable } from "@/components/data/DataTable";
 import { DataTableWithMockState } from "@/components/data/DataTableWithMockState";
 import { DataRangeSelect } from "@/components/data/DataRangeSelect";
 import { parseDaysParam } from "@/lib/data-range";
-import { updateScheduleEntryField } from "../actions";
+import { updateScheduleEntryField, updateSkipPassSnapshot } from "../actions";
 
 dayjs.locale("ja");
 
@@ -176,8 +177,29 @@ export default async function DataPage(props: PageProps) {
   const entriesByDate = new Map(entries.map((e) => [e.date, e]));
 
   const rankState = await getOrCreateCalendarRankState(calendar.id);
+  await ensureSkipPassIncrementForLastWeek(calendar.id);
   const cycleStart = rankState.rank_cycle_start_date;
   const cycleEnd = rankState.rank_reset_date;
+
+  const snapshots = await getSkipPassSnapshotsBefore(calendar.id, to);
+  const todayStr = today.format("YYYY-MM-DD");
+  const getRemainingAsOf = (dateStr: string): number | null => {
+    const s = snapshots.find((x: SkipPassSnapshotRow) => x.as_of_date <= dateStr);
+    return s?.remaining ?? null;
+  };
+  const baseRemaining =
+    getRemainingAsOf(todayStr) ?? rankState.skip_pass_remaining ?? 0;
+  const predictionEntriesMap = new Map<string, EntryForPrediction>(
+    entries.map((e) => [
+      e.date,
+      {
+        target_plus: e.target_plus,
+        actual_plus: e.actual_plus,
+        skip_pass_used: e.skip_pass_used,
+      },
+    ])
+  );
+
   const rankEntries = entries.map((e) => ({
     date: e.date,
     actual_plus: e.actual_plus,
@@ -202,6 +224,7 @@ export default async function DataPage(props: PageProps) {
     skip_pass_used?: boolean;
     current_rank?: string | null;
     rank_score_cumulative?: number | null;
+    skip_pass_remaining_as_of?: number | null;
   }[] = [];
 
   let cursor = dayjs(from);
@@ -213,12 +236,23 @@ export default async function DataPage(props: PageProps) {
     const inCycle =
       compareJstDate(dateStr, cycleStart) >= 0 &&
       compareJstDate(dateStr, cycleEnd) <= 0;
+    const skipPassValue =
+      dateStr > todayStr
+        ? getPredictedSkipPassRemaining(
+            baseRemaining,
+            addDays(todayStr, 1),
+            dateStr,
+            predictionEntriesMap,
+            todayStr
+          )
+        : getRemainingAsOf(dateStr);
     rows.push({
       date: dateStr,
       weekday,
       ...(entry ?? {}),
       current_rank: rankState.current_rank ?? null,
       rank_score_cumulative: inCycle ? (cumulativeByDate[dateStr] ?? null) : null,
+      skip_pass_remaining_as_of: skipPassValue ?? undefined,
     });
     cursor = cursor.add(1, "day");
   }
@@ -254,6 +288,7 @@ export default async function DataPage(props: PageProps) {
         calendarId={calendar.id}
         onUpdateField={updateScheduleEntryField}
         events={events}
+        onUpdateSkipPassSnapshot={updateSkipPassSnapshot}
       />
     </div>
   );

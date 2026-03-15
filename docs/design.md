@@ -32,18 +32,21 @@
 
 - **App Router**: ページは `src/app/` 配下。`(dashboard)` はレイアウトグループ（ダッシュボード共通レイアウト）。
 - **Server Components 中心**: 各ページで `createSupabaseServerClient()` により認証・データ取得。クライアント状態は必要最小限。
-- **Server Actions**: フォーム送信・スケジュール保存・イベント操作・共有・設定などは `"use server"` の Server Actions で実装（例: `dashboard/actions.ts`, `events/actions.ts`, `sharing/actions.ts`）。
+- **Server Actions**: フォーム送信・スケジュール保存・イベント操作・共有・設定などは `"use server"` の Server Actions で実装（`dashboard/actions.ts`, `dashboard/events/actions.ts`, `dashboard/sharing/actions.ts`, `dashboard/settings/actions.ts`, `dashboard/settings/events/actions.ts`, `dashboard/settings/sharing/actions.ts`）。
 
 ### 認証・API
 
 - **REST API**: 明示的な REST エンドポイントは `src/app/auth/callback/route.ts`（OAuth の code → session 交換）のみ。
 - **その他**: Supabase クライアントの直叩き + Server Actions。RLS（Row Level Security）は Supabase 側で設定する想定。
+- **Supabase クライアント**: `createSupabaseServerClient()`（Server Component 用・cookie 読み取りのみ）、`createSupabaseRouteHandlerClient()`（Route Handler / Server Action 用・cookie 読み書き可）、`createSupabaseServiceRoleClient()`（招待リンク検証など RLS を超えた操作用・サーバー専用）。
 - **招待リンク検証**: サーバー側で `SUPABASE_SERVICE_ROLE_KEY` を使い、RLS を超えた操作が必要な場合はサービスロールで実行。
 
 ### クライアント側の状態
 
+- **ThemeProvider**: テーマ（`light` / `dark` / `system`）を `localStorage`（キー: `iriam-theme`）で永続化。ルートレイアウトでラップし、初回描画前のフラッシュ防止用スクリプトで `document.documentElement` に `.dark` を付与。
 - **MockScheduleProvider**: 開発時・未ログイン時のスケジュールモック。日付別のモックデータを提供。
 - **ViewModeProvider**: 表示モード（`simple` / `detailed`）を `localStorage`（キー: `iriam_view_mode`）で永続化。
+- **MockRoleSwitcher**: 開発時のみ。オーナー/リスナーのロール切替用（Cookie `iriam_mock_role`）。
 - グローバルな Flux/Redux 等は未使用。Server Components + Server Actions + 必要に応じた Context で完結。
 
 ---
@@ -106,33 +109,44 @@
 ```
 src/
 ├── app/
-│   ├── layout.tsx                 # ルートレイアウト（フォント、metadata、JsonLd）
+│   ├── layout.tsx                 # ルートレイアウト（フォント、metadata、JsonLd、ThemeProvider）
 │   ├── page.tsx                   # ランディング
 │   ├── login/, signup/
 │   ├── privacy/, terms/
 │   ├── auth/callback/route.ts     # OAuth コールバック
 │   ├── (dashboard)/
-│   │   ├── layout.tsx             # ダッシュボードレイアウト（MockScheduleProvider, ViewModeProvider, サイドバー/モバイルナビ）
+│   │   ├── layout.tsx             # ダッシュボードレイアウト（MockScheduleProvider, ViewModeProvider, ThemeToggle, MockRoleSwitcher, サイドバー/モバイルナビ）
 │   │   └── dashboard/
 │   │       ├── page.tsx           # ホーム
-│   │       ├── actions.ts         # スケジュール保存・移動など
+│   │       ├── actions.ts         # スケジュール保存・ランクアップ適用・ランク設定など
 │   │       ├── calendar/, data/, events/, sharing/, settings/
-│   │       └── settings/events/, settings/sharing/
+│   │       ├── settings/actions.ts
+│   │       ├── settings/events/   # → /dashboard/events へリダイレクト
+│   │       └── settings/sharing/  # → /dashboard/sharing へリダイレクト
 │   └── invite/[calendarId]/[token]/  # 招待リンク
 ├── components/
 │   ├── landing/                   # Hero, Features, HowItWorks, CtaSection, Faq, Footer, Trust, JsonLd, LandingHeader
 │   ├── schedule/                  # CalendarMockWrapper, CalendarWithModal, HomeScheduleCard, ScheduleForm
-│   ├── data/                      # DataTable, DataTableWithMockState, DataRangeSelect
+│   ├── data/                      # DataTable, DataTableWithMockState, DataRangeSelect, DayDetailModal
+│   ├── dashboard/                 # WeeklyPlusSummary, CurrentRankBadge, DashboardRankSection
+│   ├── events/                    # EventCard, EventFormClient
 │   ├── ocr/                       # BorderOcrButton
 │   ├── onboarding/                # OnboardingCard
-│   └── settings/                  # ViewModeToggle
+│   ├── theme/                     # ThemeToggle
+│   ├── mock/                      # MockRoleSwitcher（開発時のみ）
+│   └── settings/                  # ViewModeToggle, AccountSection, RankSettingsForm, DataManagementSection, DangerZoneSection, AppAboutSection
 ├── lib/
-│   ├── supabase/                  # server.ts（createSupabaseServerClient）, client.ts
-│   ├── auth/                      # permission.ts（getCalendarPermissionsForUser）
-│   ├── data/                      # calendars, schedule-entries, events, roles, permissions, shares, invite-links, invite-redemptions
+│   ├── supabase/                  # server.ts（createSupabaseServerClient, createSupabaseRouteHandlerClient, createSupabaseServiceRoleClient）, client.ts
+│   ├── auth/                      # permission.ts, mock-role-cookie.ts
+│   ├── data/                      # calendars, schedule-entries, events, calendar-rank-state, roles, permissions, shares, invite-links, invite-redemptions, data-range.ts
 │   ├── domain/                    # calendar.ts, rank.ts（＋テスト）
+│   ├── theme-context.tsx
 │   ├── mock-schedule-context.tsx
-│   └── view-mode-context.tsx
+│   ├── mock-seed-data.ts
+│   ├── view-mode-context.tsx
+│   ├── plus-options.ts
+│   ├── rank-styles.ts
+│   └── event-colors.ts
 └── types/                         # holiday-jp の型定義など
 ```
 
@@ -149,7 +163,17 @@ src/
 
 ---
 
+## テスト用 Supabase プロジェクトの整備
+
+テスト用プロジェクトは本番と分け、`.env.test` にテスト用の URL とキーを記載する。整備手順は [supabase/README.md](../supabase/README.md) を参照。`supabase db push` でマイグレーションを一括適用できる（一個ずつ実行する必要はない）。
+
+---
+
 ## テスト
 
-- **Vitest**: `npm run test` で実行。
-- ドメインロジックを中心にテスト（`lib/domain/calendar.test.ts`, `lib/domain/rank.test.ts`）。日付・週・ランク判定の仕様がコードと一致していることを保証する。
+- **Vitest**: `npm run test`（watch）/ `npm run test:run`（CI 用一括実行）。環境は jsdom、`vitest.setup.ts` で `@testing-library/jest-dom` を読み込み。
+- **単体**: `lib/domain/calendar.test.ts`, `lib/domain/rank.test.ts`, `lib/plus-options.test.ts`。ドメイン・ユーティリティの仕様を保証。
+- **データ層**: `lib/data/schedule-entries.test.ts`（Supabase を `vi.mock` で差し替え）。
+- **Server Actions**: `app/(dashboard)/dashboard/actions.test.ts`（schedule-entries と `next/cache` をモック、`saveScheduleEntry` の FormData パースと revalidatePath を検証）。
+- **コンポーネント**: `components/settings/ViewModeToggle.test.tsx`（ViewModeProvider でラップ、表示モード切替と localStorage を検証）。
+- **E2E**: Playwright（`e2e/landing.spec.ts`）。ランディング・ログイン・利用規約など認証不要ページの表示確認。初回は `npx playwright install chromium` でブラウザを入れてから `npm run test:e2e`。

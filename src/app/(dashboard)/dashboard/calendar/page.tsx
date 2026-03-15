@@ -12,10 +12,11 @@ import {
 import {
   getOrCreateCalendarRankState,
   getRankCycleHistory,
+  ensureSkipPassIncrementForLastWeek,
 } from "@/lib/data/calendar-rank-state";
 import { listEventsForCalendar } from "@/lib/data/events";
-import { judgeCycleRank, getNextRank, RANK_ORDER } from "@/lib/domain/rank";
-import { addDays, getJstWeekStart, toJstDateString } from "@/lib/domain/calendar";
+import { judgeCycleRank, getNextRank, getPreviousRank, RANK_ORDER, type RankLabel } from "@/lib/domain/rank";
+import { addDays, getCycleEndDateIncludingSkips, getJstWeekStart, toJstDateString } from "@/lib/domain/calendar";
 import { getMockEvents } from "@/lib/mock-seed-data";
 import {
   getCalendarPermissionsForUser,
@@ -108,11 +109,13 @@ export default async function CalendarPage(props: PageProps) {
       },
     ];
     const forecastLabel = "目標達成で → A2";
-    const nextCycle = {
-      start: addDays(cycleEnd, 1),
-      end: addDays(cycleEnd, 7),
-      rank: "A2" as string | null,
-    };
+    const futureCyclesMock: { start: string; end: string; rank: string }[] = [
+      {
+        start: addDays(cycleEnd, 1),
+        end: addDays(cycleEnd, 7),
+        rank: "A2",
+      },
+    ];
     const monthStart = displayMonth.startOf("month");
     const monthEnd = displayMonth.endOf("month");
     const fromDate = monthStart.startOf("week").format("YYYY-MM-DD");
@@ -160,7 +163,7 @@ export default async function CalendarPage(props: PageProps) {
           currentRankCycle={currentRankCycle}
           rankCycleHistory={rankCycleHistory}
           forecastLabel={forecastLabel}
-          nextCycle={nextCycle}
+          futureCycles={futureCyclesMock}
           todayJst={todayJst}
         />
       </div>
@@ -201,6 +204,9 @@ export default async function CalendarPage(props: PageProps) {
     getRankCycleHistory(calendar.id, fromDate, toDate),
   ]);
 
+  await ensureSkipPassIncrementForLastWeek(calendar.id);
+  const rankStateLatest = await getOrCreateCalendarRankState(calendar.id);
+
   const todayJst = today.format("YYYY-MM-DD");
   let forecastLabel: string | null = null;
   if (permissions.canViewRank && rankState.current_rank != null) {
@@ -240,6 +246,18 @@ export default async function CalendarPage(props: PageProps) {
       forecastLabel = "目標達成で 注意（ダウン見込み）";
     }
   }
+
+  /** 予測の次の周期に表示するランク（ランクアップ＝次のランク、キープ＝現ランク、ダウン＝1つ下）。forecastLabel の内容から逆算。 */
+  const forecastNextRank =
+    permissions.canViewRank && rankState.current_rank != null && forecastLabel != null
+      ? ((): string | null => {
+          const parsed = parseForecastRank(forecastLabel);
+          if (parsed) return parsed;
+          if (forecastLabel.includes("キープ見込み")) return rankState.current_rank;
+          if (forecastLabel.includes("ダウン見込み")) return getPreviousRank(rankState.current_rank) ?? rankState.current_rank;
+          return null;
+        })()
+      : null;
 
   const entriesByDate = new Map<string, ScheduleEntryRow[]>();
   for (const entry of entries) {
@@ -304,15 +322,43 @@ export default async function CalendarPage(props: PageProps) {
 
   const hasAnyEntries = entries.length > 0;
 
-  const nextRank = parseForecastRank(forecastLabel);
-  const nextCycle =
-    permissions.canViewRank && nextRank
-      ? {
-          start: addDays(rankState.rank_reset_date, 1),
-          end: addDays(rankState.rank_reset_date, 7),
-          rank: nextRank as string,
+  /** 表示範囲内の未来周期を、周期ごとの見込みで連鎖計算して組み立てる。 */
+  type FutureCycle = { start: string; end: string; rank: string };
+  const futureCycles: FutureCycle[] = [];
+  if (permissions.canViewRank && forecastNextRank != null) {
+    const entriesByDate = new Map(entries.map((e) => [e.date, e]));
+    let periodStart = addDays(rankState.rank_reset_date, 1);
+    let rankForThisPeriod: string | null = forecastNextRank;
+    while (periodStart <= toDate && rankForThisPeriod != null) {
+      const periodEnd = getCycleEndDateIncludingSkips(periodStart, entriesByDate);
+      let projectedTotal = 0;
+      let c = periodStart;
+      while (c <= periodEnd) {
+        const entry = entriesByDate.get(c);
+        if (c <= todayJst) {
+          const plus =
+            entry?.skip_pass_used || entry?.actual_plus == null
+              ? 0
+              : Math.max(0, entry.actual_plus);
+          if (!entry?.skip_pass_used) projectedTotal += plus;
+        } else {
+          const target = entry?.target_plus ?? 0;
+          projectedTotal += Math.max(0, target);
         }
-      : null;
+        c = addDays(c, 1);
+      }
+      futureCycles.push({ start: periodStart, end: periodEnd, rank: rankForThisPeriod });
+      const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
+      if (canRankUp) {
+        rankForThisPeriod = getNextRank(rankForThisPeriod as RankLabel);
+      } else if (isKeep) {
+        rankForThisPeriod = rankForThisPeriod;
+      } else {
+        rankForThisPeriod = getPreviousRank(rankForThisPeriod as RankLabel) ?? rankForThisPeriod;
+      }
+      periodStart = addDays(periodEnd, 1);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -345,8 +391,9 @@ export default async function CalendarPage(props: PageProps) {
         }
         rankCycleHistory={rankCycleHistoryWithTotal}
         forecastLabel={forecastLabel}
-        nextCycle={nextCycle}
+        futureCycles={futureCycles}
         todayJst={todayJst}
+        skipPassRemaining={rankStateLatest.skip_pass_remaining ?? 0}
       />
     </div>
   );
