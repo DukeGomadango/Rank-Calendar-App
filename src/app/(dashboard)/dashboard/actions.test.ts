@@ -66,6 +66,8 @@ describe("dashboard actions", () => {
         event_id: null,
         memo: "メモ",
         skip_pass_used: true,
+        stream_content: null,
+        stream_content_color: null,
       });
       expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard/calendar");
@@ -110,6 +112,8 @@ describe("dashboard actions", () => {
         event_id: null,
         memo: null,
         skip_pass_used: false,
+        stream_content: null,
+        stream_content_color: null,
       });
       expect(mockGetOrCreateCalendarRankState).not.toHaveBeenCalled();
       expect(mockExtendRankResetDate).not.toHaveBeenCalled();

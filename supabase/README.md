@@ -13,6 +13,7 @@
 | `20260317000000_add_invite_links_role_id.sql` | invite_links に role_id 追加 |
 | `20260318000000_add_skip_pass_remaining.sql` | calendar_rank_state に skip_pass_remaining, skip_pass_last_increment_week_start 追加 |
 | `20260319000000_create_skip_pass_snapshots.sql` | skip_pass_snapshots（スキパ枚数の日別スナップショット） |
+| `20260320000000_add_stream_content_to_schedule_entries.sql` | schedule_entries に配信内容・左線色（stream_content, stream_content_color）追加 |
 
 **一個一個実行する必要はない。** 下記の手順で `supabase db push` を一度実行すれば、未適用分がまとめて適用される。
 

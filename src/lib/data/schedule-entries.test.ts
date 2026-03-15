@@ -63,6 +63,8 @@ describe("schedule-entries", () => {
           target_plus: 6,
           actual_plus: 6,
           skip_pass_used: false,
+          stream_content: null,
+          stream_content_color: null,
         },
       ];
       orderMock.mockResolvedValue({ data: rows, error: null });
@@ -88,6 +90,8 @@ describe("schedule-entries", () => {
         target_plus: 6,
         actual_plus: 4,
         skip_pass_used: false,
+        stream_content: null,
+        stream_content_color: null,
       };
       const returned = { id: "new-id", ...input };
       singleMock.mockResolvedValue({ data: returned, error: null });
@@ -114,6 +118,8 @@ describe("schedule-entries", () => {
           target_plus: null,
           actual_plus: null,
           skip_pass_used: false,
+          stream_content: null,
+          stream_content_color: null,
         })
       ).rejects.toThrow(/schedule_entries upsert failed/);
     });

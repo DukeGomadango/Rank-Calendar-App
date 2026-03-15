@@ -42,6 +42,16 @@ export async function saveScheduleEntry(formData: FormData) {
     typeof eventIdRaw === "string" && eventIdRaw.trim() !== ""
       ? eventIdRaw
       : null;
+  const streamContentRaw = formData.get("stream_content");
+  const streamContent =
+    typeof streamContentRaw === "string" && streamContentRaw.trim() !== ""
+      ? streamContentRaw.trim()
+      : null;
+  const streamColorRaw = formData.get("stream_content_color");
+  const streamContentColor =
+    typeof streamColorRaw === "string" && streamColorRaw.trim() !== ""
+      ? streamColorRaw.trim()
+      : null;
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
@@ -53,6 +63,8 @@ export async function saveScheduleEntry(formData: FormData) {
     target_plus: targetPlus,
     actual_plus: actualPlus,
     skip_pass_used: skipPassUsed,
+    stream_content: streamContent,
+    stream_content_color: streamContentColor,
   });
 
   if (skipPassUsed) {
@@ -113,6 +125,8 @@ export async function moveScheduleEntry(
     target_plus: existing.target_plus,
     actual_plus: existing.actual_plus,
     skip_pass_used: existing.skip_pass_used,
+    stream_content: existing.stream_content ?? null,
+    stream_content_color: existing.stream_content_color ?? null,
   });
 
   const supabase = await (await import("@/lib/supabase/server"))
@@ -161,6 +175,8 @@ export async function updateScheduleEntryField(
     target_plus: existing?.target_plus ?? null,
     actual_plus: existing?.actual_plus ?? null,
     skip_pass_used: existing?.skip_pass_used ?? false,
+    stream_content: existing?.stream_content ?? null,
+    stream_content_color: existing?.stream_content_color ?? null,
   };
 
   const num = (v: string | number | boolean): number | null => {
@@ -208,6 +224,8 @@ export async function updateScheduleEntryField(
     target_plus: asNumOrNull(patch.target_plus) ?? base.target_plus ?? null,
     actual_plus: asNumOrNull(patch.actual_plus) ?? base.actual_plus ?? null,
     skip_pass_used: field === "skip_pass_used" ? bool(value) : base.skip_pass_used,
+    stream_content: base.stream_content ?? null,
+    stream_content_color: base.stream_content_color ?? null,
   });
 
   if (field === "skip_pass_used" && bool(value)) {

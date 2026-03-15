@@ -479,6 +479,17 @@ export function CalendarWithModal({
                           })}
                         </div>
                       )}
+                      {!isSkip && entry?.stream_content?.trim() && (() => {
+                        const streamStyle = getEventColorClasses(entry.stream_content_color ?? null);
+                        return (
+                          <div
+                            className={`mt-0.5 shrink-0 line-clamp-1 py-px pl-1 text-[9px] font-medium rounded-r ${streamStyle.leftBar} ${streamStyle.bg} ${streamStyle.text}`}
+                            title={entry.stream_content}
+                          >
+                            {entry.stream_content.trim()}
+                          </div>
+                        );
+                      })()}
                       {isSkip ? (
                         <div className="mt-1 flex flex-1 items-center justify-center min-h-0">
                           <span className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
@@ -682,6 +693,18 @@ export function CalendarWithModal({
                 </div>
               )}
 
+              {!isSkip && entry?.stream_content?.trim() && (() => {
+                const streamStyle = getEventColorClasses(entry.stream_content_color ?? null);
+                return (
+                  <div
+                    className={`mt-1 shrink-0 line-clamp-1 py-0.5 pl-2 text-[10px] font-medium rounded-r ${streamStyle.leftBar} ${streamStyle.bg} ${streamStyle.text}`}
+                    title={entry.stream_content}
+                  >
+                    {entry.stream_content.trim()}
+                  </div>
+                );
+              })()}
+
               {isSkip ? (
                 <div className="mt-4 flex flex-1 items-center justify-center min-h-0">
                   <span className="text-[11px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
@@ -869,6 +892,8 @@ export function CalendarWithModal({
               defaultActualPlus={selectedDay?.entries[0]?.actual_plus}
               defaultSkipPassUsed={selectedDay?.entries[0]?.skip_pass_used}
               skipPassRemaining={skipPassRemaining}
+              defaultStreamContent={selectedDay?.entries[0]?.stream_content}
+              defaultStreamContentColor={selectedDay?.entries[0]?.stream_content_color}
             />
           </div>
         </div>

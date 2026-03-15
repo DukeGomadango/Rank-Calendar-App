@@ -45,6 +45,8 @@ function mockEntryToRow(partial: Record<string, unknown>, date: string): Schedul
     target_plus: (partial.target_plus as number | null) ?? null,
     actual_plus: (partial.actual_plus as number | null) ?? null,
     skip_pass_used: (partial.skip_pass_used as boolean) ?? false,
+    stream_content: (partial.stream_content as string | null) ?? null,
+    stream_content_color: (partial.stream_content_color as string | null) ?? null,
   };
 }
 
