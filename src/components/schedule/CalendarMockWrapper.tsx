@@ -37,6 +37,7 @@ function mockEntryToRow(partial: Record<string, unknown>, date: string): Schedul
   return {
     id: "mock",
     date,
+    ansuko_baseline: (partial.ansuko_baseline as number | null) ?? null,
     border_plus2: (partial.border_plus2 as number | null) ?? null,
     border_plus4: (partial.border_plus4 as number | null) ?? null,
     border_plus6: (partial.border_plus6 as number | null) ?? null,

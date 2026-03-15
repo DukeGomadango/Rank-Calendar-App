@@ -490,6 +490,11 @@ export function CalendarWithModal({
                           </div>
                         );
                       })()}
+                      {!hasEntry && !isSkip && permissions.canEditSchedule && (
+                        <p className="mt-1 flex-1 text-[9px] text-zinc-400 dark:text-zinc-500 line-clamp-2">
+                          ここに予定を追加
+                        </p>
+                      )}
                       {isSkip ? (
                         <div className="mt-1 flex flex-1 items-center justify-center min-h-0">
                           <span className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
@@ -712,27 +717,58 @@ export function CalendarWithModal({
                   </span>
                 </div>
               ) : entry ? (
-                <div className="mt-2 space-y-1 text-[11px] text-zinc-700 dark:text-zinc-200">
-                  {permissions.canViewTargetActual && (() => {
-                    const disp = getTargetActualDisplay(entry.target_plus, entry.actual_plus, day.date > todayStr);
-                    return (
-                      <p className="flex flex-wrap items-center gap-1">
-                        <span className={disp.targetClass} title="目標">{disp.targetLabel}</span>
-                        <span className="text-zinc-400">/</span>
-                        <span className={disp.actualClass} title="実績">{disp.actualLabel}</span>
+                (() => {
+                  const disp = getTargetActualDisplay(entry.target_plus, entry.actual_plus, day.date > todayStr);
+                  return (
+                <div className="mt-2 flex flex-1 flex-col gap-0.5 text-[10px] text-zinc-700 dark:text-zinc-200">
+                  {permissions.canViewTargetActual && (
+                    <>
+                      <p className="flex justify-between gap-1">
+                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">スコア目標：</span>
+                        <span className={disp.targetClass}>{disp.targetLabel}</span>
                       </p>
-                    );
-                  })()}
+                      <p className="flex justify-between gap-1">
+                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">スコア実績：</span>
+                        <span className={disp.actualClass}>{disp.actualLabel}</span>
+                      </p>
+                    </>
+                  )}
                   {permissions.canViewTargetActual === false && (
                     <p className="text-[10px] text-zinc-500">非公開</p>
                   )}
                   {viewMode === "detailed" && permissions.canViewBorders && (
-                    <p className="text-[10px]">
-                      +2: {entry.border_plus2 ?? "-"} / +4: {entry.border_plus4 ?? "-"} / +6:{" "}
-                      {entry.border_plus6 ?? "-"}
+                    <p className="flex justify-between gap-1">
+                      <span className="shrink-0 text-zinc-500 dark:text-zinc-400">アンスコ：</span>
+                      <span>{entry.ansuko_baseline ?? "—"}</span>
                     </p>
                   )}
+                  {permissions.canViewMemo && (
+                    <p className="flex justify-between gap-1">
+                      <span className="shrink-0 text-zinc-500 dark:text-zinc-400">メモ：</span>
+                      <span className="min-w-0 truncate text-right" title={entry.memo ?? undefined}>
+                        {entry.memo?.trim() || "—"}
+                      </span>
+                    </p>
+                  )}
+                  {viewMode === "detailed" && permissions.canViewBorders && (
+                    <>
+                      <p className="flex justify-between gap-1">
+                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋２：</span>
+                        <span>{entry.border_plus2 ?? "—"}</span>
+                      </p>
+                      <p className="flex justify-between gap-1">
+                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋４：</span>
+                        <span>{entry.border_plus4 ?? "—"}</span>
+                      </p>
+                      <p className="flex justify-between gap-1">
+                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋６：</span>
+                        <span>{entry.border_plus6 ?? "—"}</span>
+                      </p>
+                    </>
+                  )}
                 </div>
+                  );
+                })()
               ) : (
                 <p className="mt-4 text-[10px] text-zinc-400 dark:text-zinc-600">
                   この週のこの日はまだ登録がありません。
@@ -763,7 +799,32 @@ export function CalendarWithModal({
             のスケジュールを表示しています。
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 月 / 週 切り替え（PC・モバイル共通で表示） */}
+          <div className="flex items-center gap-1 rounded-full bg-zinc-100 p-1 text-[11px] text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300">
+            <button
+              type="button"
+              onClick={() => setView("month")}
+              className={`rounded-full px-3 py-1 ${
+                view === "month"
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
+                  : ""
+              }`}
+            >
+              月
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("week")}
+              className={`rounded-full px-3 py-1 ${
+                view === "week"
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
+                  : ""
+              }`}
+            >
+              週
+            </button>
+          </div>
           <nav className="flex items-center gap-0.5 text-zinc-700 dark:text-zinc-200">
             {view === "month" ? (
               <>
@@ -801,30 +862,6 @@ export function CalendarWithModal({
               </>
             )}
           </nav>
-          <div className="hidden items-center gap-1 rounded-full bg-zinc-100 p-1 text-[11px] text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300 md:flex">
-          <button
-            type="button"
-            onClick={() => setView("month")}
-            className={`rounded-full px-3 py-1 ${
-              view === "month"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
-                : ""
-            }`}
-          >
-            月
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("week")}
-            className={`rounded-full px-3 py-1 ${
-              view === "week"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
-                : ""
-            }`}
-            >
-            週
-          </button>
-          </div>
           <div className="flex items-center gap-1 rounded-full bg-zinc-100 p-0.5 text-[10px] dark:bg-zinc-800">
             <button
               type="button"
@@ -890,6 +927,12 @@ export function CalendarWithModal({
               events={events}
               defaultTargetPlus={selectedDay?.entries[0]?.target_plus}
               defaultActualPlus={selectedDay?.entries[0]?.actual_plus}
+              defaultAnsukoBaseline={selectedDay?.entries[0]?.ansuko_baseline}
+              defaultBorderPlus2={selectedDay?.entries[0]?.border_plus2}
+              defaultBorderPlus4={selectedDay?.entries[0]?.border_plus4}
+              defaultBorderPlus6={selectedDay?.entries[0]?.border_plus6}
+              defaultEventId={selectedDay?.entries[0]?.event_id}
+              defaultMemo={selectedDay?.entries[0]?.memo}
               defaultSkipPassUsed={selectedDay?.entries[0]?.skip_pass_used}
               skipPassRemaining={skipPassRemaining}
               defaultStreamContent={selectedDay?.entries[0]?.stream_content}

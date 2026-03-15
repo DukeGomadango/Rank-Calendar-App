@@ -6,6 +6,7 @@ import type { RankLabel } from "@/lib/domain/rank";
 export type CalendarRankStateRow = {
   calendar_id: string;
   current_rank: RankLabel | null;
+  target_rank: RankLabel | null;
   rank_cycle_start_date: string;
   rank_reset_date: string;
   skip_pass_remaining: number;
@@ -22,7 +23,7 @@ export async function getCalendarRankState(
   const { data, error } = await supabase
     .schema("iriam")
     .from("calendar_rank_state")
-    .select("calendar_id, current_rank, rank_cycle_start_date, rank_reset_date, skip_pass_remaining, skip_pass_last_increment_week_start")
+    .select("calendar_id, current_rank, target_rank, rank_cycle_start_date, rank_reset_date, skip_pass_remaining, skip_pass_last_increment_week_start")
     .eq("calendar_id", calendarId)
     .maybeSingle();
 
@@ -54,12 +55,13 @@ export async function getOrCreateCalendarRankState(
     .insert({
       calendar_id: calendarId,
       current_rank: null,
+      target_rank: null,
       rank_cycle_start_date: weekStart,
       rank_reset_date: weekEnd,
       skip_pass_remaining: 0,
       skip_pass_last_increment_week_start: null,
     })
-    .select("calendar_id, current_rank, rank_cycle_start_date, rank_reset_date, skip_pass_remaining, skip_pass_last_increment_week_start")
+    .select("calendar_id, current_rank, target_rank, rank_cycle_start_date, rank_reset_date, skip_pass_remaining, skip_pass_last_increment_week_start")
     .single();
 
   if (error) {
@@ -394,6 +396,28 @@ export async function updateCurrentRank(
   if (error) {
     throw new Error(
       `calendar_rank_state update (current_rank) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    );
+  }
+}
+
+/**
+ * 目標ランクを更新する（オンボーディング・設定用）。
+ */
+export async function updateTargetRank(
+  calendarId: string,
+  targetRank: RankLabel | null
+): Promise<void> {
+  await getOrCreateCalendarRankState(calendarId);
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .schema("iriam")
+    .from("calendar_rank_state")
+    .update({ target_rank: targetRank })
+    .eq("calendar_id", calendarId);
+
+  if (error) {
+    throw new Error(
+      `calendar_rank_state update (target_rank) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
     );
   }
 }

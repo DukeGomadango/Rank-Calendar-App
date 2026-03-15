@@ -21,6 +21,7 @@ type Row = {
   date: string;
   weekday: string;
   id?: string;
+  ansuko_baseline?: number | null;
   border_plus2?: number | null;
   border_plus4?: number | null;
   border_plus6?: number | null;
@@ -226,6 +227,45 @@ export function DataTable({
           );
         }
         return `+${displayVal}`;
+      },
+    },
+    {
+      accessorKey: "ansuko_baseline",
+      header: "アンスコ",
+      cell: ({ row, getValue }) => {
+        if (!permissions.canViewBorders || hideBordersInSimple) return "";
+        const v = getValue<number | null | undefined>();
+        const skip = !!row.original.skip_pass_used;
+        if (canEdit && !skip) {
+          return (
+            <input
+              type="number"
+              min={0}
+              defaultValue={v != null ? String(v) : ""}
+              onBlur={(e) => {
+                const next = e.target.value;
+                startTransition(() =>
+                  onUpdateField(calendarId, row.original.date, "ansuko_baseline", next === "" ? "" : Number(next))
+                );
+              }}
+              className={inputClass}
+              disabled={isPending}
+            />
+          );
+        }
+        if (canEdit && skip) {
+          return (
+            <input
+              type="number"
+              min={0}
+              defaultValue={v != null ? String(v) : ""}
+              className={inputClassDisabled}
+              disabled
+              readOnly
+            />
+          );
+        }
+        return v != null ? String(v) : "";
       },
     },
     {

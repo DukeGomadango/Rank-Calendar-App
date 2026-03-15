@@ -14,6 +14,10 @@
 | `20260318000000_add_skip_pass_remaining.sql` | calendar_rank_state に skip_pass_remaining, skip_pass_last_increment_week_start 追加 |
 | `20260319000000_create_skip_pass_snapshots.sql` | skip_pass_snapshots（スキパ枚数の日別スナップショット） |
 | `20260320000000_add_stream_content_to_schedule_entries.sql` | schedule_entries に配信内容・左線色（stream_content, stream_content_color）追加 |
+| `20260321000000_create_profiles.sql` | public.profiles（表示名・メール非表示用。RLS で他ユーザーには display_name のみ表示） |
+| `20260322000000_add_target_rank_and_setup_done.sql` | calendar_rank_state に target_rank、profiles に setup_wizard_done 追加 |
+| `20260323000000_add_avatar_and_onboarding_step.sql` | profiles に avatar_url・onboarding_step、Storage バケット avatars と RLS |
+| `20260324000000_add_ansuko_baseline.sql` | schedule_entries に ansuko_baseline（あんしんランクスコア基準値）追加 |
 
 **一個一個実行する必要はない。** 下記の手順で `supabase db push` を一度実行すれば、未適用分がまとめて適用される。
 

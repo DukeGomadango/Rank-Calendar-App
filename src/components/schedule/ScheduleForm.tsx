@@ -14,6 +14,8 @@ type ScheduleFormProps = {
   events?: { id: string; name: string }[];
   defaultTargetPlus?: number | null;
   defaultActualPlus?: number | null;
+  /** あんしんランクスコア（アンスコ）の基準値。+2確定の目安。 */
+  defaultAnsukoBaseline?: number | null;
   defaultBorderPlus2?: number | null;
   defaultBorderPlus4?: number | null;
   defaultBorderPlus6?: number | null;
@@ -55,6 +57,7 @@ export function ScheduleForm({
   events,
   defaultTargetPlus,
   defaultActualPlus,
+  defaultAnsukoBaseline,
   defaultBorderPlus2,
   defaultBorderPlus4,
   defaultBorderPlus6,
@@ -148,15 +151,28 @@ export function ScheduleForm({
         </div>
       </div>
 
-      {/* 【ボーダー】＋ OCR（最上部で目立たせる） */}
+      {/* 【アンスコ・ボーダー】＋ OCR（最上部で目立たせる） */}
       <div className="space-y-2 rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-3 dark:border-slate-600 dark:bg-slate-900/50">
-        <GroupLabel>ボーダー</GroupLabel>
+        <GroupLabel>アンスコ・ボーダー</GroupLabel>
         <BorderOcrButton
           border2Ref={border2Ref}
           border4Ref={border4Ref}
           border6Ref={border6Ref}
         />
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
+          <label className="flex flex-col gap-1" htmlFor={`${idPrefix}-ansuko`}>
+            <span className="text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
+              アンスコ
+            </span>
+            <input
+              id={`${idPrefix}-ansuko`}
+              type="number"
+              name="ansuko_baseline"
+              min={0}
+              defaultValue={defaultAnsukoBaseline ?? ""}
+              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-slate-700 dark:bg-slate-900 dark:text-zinc-50"
+            />
+          </label>
           <label className="flex flex-col gap-1" htmlFor={`${idPrefix}-border2`}>
             <span className="text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
               +2

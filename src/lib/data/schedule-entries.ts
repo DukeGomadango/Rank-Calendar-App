@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ScheduleEntryUpsertInput = {
   date: string; // YYYY-MM-DD (JST 想定)
+  ansuko_baseline: number | null;
   border_plus2: number | null;
   border_plus4: number | null;
   border_plus6: number | null;
@@ -27,6 +28,7 @@ export async function upsertScheduleEntryForDate(
       {
         calendar_id: calendarId,
         date: input.date,
+        ansuko_baseline: input.ansuko_baseline,
         border_plus2: input.border_plus2,
         border_plus4: input.border_plus4,
         border_plus6: input.border_plus6,
@@ -59,6 +61,7 @@ export async function upsertScheduleEntryForDate(
 export type ScheduleEntryRow = {
   id: string;
   date: string; // YYYY-MM-DD
+  ansuko_baseline: number | null;
   border_plus2: number | null;
   border_plus4: number | null;
   border_plus6: number | null;
@@ -82,7 +85,7 @@ export async function getScheduleEntriesInRange(
     .schema("iriam")
     .from("schedule_entries")
     .select(
-      "id, date, border_plus2, border_plus4, border_plus6, event_id, memo, target_plus, actual_plus, skip_pass_used, stream_content, stream_content_color"
+      "id, date, ansuko_baseline, border_plus2, border_plus4, border_plus6, event_id, memo, target_plus, actual_plus, skip_pass_used, stream_content, stream_content_color"
     )
     .eq("calendar_id", calendarId)
     .gte("date", fromDate)

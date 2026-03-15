@@ -8,6 +8,8 @@ import {
   noopUpdateCurrentRank,
   noopUpdateRankResetDate,
 } from "@/app/(dashboard)/dashboard/actions";
+import { updateDisplayNameAction } from "./actions";
+import { getProfile } from "@/lib/data/profiles";
 import { ViewModeToggle } from "@/components/settings/ViewModeToggle";
 import { AccountSection } from "@/components/settings/AccountSection";
 import { DataManagementSection } from "@/components/settings/DataManagementSection";
@@ -83,7 +85,10 @@ export default async function SettingsPage() {
 
   if (!user) redirect("/login");
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
-  const rankState = await getOrCreateCalendarRankState(calendar.id);
+  const [rankState, profile] = await Promise.all([
+    getOrCreateCalendarRankState(calendar.id),
+    getProfile(user.id),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -96,7 +101,13 @@ export default async function SettingsPage() {
         </p>
       </header>
 
-      <AccountSection user={user} calendarName={calendar.name ?? "メインカレンダー"} />
+      <AccountSection
+        user={user}
+        calendarName={calendar.name ?? "メインカレンダー"}
+        displayName={profile?.display_name ?? null}
+        avatarUrl={profile?.avatar_url ?? null}
+        updateDisplayNameAction={updateDisplayNameAction}
+      />
 
       <section className="space-y-3 rounded-2xl bg-white p-4 text-xs text-zinc-700 shadow-md dark:bg-slate-800 dark:text-zinc-200">
         <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">

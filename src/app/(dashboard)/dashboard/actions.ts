@@ -30,6 +30,7 @@ export async function saveScheduleEntry(formData: FormData) {
     return Number.isNaN(n) ? null : n;
   };
 
+  const ansukoBaseline = parseNumber(formData.get("ansuko_baseline"));
   const border2 = parseNumber(formData.get("border_plus2"));
   const border4 = parseNumber(formData.get("border_plus4"));
   const border6 = parseNumber(formData.get("border_plus6"));
@@ -55,6 +56,7 @@ export async function saveScheduleEntry(formData: FormData) {
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
+    ansuko_baseline: ansukoBaseline,
     border_plus2: border2,
     border_plus4: border4,
     border_plus6: border6,
@@ -117,6 +119,7 @@ export async function moveScheduleEntry(
 
   await upsertScheduleEntryForDate(calendarId, {
     date: toDate,
+    ansuko_baseline: existing.ansuko_baseline,
     border_plus2: existing.border_plus2,
     border_plus4: existing.border_plus4,
     border_plus6: existing.border_plus6,
@@ -167,6 +170,7 @@ export async function updateScheduleEntryField(
   const [existing] = await getScheduleEntriesInRange(calendarId, date, date);
   const base = {
     date,
+    ansuko_baseline: existing?.ansuko_baseline ?? null,
     border_plus2: existing?.border_plus2 ?? null,
     border_plus4: existing?.border_plus4 ?? null,
     border_plus6: existing?.border_plus6 ?? null,
@@ -198,6 +202,7 @@ export async function updateScheduleEntryField(
   > = {};
   if (field === "target_plus") patch.target_plus = num(value);
   else if (field === "actual_plus") patch.actual_plus = num(value);
+  else if (field === "ansuko_baseline") patch.ansuko_baseline = num(value);
   else if (field === "border_plus2") patch.border_plus2 = num(value);
   else if (field === "border_plus4") patch.border_plus4 = num(value);
   else if (field === "border_plus6") patch.border_plus6 = num(value);
@@ -216,6 +221,7 @@ export async function updateScheduleEntryField(
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
+    ansuko_baseline: asNumOrNull(patch.ansuko_baseline) ?? base.ansuko_baseline ?? null,
     border_plus2: asNumOrNull(patch.border_plus2) ?? base.border_plus2 ?? null,
     border_plus4: asNumOrNull(patch.border_plus4) ?? base.border_plus4 ?? null,
     border_plus6: asNumOrNull(patch.border_plus6) ?? base.border_plus6 ?? null,

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { upsertDisplayName, updateAvatarUrl } from "@/lib/data/profiles";
 import {
   getOrCreateDefaultCalendarForUser,
   listCalendarsForUser,
@@ -9,6 +10,43 @@ import {
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 
 const SETTINGS_PATH = "/dashboard/settings";
+
+/**
+ * 表示名を更新する。他ユーザーにはメールを見せず表示名のみ表示するため。
+ */
+export async function updateDisplayNameAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "未ログインです" };
+  const raw = formData.get("display_name");
+  const displayName = typeof raw === "string" ? raw.trim() || null : null;
+  try {
+    await upsertDisplayName(user.id, displayName);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "更新に失敗しました" };
+  }
+  revalidatePath(SETTINGS_PATH);
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/**
+ * アバター画像URLを保存する。クライアントで Storage にアップロードした後の公開URLを渡す。
+ */
+export async function updateAvatarUrlAction(avatarUrl: string | null): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "未ログインです" };
+  const url = typeof avatarUrl === "string" ? avatarUrl.trim() || null : null;
+  try {
+    await updateAvatarUrl(user.id, url);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "更新に失敗しました" };
+  }
+  revalidatePath(SETTINGS_PATH);
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
 
 /**
  * カレンダーのスケジュールデータをCSV形式で返す。

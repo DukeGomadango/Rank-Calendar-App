@@ -10,6 +10,7 @@ export type DataTableRow = {
   date: string;
   weekday: string;
   id?: string;
+  ansuko_baseline?: number | null;
   border_plus2?: number | null;
   border_plus4?: number | null;
   border_plus6?: number | null;

@@ -98,3 +98,46 @@ export async function listCalendarsForUser(
   return (data ?? []) as CalendarRow[];
 }
 
+/**
+ * 指定IDのカレンダーを1件取得。RLS によりオーナーまたは共有先のみ取得可。
+ */
+export async function getCalendarById(
+  calendarId: string
+): Promise<CalendarRow | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .schema("iriam")
+    .from("calendars")
+    .select("id, name")
+    .eq("id", calendarId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    );
+  }
+  return data as CalendarRow | null;
+}
+
+/**
+ * カレンダー名を更新する（オンボーディング等でライバー名を設定する用）。
+ */
+export async function updateCalendarName(
+  calendarId: string,
+  name: string | null
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .schema("iriam")
+    .from("calendars")
+    .update({ name: name?.trim() || null })
+    .eq("id", calendarId);
+
+  if (error) {
+    throw new Error(
+      `calendars update (name) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    );
+  }
+}
+

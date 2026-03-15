@@ -44,15 +44,15 @@ export default async function DashboardLayout({
     <MockScheduleProvider initialEntries={initialEntries}>
     <ViewModeProvider>
     <div className="flex min-h-screen flex-col bg-background">
-      {/* 画面右上に固定: ダークモード切替 / モック時はロール切替 */}
-      <div className="fixed top-3 right-3 z-50 flex flex-wrap items-center justify-end gap-2 sm:top-4 sm:right-4">
+      {/* PC: 画面右上に固定（モバイルではヘッダー内に表示するため非表示） */}
+      <div className="fixed top-4 right-4 z-50 hidden flex-wrap items-center justify-end gap-2 sm:flex">
         {showMockRoleSwitcher && <MockRoleSwitcher currentRole={mockRole} />}
         <ThemeToggle />
       </div>
 
-      {/* モバイル: 上部ヘッダー */}
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white/80 px-4 py-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
-        <div className="flex flex-col">
+      {/* モバイル: 上部ヘッダー（テーマ切替を内側に配置してかぶり防止） */}
+      <header className="flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/80 px-4 py-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
+        <div className="flex min-w-0 flex-col">
           <span className="text-[10px] font-semibold tracking-wide text-accent-500">
             IRIAM rank planner
           </span>
@@ -60,12 +60,15 @@ export default async function DashboardLayout({
             ダッシュボード
           </span>
         </div>
-        <Link
-          href="/"
-          className="rounded-full border border-zinc-300 px-3 py-1 text-[11px] font-medium text-zinc-800 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-        >
-          ホームへ
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <ThemeToggle />
+          <Link
+            href="/"
+            className="rounded-full border border-zinc-300 px-3 py-1 text-[11px] font-medium text-zinc-800 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            ホームへ
+          </Link>
+        </div>
       </header>
 
       <div className="flex flex-1">
@@ -116,7 +119,7 @@ export default async function DashboardLayout({
           </nav>
         </aside>
 
-        <main className="flex-1 px-4 pb-16 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
+        <main className="flex-1 px-4 pb-16 pt-4 sm:px-8 sm:pb-6 sm:pt-6 sm:pr-14">
           {children}
         </main>
       </div>

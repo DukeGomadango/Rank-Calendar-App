@@ -1,0 +1,43 @@
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { hasOwnedCalendar } from "@/lib/data/calendars";
+import { getProfile } from "@/lib/data/profiles";
+import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
+import { SetupWizard } from "@/components/onboarding/SetupWizard";
+
+export default async function OnboardingPage() {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const isOwner = await hasOwnedCalendar(user.id);
+  if (!isOwner) {
+    redirect("/dashboard");
+  }
+
+  const profile = await getProfile(user.id);
+  if (profile?.setup_wizard_done) {
+    redirect("/dashboard");
+  }
+
+  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const rankState = await getOrCreateCalendarRankState(calendar.id);
+
+  const initialStep = Math.min(5, Math.max(1, profile?.onboarding_step ?? 1));
+
+  return (
+    <div className="min-h-[60vh] py-8">
+      <SetupWizard
+        initialStep={initialStep}
+        initialLiverName={profile?.display_name ?? ""}
+        initialCurrentRank={rankState.current_rank ?? ""}
+        initialSkipPassCount={rankState.skip_pass_remaining ?? 0}
+        initialTargetRank={rankState.target_rank ?? ""}
+      />
+    </div>
+  );
+}

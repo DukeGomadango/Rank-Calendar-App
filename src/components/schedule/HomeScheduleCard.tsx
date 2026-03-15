@@ -7,6 +7,7 @@ import { ScheduleForm } from "./ScheduleForm";
 type TodayEntry = {
   target_plus?: number | null;
   actual_plus?: number | null;
+  ansuko_baseline?: number | null;
   border_plus2?: number | null;
   border_plus4?: number | null;
   border_plus6?: number | null;
@@ -49,6 +50,7 @@ export function HomeScheduleCard({
           events={events}
           defaultTargetPlus={todayEntry?.target_plus}
           defaultActualPlus={todayEntry?.actual_plus}
+          defaultAnsukoBaseline={todayEntry?.ansuko_baseline}
           defaultBorderPlus2={todayEntry?.border_plus2}
           defaultBorderPlus4={todayEntry?.border_plus4}
           defaultBorderPlus6={todayEntry?.border_plus6}

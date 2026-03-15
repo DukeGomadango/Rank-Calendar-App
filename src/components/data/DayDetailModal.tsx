@@ -10,6 +10,7 @@ export type DayDetailRow = {
   date: string;
   weekday: string;
   id?: string;
+  ansuko_baseline?: number | null;
   border_plus2?: number | null;
   border_plus4?: number | null;
   border_plus6?: number | null;
@@ -206,14 +207,15 @@ export function DayDetailModal({
             </section>
           )}
 
-          {/* ボーダー: 横3列グリッド */}
+          {/* アンスコ・ボーダー: 横4列グリッド */}
           {permissions.canViewBorders && (
             <section>
               <h3 className="mb-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                ボーダー
+                アンスコ・ボーダー
               </h3>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {[
+                  { key: "ansuko_baseline" as const, label: "アンスコ" },
                   { key: "border_plus2" as const, label: "+2" },
                   { key: "border_plus4" as const, label: "+4" },
                   { key: "border_plus6" as const, label: "+6" },

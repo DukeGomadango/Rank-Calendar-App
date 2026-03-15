@@ -55,6 +55,7 @@ describe("schedule-entries", () => {
         {
           id: "e1",
           date: "2024-01-01",
+          ansuko_baseline: null,
           border_plus2: 2,
           border_plus4: 4,
           border_plus6: 6,
@@ -82,6 +83,7 @@ describe("schedule-entries", () => {
     it("calls upsert with correct payload and returns data", async () => {
       const input: ScheduleEntryUpsertInput = {
         date: "2024-01-15",
+        ansuko_baseline: null,
         border_plus2: 2,
         border_plus4: 4,
         border_plus6: 6,
@@ -110,6 +112,7 @@ describe("schedule-entries", () => {
       await expect(
         upsertScheduleEntryForDate("cal-1", {
           date: "2024-01-01",
+          ansuko_baseline: null,
           border_plus2: null,
           border_plus4: null,
           border_plus6: null,

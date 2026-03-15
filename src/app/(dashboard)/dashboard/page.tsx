@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import { getOrCreateDefaultCalendarForUser, hasOwnedCalendar, getCalendarById } from "@/lib/data/calendars";
+import { getProfile } from "@/lib/data/profiles";
 import { listEventsForCalendar } from "@/lib/data/events";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
@@ -18,6 +20,7 @@ import {
   applyRankUp,
   noopApplyRankUp,
 } from "./actions";
+import { ListenerWelcome } from "@/components/onboarding/ListenerWelcome";
 
 const DEV_MOCK_BANNER = (
   <section className="rounded-2xl bg-amber-50/90 p-3 text-[11px] text-amber-800 shadow-sm dark:bg-orange-500/20 dark:text-orange-400">
@@ -25,11 +28,16 @@ const DEV_MOCK_BANNER = (
   </section>
 );
 
-export default async function DashboardHomePage() {
+type PageProps = { searchParams?: Promise<{ fromInvite?: string; calendarId?: string }> };
+
+export default async function DashboardHomePage({ searchParams }: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const params = searchParams ? await searchParams : undefined;
+  const fromInvite = params?.fromInvite === "1";
+  const welcomeCalendarId = params?.calendarId ?? null;
 
   const isDevMock = process.env.NODE_ENV === "development" && !user;
 
@@ -94,6 +102,7 @@ export default async function DashboardHomePage() {
           target_plus: todaySeed.target_plus ?? null,
           actual_plus: todaySeed.actual_plus ?? null,
           skip_pass_used: todaySeed.skip_pass_used ?? false,
+          ansuko_baseline: (todaySeed as { ansuko_baseline?: number | null }).ansuko_baseline ?? null,
           border_plus2: todaySeed.border_plus2 ?? null,
           border_plus4: todaySeed.border_plus4 ?? null,
           border_plus6: todaySeed.border_plus6 ?? null,
@@ -178,7 +187,26 @@ export default async function DashboardHomePage() {
   }
 
   if (!user) redirect("/login");
+
+  const isOwner = await hasOwnedCalendar(user.id);
+  if (isOwner) {
+    const profile = await getProfile(user.id);
+    if (!profile?.setup_wizard_done) redirect("/dashboard/onboarding");
+  }
+
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+
+  let welcomeCalendar: { name: string | null } | null = null;
+  let welcomeProfile: { display_name: string | null } | null = null;
+  if (fromInvite && welcomeCalendarId) {
+    const [cal, prof] = await Promise.all([
+      getCalendarById(welcomeCalendarId),
+      getProfile(user.id),
+    ]);
+    welcomeCalendar = cal;
+    welcomeProfile = prof;
+  }
+
   const events = await listEventsForCalendar(calendar.id);
 
   const todayJst = toJstDateString(new Date());
@@ -226,6 +254,15 @@ export default async function DashboardHomePage() {
 
   return (
     <div className="space-y-6">
+      {fromInvite && welcomeCalendarId && (
+        <Suspense fallback={null}>
+          <ListenerWelcome
+            calendarId={welcomeCalendarId}
+            calendarName={welcomeCalendar?.name ?? null}
+            displayName={welcomeProfile?.display_name ?? null}
+          />
+        </Suspense>
+      )}
       <section>
         <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
           ダッシュボード
