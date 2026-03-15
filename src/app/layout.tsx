@@ -27,13 +27,13 @@ const notoSansJP = Noto_Sans_JP({
   weight: ["400", "500", "600", "700"],
 });
 
-const SITE_NAME = "IRIAM rank planner";
+const SITE_NAME = "IRIAM だんごスケジュール";
 const DESCRIPTION =
   "IRIAMライバー向けの非公式ランク管理ツール。デイリーランクの目標+・実績+、ボーダー、スキップパスを日別に記録し、カレンダーとデータ表で一元管理できます。";
 
 export const metadata: Metadata = {
   title: {
-    default: "IRIAM ランク管理ツール | デイリーランク・スケジュールを一元管理",
+    default: "IRIAM だんごスケジュール | デイリーランク・スケジュールを一元管理",
     template: `%s | ${SITE_NAME}`,
   },
   description: DESCRIPTION,
@@ -42,12 +42,12 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ja_JP",
     siteName: SITE_NAME,
-    title: "IRIAM ランク管理ツール | デイリーランク・スケジュールを一元管理",
+    title: "IRIAM だんごスケジュール | デイリーランク・スケジュールを一元管理",
     description: DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: "IRIAM ランク管理ツール | デイリーランク・スケジュールを一元管理",
+    title: "IRIAM だんごスケジュール | デイリーランク・スケジュールを一元管理",
     description: DESCRIPTION,
   },
   icons: {

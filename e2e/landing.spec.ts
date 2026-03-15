@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("ランディング・静的ページ", () => {
   test("トップページが表示される", async ({ page }) => {
     await page.goto("/");
-    await expect(page).toHaveTitle(/IRIAM|ランク管理/);
+    await expect(page).toHaveTitle(/IRIAM|だんごスケジュール|ランク管理/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 

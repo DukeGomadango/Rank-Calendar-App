@@ -53,7 +53,7 @@ export function Hero() {
               className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-100"
               style={{ textShadow: "0 1px 2px rgba(0,0,0,0.08)" }}
             >
-              IRIAM rank planner（非公式）
+              IRIAM だんごスケジュール（非公式）
             </p>
             <h1
               className="mt-4 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl"

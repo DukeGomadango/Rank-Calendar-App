@@ -1,4 +1,4 @@
-const SITE_NAME = "IRIAM rank planner";
+const SITE_NAME = "IRIAM だんごスケジュール";
 const DESCRIPTION =
   "IRIAMライバー向けの非公式ランク管理ツール。デイリーランクの目標+・実績+、ボーダー、スキップパスを日別に記録し、カレンダーとデータ表で一元管理できます。";
 

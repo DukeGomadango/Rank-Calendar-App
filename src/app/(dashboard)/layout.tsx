@@ -54,7 +54,7 @@ export default async function DashboardLayout({
       <header className="flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/80 px-4 py-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
         <div className="flex min-w-0 flex-col">
           <span className="text-[10px] font-semibold tracking-wide text-accent-500">
-            IRIAM rank planner
+            IRIAM だんごスケジュール
           </span>
           <span className="text-[11px] text-zinc-700 dark:text-zinc-200">
             ダッシュボード
@@ -75,7 +75,7 @@ export default async function DashboardLayout({
         {/* PC: 左サイドバー */}
         <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white/80 px-4 py-6 text-sm shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:flex">
           <div className="mb-6 text-xs font-semibold tracking-wide text-accent-500">
-            IRIAM rank planner
+            IRIAM だんごスケジュール
           </div>
           <nav className="space-y-2 text-zinc-700 dark:text-zinc-200">
             <Link

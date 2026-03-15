@@ -10,7 +10,7 @@ export function LandingHeader() {
           href="/"
           className="text-sm font-semibold tracking-wide text-accent-500 hover:text-accent-600 dark:text-accent-400 dark:hover:text-accent-300"
         >
-          IRIAM rank planner
+          IRIAM だんごスケジュール
         </Link>
         <nav className="flex items-center gap-3">
           <Link
