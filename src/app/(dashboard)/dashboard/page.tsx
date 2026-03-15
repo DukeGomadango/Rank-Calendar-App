@@ -207,10 +207,12 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
     welcomeProfile = prof;
   }
 
-  const events = await listEventsForCalendar(calendar.id);
+  const [events, rankState] = await Promise.all([
+    listEventsForCalendar(calendar.id),
+    getOrCreateCalendarRankState(calendar.id),
+  ]);
 
   const todayJst = toJstDateString(new Date());
-  const rankState = await getOrCreateCalendarRankState(calendar.id);
   const cycleStart = rankState.rank_cycle_start_date;
   const cycleEnd = rankState.rank_reset_date;
   const weekStartJst = cycleStart;
@@ -255,7 +257,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       {fromInvite && welcomeCalendarId && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800" />}>
           <ListenerWelcome
             calendarId={welcomeCalendarId}
             calendarName={welcomeCalendar?.name ?? null}

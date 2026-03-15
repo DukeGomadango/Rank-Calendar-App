@@ -13,46 +13,46 @@ import {
   ensureSkipPassIncrementForLastWeek,
 } from "@/lib/data/calendar-rank-state";
 import { compareJstDate } from "@/lib/domain/calendar";
+import {
+  saveScheduleEntrySchema,
+  type SaveScheduleEntryResult,
+} from "@/lib/validations/schedule";
 
-export async function saveScheduleEntry(formData: FormData) {
+export async function saveScheduleEntry(
+  formData: FormData
+): Promise<SaveScheduleEntryResult> {
   "use server";
 
-  const calendarId = formData.get("calendar_id");
-  const date = formData.get("date");
+  const raw = Object.fromEntries(
+    Array.from(formData.entries()).map(([k, v]) => [k, v instanceof File ? v.name : v])
+  );
+  const parsed = saveScheduleEntrySchema.safeParse(raw);
 
-  if (typeof calendarId !== "string" || typeof date !== "string") {
-    throw new Error("カレンダーIDまたは日付が不正です。");
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const [path, messages] of Object.entries(
+      parsed.error.flatten().fieldErrors
+    )) {
+      if (messages) fieldErrors[path] = Array.isArray(messages) ? messages : [messages];
+    }
+    return { ok: false, errors: fieldErrors };
   }
 
-  const parseNumber = (value: FormDataEntryValue | null): number | null => {
-    if (typeof value !== "string" || value.trim() === "") return null;
-    const n = Number(value);
-    return Number.isNaN(n) ? null : n;
-  };
-
-  const ansukoBaseline = parseNumber(formData.get("ansuko_baseline"));
-  const border2 = parseNumber(formData.get("border_plus2"));
-  const border4 = parseNumber(formData.get("border_plus4"));
-  const border6 = parseNumber(formData.get("border_plus6"));
-  const targetPlus = parseNumber(formData.get("target_plus"));
-  const actualPlus = parseNumber(formData.get("actual_plus"));
-  const memo = formData.get("memo");
-  const skipPassUsed = formData.get("skip_pass_used") === "on";
-  const eventIdRaw = formData.get("event_id");
-  const eventId =
-    typeof eventIdRaw === "string" && eventIdRaw.trim() !== ""
-      ? eventIdRaw
-      : null;
-  const streamContentRaw = formData.get("stream_content");
-  const streamContent =
-    typeof streamContentRaw === "string" && streamContentRaw.trim() !== ""
-      ? streamContentRaw.trim()
-      : null;
-  const streamColorRaw = formData.get("stream_content_color");
-  const streamContentColor =
-    typeof streamColorRaw === "string" && streamColorRaw.trim() !== ""
-      ? streamColorRaw.trim()
-      : null;
+  const {
+    calendar_id: calendarId,
+    date,
+    ansuko_baseline: ansukoBaseline,
+    border_plus2: border2,
+    border_plus4: border4,
+    border_plus6: border6,
+    target_plus: targetPlus,
+    actual_plus: actualPlus,
+    skip_pass_used: skipPassUsed,
+    memo,
+    event_id: eventId,
+    stream_content: streamContent,
+    stream_content_color: streamContentColor,
+  } = parsed.data;
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
@@ -61,7 +61,7 @@ export async function saveScheduleEntry(formData: FormData) {
     border_plus4: border4,
     border_plus6: border6,
     event_id: eventId,
-    memo: typeof memo === "string" && memo.trim() !== "" ? memo : null,
+    memo,
     target_plus: targetPlus,
     actual_plus: actualPlus,
     skip_pass_used: skipPassUsed,
@@ -90,6 +90,7 @@ export async function saveScheduleEntry(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/calendar");
   revalidatePath("/dashboard/data");
+  return { ok: true };
 }
 
 /**

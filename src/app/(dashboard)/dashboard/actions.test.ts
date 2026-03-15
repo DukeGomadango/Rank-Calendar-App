@@ -40,10 +40,12 @@ describe("dashboard actions", () => {
     mockEnsureSkipPassIncrementForLastWeek.mockResolvedValue(undefined);
   });
 
+  const validCalendarId = "550e8400-e29b-41d4-a716-446655440000";
+
   describe("saveScheduleEntry", () => {
     it("parses FormData and calls upsertScheduleEntryForDate", async () => {
       const formData = new FormData();
-      formData.set("calendar_id", "cal-123");
+      formData.set("calendar_id", validCalendarId);
       formData.set("date", "2024-01-15");
       formData.set("target_plus", "6");
       formData.set("actual_plus", "4");
@@ -53,10 +55,11 @@ describe("dashboard actions", () => {
       formData.set("memo", "メモ");
       formData.set("skip_pass_used", "on");
 
-      await saveScheduleEntry(formData);
+      const result = await saveScheduleEntry(formData);
 
+      expect(result).toEqual({ ok: true });
       expect(mockUpsert).toHaveBeenCalledTimes(1);
-      expect(mockUpsert).toHaveBeenCalledWith("cal-123", {
+      expect(mockUpsert).toHaveBeenCalledWith(validCalendarId, {
         date: "2024-01-15",
         target_plus: 6,
         actual_plus: 4,
@@ -73,37 +76,38 @@ describe("dashboard actions", () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard/calendar");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard/data");
-      expect(mockGetOrCreateCalendarRankState).toHaveBeenCalledWith("cal-123");
+      expect(mockGetOrCreateCalendarRankState).toHaveBeenCalledWith(validCalendarId);
       expect(mockExtendRankResetDate).toHaveBeenCalledWith(
-        "cal-123",
+        validCalendarId,
         "2024-01-15",
         "2024-01-08",
         "2024-01-21"
       );
-      expect(mockDecrementSkipPassRemaining).toHaveBeenCalledWith("cal-123", "2024-01-15");
-      expect(mockEnsureSkipPassIncrementForLastWeek).toHaveBeenCalledWith("cal-123");
+      expect(mockDecrementSkipPassRemaining).toHaveBeenCalledWith(validCalendarId, "2024-01-15");
+      expect(mockEnsureSkipPassIncrementForLastWeek).toHaveBeenCalledWith(validCalendarId);
     });
 
-    it("throws when calendar_id or date is missing", async () => {
+    it("returns errors when calendar_id or date is invalid", async () => {
       const formData = new FormData();
       formData.set("calendar_id", "cal-123");
       // date missing
 
-      await expect(saveScheduleEntry(formData)).rejects.toThrow(
-        "カレンダーIDまたは日付が不正です"
-      );
+      const result = await saveScheduleEntry(formData);
+
+      expect(result).toEqual(expect.objectContaining({ ok: false, errors: expect.any(Object) }));
       expect(mockUpsert).not.toHaveBeenCalled();
     });
 
     it("sends null for empty optional fields", async () => {
       const formData = new FormData();
-      formData.set("calendar_id", "cal-1");
+      formData.set("calendar_id", validCalendarId);
       formData.set("date", "2024-01-01");
       // no target_plus, actual_plus, memo, skip_pass_used off
 
-      await saveScheduleEntry(formData);
+      const result = await saveScheduleEntry(formData);
 
-      expect(mockUpsert).toHaveBeenCalledWith("cal-1", {
+      expect(result).toEqual({ ok: true });
+      expect(mockUpsert).toHaveBeenCalledWith(validCalendarId, {
         date: "2024-01-01",
         target_plus: null,
         actual_plus: null,
@@ -120,7 +124,7 @@ describe("dashboard actions", () => {
       expect(mockGetOrCreateCalendarRankState).not.toHaveBeenCalled();
       expect(mockExtendRankResetDate).not.toHaveBeenCalled();
       expect(mockDecrementSkipPassRemaining).not.toHaveBeenCalled();
-      expect(mockEnsureSkipPassIncrementForLastWeek).toHaveBeenCalledWith("cal-1");
+      expect(mockEnsureSkipPassIncrementForLastWeek).toHaveBeenCalledWith(validCalendarId);
     });
   });
 });

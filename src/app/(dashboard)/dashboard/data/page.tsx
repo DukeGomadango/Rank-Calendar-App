@@ -170,13 +170,13 @@ export default async function DataPage(props: PageProps) {
   const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
   const to = today.add(daysRange, "day").format("YYYY-MM-DD");
 
-  const [entries, events] = await Promise.all([
+  const [entries, events, rankState] = await Promise.all([
     getScheduleEntriesInRange(calendar.id, from, to),
     listEventsForCalendar(calendar.id),
+    getOrCreateCalendarRankState(calendar.id),
   ]);
   const entriesByDate = new Map(entries.map((e) => [e.date, e]));
 
-  const rankState = await getOrCreateCalendarRankState(calendar.id);
   await ensureSkipPassIncrementForLastWeek(calendar.id);
   const cycleStart = rankState.rank_cycle_start_date;
   const cycleEnd = rankState.rank_reset_date;

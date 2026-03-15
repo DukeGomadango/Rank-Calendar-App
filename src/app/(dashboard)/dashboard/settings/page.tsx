@@ -16,6 +16,7 @@ import { DataManagementSection } from "@/components/settings/DataManagementSecti
 import { DangerZoneSection } from "@/components/settings/DangerZoneSection";
 import { AppAboutSection } from "@/components/settings/AppAboutSection";
 import { RankSettingsForm } from "@/components/settings/RankSettingsForm";
+import { AccountLinkingSection } from "@/components/settings/AccountLinkingSection";
 
 export default async function SettingsPage() {
   const supabase = await createSupabaseServerClient();
@@ -108,6 +109,8 @@ export default async function SettingsPage() {
         avatarUrl={profile?.avatar_url ?? null}
         updateDisplayNameAction={updateDisplayNameAction}
       />
+
+      <AccountLinkingSection isEnabled />
 
       <section className="space-y-3 rounded-2xl bg-white p-4 text-xs text-zinc-700 shadow-md dark:bg-slate-800 dark:text-zinc-200">
         <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">

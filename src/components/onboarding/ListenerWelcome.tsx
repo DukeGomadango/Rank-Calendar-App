@@ -61,7 +61,7 @@ export function ListenerWelcome({ calendarId, calendarName, displayName }: Props
     }
   };
 
-  if (!showFlow || step === "done") return null;
+  if (!calendarId || step === "done") return null;
 
   const name = (calendarName?.trim() || "このカレンダー").replace(/"/g, "");
 
