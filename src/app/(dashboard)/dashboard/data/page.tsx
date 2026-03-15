@@ -14,7 +14,7 @@ import { compareJstDate, getJstWeekStart, addDays, toJstDateString } from "@/lib
 import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import {
   getCalendarPermissionsForUser,
-  type CalendarPermissionFlags,
+  getMockPermissions,
 } from "@/lib/auth/permission";
 import { DataTable } from "@/components/data/DataTable";
 import { DataTableWithMockState } from "@/components/data/DataTableWithMockState";
@@ -25,18 +25,6 @@ import { updateScheduleEntryField } from "../actions";
 dayjs.locale("ja");
 
 type PageProps = { searchParams?: Promise<{ days?: string }> | { days?: string } };
-
-const DEV_MOCK_PERMISSIONS: CalendarPermissionFlags = {
-  isOwner: true,
-  canEditSchedule: true,
-  canViewCalendar: true,
-  canViewTable: true,
-  canViewBorders: true,
-  canViewMemo: true,
-  canViewTargetActual: true,
-  canViewRank: true,
-  canViewEvents: true,
-};
 
 export default async function DataPage(props: PageProps) {
   const supabase = await createSupabaseServerClient();
@@ -59,6 +47,7 @@ export default async function DataPage(props: PageProps) {
 
   if (isDevMock) {
     const calendar = { id: "dev-mock", name: "開発用モック" as string | null };
+    const permissions = await getMockPermissions();
     const todayJst = toJstDateString(new Date());
     const today = dayjs(todayJst);
     const cycleStart = getJstWeekStart(todayJst);
@@ -95,6 +84,7 @@ export default async function DataPage(props: PageProps) {
       skip_pass_used?: boolean;
       current_rank?: string | null;
       rank_score_cumulative?: number | null;
+      memo?: string | null;
     }[] = [];
     let cursor = dayjs(from);
     const end = dayjs(to);
@@ -110,6 +100,7 @@ export default async function DataPage(props: PageProps) {
         skip_pass_used: entry?.skip_pass_used ?? false,
         current_rank: "A1",
         rank_score_cumulative: inCycle ? (cumulativeByDate[dateStr] ?? null) : null,
+        memo: entry?.memo ?? null,
       });
       cursor = cursor.add(1, "day");
     }
@@ -147,7 +138,7 @@ export default async function DataPage(props: PageProps) {
         )}
         <DataTableWithMockState
           initialRows={rows}
-          permissions={DEV_MOCK_PERMISSIONS}
+          permissions={permissions}
           calendarId={calendar.id}
           events={[]}
         />

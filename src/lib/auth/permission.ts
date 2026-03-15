@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PERMISSION_KEYS, type PermissionKey } from "@/lib/data/permissions";
+import { MOCK_ROLE_COOKIE } from "@/lib/auth/mock-role-cookie";
 
 export type CalendarPermissionFlags = {
   isOwner: boolean;
@@ -140,5 +142,25 @@ export async function getCalendarPermissionsForUser(
     .filter((p): p is PermissionKey => PERMISSION_KEYS.includes(p));
 
   return flagsFromPermissions(perms, false);
+}
+
+/** 開発用モック: クッキー iriam_mock_role に応じた権限。listener = リスナー（編集不可・ボーダー/メモ非表示）、それ以外 = オーナー。 */
+export async function getMockPermissions(): Promise<CalendarPermissionFlags> {
+  const cookieStore = await cookies();
+  const role = cookieStore.get(MOCK_ROLE_COOKIE)?.value;
+  if (role === "listener") {
+    return {
+      isOwner: false,
+      canEditSchedule: false,
+      canViewCalendar: true,
+      canViewTable: true,
+      canViewBorders: false,
+      canViewMemo: false,
+      canViewTargetActual: true,
+      canViewRank: true,
+      canViewEvents: true,
+    };
+  }
+  return ALL_FLAGS_FOR_OWNER;
 }
 

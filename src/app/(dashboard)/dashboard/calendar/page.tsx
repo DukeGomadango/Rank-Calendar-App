@@ -19,6 +19,7 @@ import { addDays, getJstWeekStart, toJstDateString } from "@/lib/domain/calendar
 import { getMockEvents } from "@/lib/mock-seed-data";
 import {
   getCalendarPermissionsForUser,
+  getMockPermissions,
   type CalendarPermissionFlags,
 } from "@/lib/auth/permission";
 import {
@@ -31,18 +32,6 @@ import { CalendarMockWrapper } from "@/components/schedule/CalendarMockWrapper";
 import { CalendarWithModal } from "@/components/schedule/CalendarWithModal";
 
 dayjs.locale("ja");
-
-const DEV_MOCK_PERMISSIONS: CalendarPermissionFlags = {
-  isOwner: true,
-  canEditSchedule: true,
-  canViewCalendar: true,
-  canViewTable: true,
-  canViewBorders: true,
-  canViewMemo: true,
-  canViewTargetActual: true,
-  canViewRank: true,
-  canViewEvents: true,
-};
 
 function parseMonthParam(month?: string | string[]): dayjs.Dayjs {
   const raw = typeof month === "string" ? month : Array.isArray(month) ? month[0] : undefined;
@@ -99,6 +88,7 @@ export default async function CalendarPage(props: PageProps) {
 
   if (isDevMock) {
     const calendar = { id: "dev-mock", name: "開発用モック" as string | null };
+    const permissions = await getMockPermissions();
     const todayJst = toJstDateString(new Date());
     const events = getMockEvents(todayJst);
     const today = dayjs(todayJst);
@@ -162,7 +152,7 @@ export default async function CalendarPage(props: PageProps) {
           currentMonthParam={currentMonthParam}
           currentWeekStart={currentWeekStart}
           calendarId={calendar.id}
-          permissions={DEV_MOCK_PERMISSIONS}
+          permissions={permissions}
           days={days}
           moveEntry={noopMoveEntry}
           saveAction={noopSaveEntry}

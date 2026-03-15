@@ -2,10 +2,15 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { MockRoleSwitcher } from "@/components/mock/MockRoleSwitcher";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { hasOwnedCalendar } from "@/lib/data/calendars";
 import { toJstDateString } from "@/lib/domain/calendar";
 import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import { MockScheduleProvider } from "@/lib/mock-schedule-context";
 import { ViewModeProvider } from "@/lib/view-mode-context";
+import { MOCK_ROLE_COOKIE } from "@/lib/auth/mock-role-cookie";
+import { cookies } from "next/headers";
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -19,12 +24,29 @@ export default async function DashboardLayout({
       ? getMockSeedEntries(toJstDateString(new Date()))
       : undefined;
 
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let showMockRoleSwitcher = false;
+  let mockRole: "owner" | "listener" = "owner";
+  let isOwner = false;
+
+  if (user) {
+    isOwner = await hasOwnedCalendar(user.id);
+  } else if (process.env.NODE_ENV === "development") {
+    showMockRoleSwitcher = true;
+    const cookieStore = await cookies();
+    mockRole = cookieStore.get(MOCK_ROLE_COOKIE)?.value === "listener" ? "listener" : "owner";
+    isOwner = mockRole === "owner";
+  }
+
   return (
     <MockScheduleProvider initialEntries={initialEntries}>
     <ViewModeProvider>
     <div className="flex min-h-screen flex-col bg-background">
-      {/* 画面右上に固定: ダークモード切替 */}
-      <div className="fixed top-3 right-3 z-50 sm:top-4 sm:right-4">
+      {/* 画面右上に固定: ダークモード切替 / モック時はロール切替 */}
+      <div className="fixed top-3 right-3 z-50 flex flex-wrap items-center justify-end gap-2 sm:top-4 sm:right-4">
+        {showMockRoleSwitcher && <MockRoleSwitcher currentRole={mockRole} />}
         <ThemeToggle />
       </div>
 
@@ -77,12 +99,14 @@ export default async function DashboardLayout({
             >
               イベント
             </Link>
-            <Link
-              href="/dashboard/sharing"
-              className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              共有
-            </Link>
+            {isOwner && (
+              <Link
+                href="/dashboard/sharing"
+                className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                共有
+              </Link>
+            )}
             <Link
               href="/dashboard/settings"
               className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -132,14 +156,16 @@ export default async function DashboardLayout({
               <span className="text-[10px] font-medium">イベント</span>
             </Link>
           </li>
-          <li className="flex-1">
-            <Link
-              href="/dashboard/sharing"
-              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              <span className="text-[10px] font-medium">共有</span>
-            </Link>
-          </li>
+          {isOwner && (
+            <li className="flex-1">
+              <Link
+                href="/dashboard/sharing"
+                className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                <span className="text-[10px] font-medium">共有</span>
+              </Link>
+            </li>
+          )}
           <li className="flex-1">
             <Link
               href="/dashboard/settings"

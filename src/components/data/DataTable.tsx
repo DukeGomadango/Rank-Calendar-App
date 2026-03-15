@@ -358,6 +358,37 @@ export function DataTable({
         return checked ? "使用" : "";
       },
     },
+    {
+      accessorKey: "memo",
+      header: "メモ",
+      cell: ({ row }) => {
+        if (!permissions.canViewMemo) {
+          return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
+        }
+        const memo = row.original.memo ?? "";
+        if (canEdit) {
+          return (
+            <input
+              type="text"
+              defaultValue={memo}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                const prev = (row.original.memo ?? "").trim();
+                if (v !== prev) {
+                  startTransition(() =>
+                    onUpdateField(calendarId, row.original.date, "memo", v)
+                  );
+                }
+              }}
+              placeholder="メモ"
+              className={inputClass}
+              disabled={isPending}
+            />
+          );
+        }
+        return memo ? <span className="line-clamp-2">{memo}</span> : "—";
+      },
+    },
   ];
 
   const table = useReactTable({

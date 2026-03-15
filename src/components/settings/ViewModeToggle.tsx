@@ -22,7 +22,7 @@ export function ViewModeToggle() {
                 : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
             }`}
           >
-            {mode === "simple" ? "簡易" : "詳細（推しと同じ目線）"}
+            {mode === "simple" ? "簡易" : "詳細"}
           </button>
         ))}
       </div>

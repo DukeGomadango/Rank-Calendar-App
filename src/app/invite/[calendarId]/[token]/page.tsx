@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getInviteLinkByTokenForRedeem } from "@/lib/data/invite-links";
 import { redeemInvite } from "@/lib/data/invite-redemptions";
+import { upsertShareWithServiceRole } from "@/lib/data/shares";
 
 export const dynamic = "force-dynamic";
 
@@ -65,18 +66,30 @@ export default async function InviteRedeemPage({ params }: Props) {
     return <InviteInvalidLink calendarId={calendarId} token={token} />;
   }
   await redeemInvite(link.id, user.id);
+  if (link.role_id) {
+    await upsertShareWithServiceRole(link.calendar_id, user.id, link.role_id);
+  }
+  const autoRoleAssigned = !!link.role_id;
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
       <div className="max-w-md rounded-xl border border-zinc-200 bg-white/90 p-6 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90">
         <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
           招待を登録しました
         </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          カレンダーオーナーがロールを付与すると、権限に応じてスケジュールを閲覧できるようになります。
-        </p>
-        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
-          ロールが付与されるまでお待ちください。
-        </p>
+        {autoRoleAssigned ? (
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            ロールが自動で付与されました。ダッシュボードからスケジュールを閲覧できます。
+          </p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              カレンダーオーナーがロールを付与すると、権限に応じてスケジュールを閲覧できるようになります。
+            </p>
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
+              ロールが付与されるまでお待ちください。
+            </p>
+          </>
+        )}
         <Link
           href="/dashboard"
           className="mt-4 inline-block rounded-md bg-accent-500 px-4 py-2 text-sm font-medium text-white hover:bg-accent-600"

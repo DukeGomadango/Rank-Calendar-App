@@ -8,12 +8,14 @@ export type InviteLinkRow = {
   created_by: string;
   expires_at: string | null;
   created_at: string;
+  role_id: string | null;
 };
 
 export async function createInviteLink(
   calendarId: string,
   createdBy: string,
-  expiresAt: string | null = null
+  expiresAt: string | null = null,
+  roleId: string | null = null
 ): Promise<InviteLinkRow> {
   const supabase = await createSupabaseServerClient();
   const token = randomBytes(24).toString("base64url");
@@ -26,8 +28,9 @@ export async function createInviteLink(
       token,
       created_by: createdBy,
       expires_at: expiresAt,
+      role_id: roleId || null,
     })
-    .select("id, calendar_id, token, created_by, expires_at, created_at")
+    .select("id, calendar_id, token, created_by, expires_at, created_at, role_id")
     .single();
 
   if (error) {
@@ -45,7 +48,7 @@ export async function listInviteLinksForCalendar(
   const { data, error } = await supabase
     .schema("iriam")
     .from("invite_links")
-    .select("id, calendar_id, token, created_by, expires_at, created_at")
+    .select("id, calendar_id, token, created_by, expires_at, created_at, role_id")
     .eq("calendar_id", calendarId)
     .order("created_at", { ascending: false });
 
@@ -65,7 +68,7 @@ export async function getInviteLinkByToken(
   const { data, error } = await supabase
     .schema("iriam")
     .from("invite_links")
-    .select("id, calendar_id, token, created_by, expires_at, created_at")
+    .select("id, calendar_id, token, created_by, expires_at, created_at, role_id")
     .eq("calendar_id", calendarId)
     .eq("token", token)
     .maybeSingle();
@@ -94,7 +97,7 @@ export async function getInviteLinkByTokenForRedeem(
   const { data, error } = await supabase
     .schema("iriam")
     .from("invite_links")
-    .select("id, calendar_id, token, created_by, expires_at, created_at")
+    .select("id, calendar_id, token, created_by, expires_at, created_at, role_id")
     .eq("calendar_id", calendarId)
     .eq("token", token)
     .maybeSingle();

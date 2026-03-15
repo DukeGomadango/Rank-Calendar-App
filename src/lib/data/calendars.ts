@@ -54,3 +54,47 @@ export async function getOrCreateDefaultCalendarForUser(
   return inserted as CalendarRow;
 }
 
+/**
+ * ユーザーがオーナーであるカレンダーが1件以上あるかどうか。
+ * レイアウトで「共有タブを表示するか」の判定に使用（作成はしない）。
+ */
+export async function hasOwnedCalendar(userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .schema("iriam")
+    .from("calendars")
+    .select("id")
+    .eq("owner_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    );
+  }
+  return data != null;
+}
+
+/**
+ * ユーザーがオーナーであるカレンダー一覧を取得（作成はしない）。
+ */
+export async function listCalendarsForUser(
+  userId: string
+): Promise<CalendarRow[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .schema("iriam")
+    .from("calendars")
+    .select("id, name")
+    .eq("owner_id", userId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      `calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    );
+  }
+  return (data ?? []) as CalendarRow[];
+}
+

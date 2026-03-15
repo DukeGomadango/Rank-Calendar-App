@@ -18,6 +18,7 @@ export type MockEntry = {
   target_plus?: number | null;
   actual_plus?: number | null;
   skip_pass_used?: boolean;
+  memo?: string | null;
 };
 
 type MockScheduleContextValue = {
@@ -59,6 +60,12 @@ export function MockScheduleProvider({
           return {
             ...prev,
             [date]: { ...current, skip_pass_used: value === true || value === "on" },
+          };
+        }
+        if (field === "memo") {
+          return {
+            ...prev,
+            [date]: { ...current, memo: typeof value === "string" ? value : null },
           };
         }
         if (

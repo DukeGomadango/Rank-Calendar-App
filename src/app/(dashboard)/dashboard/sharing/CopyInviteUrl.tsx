@@ -33,9 +33,16 @@ export function CopyInviteUrl({ calendarId, token }: Props) {
       <button
         type="button"
         onClick={copy}
-        className="rounded bg-zinc-200 px-2 py-0.5 text-[11px] hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+        className="inline-flex items-center gap-1 rounded bg-zinc-200 px-2 py-0.5 text-[11px] hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600"
       >
-        {copied ? "コピーしました" : "コピー"}
+        {copied ? (
+          <>✓ コピーしました</>
+        ) : (
+          <>
+            <span aria-hidden className="text-[10px]">📋</span>
+            コピー
+          </>
+        )}
       </button>
     </div>
   );

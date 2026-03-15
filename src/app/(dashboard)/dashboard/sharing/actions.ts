@@ -75,7 +75,7 @@ export async function saveRolePermissions(formData: FormData): Promise<void> {
   revalidatePath(SHARING_PATH);
 }
 
-export async function createInviteLinkAction(): Promise<void> {
+export async function createInviteLinkAction(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -83,7 +83,12 @@ export async function createInviteLinkAction(): Promise<void> {
   if (!user) throw new Error("未ログイン");
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
-  await createInviteLinkData(calendar.id, user.id, null);
+  const roleId = (formData.get("role_id") as string)?.trim() || null;
+  if (roleId === "" || roleId === "none") {
+    await createInviteLinkData(calendar.id, user.id, null, null);
+  } else {
+    await createInviteLinkData(calendar.id, user.id, null, roleId);
+  }
   revalidatePath(SHARING_PATH);
 }
 
