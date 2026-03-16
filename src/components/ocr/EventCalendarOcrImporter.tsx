@@ -37,6 +37,25 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
     "スケジュールは変更の可能性があります",
   ];
 
+  // イベント名の本体が始まりやすいキーワード一覧。
+  // OCR 結果から見える代表的なパターンだけを列挙し、最初に見つかったものから右側を表示名とする。
+  const anchorKeywords = [
+    "Enjoy IRIAM",
+    "IRIAM ",
+    "FAN BADGE",
+    "Birthday",
+    "Half Year Anniversary",
+    "#RIAM",
+    "Live2D",
+    "MUSIC",
+    "STYLE COLLECTION",
+    "illustration for you",
+    "えき ポス",
+    "プチ ギフ フェ スタ",
+    "背景 フェ スタ",
+    "選 べ る ギフ ト",
+  ];
+
   const eventLines: string[] = [];
 
   for (const line of lines) {
@@ -50,9 +69,18 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
 
     // ランク帯や記号を含む左側はざっくり捨てて、最初の日本語/英数ブロック以降をイベント名として扱う
     const nameMatch = line.match(/[ぁ-んァ-ン一-龥A-Za-z0-9].*$/);
-    const cleaned = nameMatch ? nameMatch[0].trim() : "";
+    let cleaned = nameMatch ? nameMatch[0].trim() : "";
 
     if (!cleaned) continue;
+
+    // 本体らしいキーワードがあれば、その位置から後ろだけを採用する
+    for (const kw of anchorKeywords) {
+      const idx = cleaned.indexOf(kw);
+      if (idx >= 0) {
+        cleaned = cleaned.slice(idx).trim();
+        break;
+      }
+    }
 
     // ひらがな・カタカナ・漢字・英数がある程度含まれている行のみ採用
     const contentChars = (cleaned.match(/[ぁ-んァ-ン一-龥A-Za-z0-9]/g) ?? []).length;
