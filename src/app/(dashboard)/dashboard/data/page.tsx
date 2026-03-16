@@ -7,9 +7,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentCalendarForUser } from "@/lib/data/calendars";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
-import { getOrCreateCalendarRankState, ensureSkipPassIncrementForLastWeek, getSkipPassSnapshotsBefore, type SkipPassSnapshotRow } from "@/lib/data/calendar-rank-state";
+import { getOrCreateCalendarRankState, ensureSkipPassIncrementForLastWeek, getSkipPassSnapshotsBefore, getRankCycleHistory, type SkipPassSnapshotRow } from "@/lib/data/calendar-rank-state";
 import { listEventsForCalendar } from "@/lib/data/events";
-import { calculateCycleCumulativeByDate } from "@/lib/domain/rank";
+import { calculateCycleCumulativeByDate, judgeCycleRank, getNextRank, getPreviousRank } from "@/lib/domain/rank";
 import { compareJstDate, getJstWeekStart, addDays, toJstDateString } from "@/lib/domain/calendar";
 import { getPredictedSkipPassRemaining, type EntryForPrediction } from "@/lib/domain/skip-pass-prediction";
 import { getMockSeedEntries } from "@/lib/mock-seed-data";
@@ -177,10 +177,11 @@ export default async function DataPage(props: PageProps) {
   const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
   const to = today.add(daysRange, "day").format("YYYY-MM-DD");
 
-  const [entries, events, rankState] = await Promise.all([
+  const [entries, events, rankState, rankCycleHistory] = await Promise.all([
     getScheduleEntriesInRange(currentCalendar.id, from, to),
     listEventsForCalendar(currentCalendar.id),
     getOrCreateCalendarRankState(currentCalendar.id),
+    getRankCycleHistory(currentCalendar.id, from, to),
   ]);
   const entriesByDate = new Map(entries.map((e) => [e.date, e]));
 
@@ -218,6 +219,69 @@ export default async function DataPage(props: PageProps) {
     cycleEnd
   );
 
+  // サイクル単位のランク一覧: 過去サイクル（履歴）＋現在サイクル＋1つ先の予測サイクル
+  type RankCycle = { start: string; end: string; rank: string | null };
+  const rankCycles: RankCycle[] = [];
+
+  // 過去サイクル（履歴）
+  for (const h of rankCycleHistory) {
+    rankCycles.push({
+      start: h.cycle_start_date,
+      end: h.cycle_end_date,
+      rank: h.rank_during,
+    });
+  }
+
+  // 現在サイクル
+  rankCycles.push({
+    start: rankState.rank_cycle_start_date,
+    end: rankState.rank_reset_date,
+    rank: rankState.current_rank,
+  });
+
+  // 未来サイクル（1サイクル分だけ、calendar/page.tsx と同じルールで予測）
+  let forecastNextRank: string | null = null;
+  if (permissions.canViewRank && rankState.current_rank != null) {
+    const cycleStartForForecast = rankState.rank_cycle_start_date;
+    const cycleEndForForecast = rankState.rank_reset_date;
+    const entriesByDateCycle = new Map(entries.map((e) => [e.date, e]));
+    const todayJst = todayStr;
+    let projectedTotal = 0;
+    let cursorForecast = cycleStartForForecast;
+    while (cursorForecast <= cycleEndForForecast) {
+      const entry = entriesByDateCycle.get(cursorForecast);
+      if (cursorForecast <= todayJst) {
+        const plus =
+          entry?.skip_pass_used || entry?.actual_plus == null
+            ? 0
+            : Math.max(0, entry.actual_plus);
+        if (!entry?.skip_pass_used) projectedTotal += plus;
+      } else {
+        const target = entry?.target_plus ?? 0;
+        projectedTotal += Math.max(0, target);
+      }
+      cursorForecast = addDays(cursorForecast, 1);
+    }
+    const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
+    if (canRankUp) {
+      forecastNextRank = getNextRank(rankState.current_rank);
+    } else if (isKeep) {
+      forecastNextRank = rankState.current_rank;
+    } else {
+      forecastNextRank =
+        getPreviousRank(rankState.current_rank) ?? rankState.current_rank;
+    }
+    if (forecastNextRank != null) {
+      const nextCycleStart = addDays(rankState.rank_reset_date, 1);
+      const nextCycleEnd = addDays(nextCycleStart, 6);
+      rankCycles.push({
+        start: nextCycleStart,
+        end: nextCycleEnd,
+        rank: forecastNextRank,
+      });
+    }
+  }
+
   const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
   const rows: {
     date: string;
@@ -254,11 +318,19 @@ export default async function DataPage(props: PageProps) {
             todayStr
           )
         : getRemainingAsOf(dateStr);
+
+    // この日の属するランクサイクルを決定（サイクル単位のランク表示用）
+    const cycleForDay =
+      rankCycles.find(
+        (c) =>
+          compareJstDate(dateStr, c.start) >= 0 &&
+          compareJstDate(dateStr, c.end) <= 0
+      ) ?? null;
     rows.push({
       date: dateStr,
       weekday,
       ...(entry ?? {}),
-      current_rank: rankState.current_rank ?? null,
+      current_rank: cycleForDay?.rank ?? rankState.current_rank ?? null,
       rank_score_cumulative: inCycle ? (cumulativeByDate[dateStr] ?? null) : null,
       skip_pass_remaining_as_of: skipPassValue ?? undefined,
     });
