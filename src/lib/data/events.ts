@@ -63,6 +63,39 @@ export async function createEventForCalendar(
   }
 }
 
+export async function updateEventForCalendar(
+  id: string,
+  calendarId: string,
+  fields: {
+    name: string;
+    startDate: string | null;
+    endDate: string | null;
+    color: string | null;
+    eventType: EventType | null;
+  }
+) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .schema("iriam")
+    .from("events")
+    .update({
+      name: fields.name,
+      start_date: fields.startDate,
+      end_date: fields.endDate,
+      color: fields.color,
+      event_type: fields.eventType,
+    })
+    .eq("id", id)
+    .eq("calendar_id", calendarId);
+
+  if (error) {
+    throwDataLayerError(
+      new Error(`events update failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
+    );
+  }
+}
+
 export async function deleteEvent(id: string, calendarId: string) {
   const supabase = await createSupabaseServerClient();
 

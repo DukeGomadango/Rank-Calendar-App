@@ -10,6 +10,8 @@ import { getMockEvents } from "@/lib/mock-seed-data";
 import {
   createEvent,
   deleteEventAction,
+  noopUpdateEventAction,
+  updateEvent,
   noopCreateEvent,
   noopDeleteEventAction,
 } from "./actions";
@@ -66,6 +68,7 @@ export default async function EventsPage({ searchParams }: PageProps) {
           calendarName={calendar.name}
           createAction={noopCreateEvent}
           deleteAction={noopDeleteEventAction}
+          updateAction={noopUpdateEventAction}
         />
       </div>
     );
@@ -89,6 +92,7 @@ export default async function EventsPage({ searchParams }: PageProps) {
         calendarName={currentCalendar.name}
         createAction={createEvent}
         deleteAction={deleteEventAction}
+        updateAction={updateEvent}
       />
     </div>
   );
