@@ -23,9 +23,16 @@ type Props = {
 };
 
 function normalizeJaSpaces(input: string): string {
+  let prev: string | null = null;
   let result = input;
-  // 日本語同士の間のスペースを除去
-  result = result.replace(/([ぁ-んァ-ン一-龥])\s+([ぁ-んァ-ン一-龥])/g, "$1$2");
+
+  // 収束するまで日本語/カタカナ/英数字まわりのスペースを詰める
+  while (result !== prev) {
+    prev = result;
+    // 日本語・カタカナ・英数字どうしの間のスペースを除去
+    result = result.replace(/([ぁ-んァ-ン一-龥A-Za-z0-9])\s+([ぁ-んァ-ン一-龥A-Za-z0-9])/g, "$1$2");
+  }
+
   // 記号の直前のスペースを削除
   result = result.replace(/\s+([!！?？\-・〜～、。:：])/g, "$1");
   // 記号の直後の過剰なスペースを1つに
@@ -69,6 +76,12 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
     "描き 下ろ し",
     "IRIAMx 自 遊 空間",
     "IRIAMx コ ンプ ティ ー ク",
+    "うえき ポス",
+    "もち もち フェイスマスコット",
+    "イベントギフト",
+    "オリジナルプチギフト",
+    "ベビ ー スター",
+    "Scently コラボイベント",
     "えき ポス",
     "プチ ギフ フェ スタ",
     "背景 フェ スタ",
