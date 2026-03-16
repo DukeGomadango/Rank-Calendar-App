@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
+import { MOCK_ROLE_COOKIE } from "@/lib/auth/mock-role-cookie";
+
 /**
  * 認証保護用ミドルウェア。
  *
@@ -9,9 +12,12 @@ import { NextResponse, type NextRequest } from "next/server";
  *   - /signup
  *   - /privacy
  *   - /terms
- *   - /_next/*, /favicon.*, /assets など静的ファイル
+ *   - /auth/callback
+ *   - /invite/*
+ *   - /api/e2e-login（E2E テスト用・要 E2E_TEST_SECRET）
  *
- * - それ以外のパスはログイン必須。
+ * - /dashboard/* はログイン必須。未ログイン時は /login へリダイレクト。
+ * - 開発時のみ: MOCK_ROLE_COOKIE が設定されていればセッションなしでも /dashboard を許可。
  */
 const PUBLIC_PATHS = new Set<string>([
   "/",
@@ -39,10 +45,37 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // TODO: Supabase Auth のミドルウェアサポートが安定したら、
-  // ここでセッション確認を行い、未ログイン時は /login へリダイレクトする。
-  // 現時点では、全てのパスをそのまま通す。
-  return NextResponse.next();
+  // E2E テスト用ログイン API（要 E2E_TEST_SECRET）
+  if (pathname === "/api/e2e-login") {
+    return NextResponse.next();
+  }
+
+  const response = NextResponse.next({
+    request: req,
+  });
+
+  const supabase = createSupabaseMiddlewareClient(req, response);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    return response;
+  }
+
+  // 開発時: モック用クッキーがあればダッシュボードを許可（セッション不要）
+  if (
+    process.env.NODE_ENV === "development" &&
+    pathname.startsWith("/dashboard") &&
+    req.cookies.get(MOCK_ROLE_COOKIE)?.value
+  ) {
+    return response;
+  }
+
+  const loginUrl = new URL("/login", req.url);
+  const redirectTo = pathname.startsWith("/dashboard") ? pathname : "/dashboard";
+  loginUrl.searchParams.set("redirectTo", redirectTo);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {

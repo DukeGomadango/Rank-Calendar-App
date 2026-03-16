@@ -1,3 +1,4 @@
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 export type ShareRow = {
@@ -18,8 +19,8 @@ export async function listSharesForCalendar(
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
-      `shares select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`shares select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return (data ?? []) as ShareRow[];
@@ -40,8 +41,8 @@ export async function upsertShare(
     );
 
   if (error) {
-    throw new Error(
-      `shares upsert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`shares upsert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }
@@ -59,8 +60,8 @@ export async function deleteShare(
     .eq("user_id", userId);
 
   if (error) {
-    throw new Error(
-      `shares delete failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`shares delete failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }
@@ -84,8 +85,8 @@ export async function upsertShareWithServiceRole(
     );
 
   if (error) {
-    throw new Error(
-      `shares upsert (service) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`shares upsert (service) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }

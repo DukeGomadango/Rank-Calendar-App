@@ -1,3 +1,4 @@
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type InviteRedemptionRow = {
@@ -21,8 +22,8 @@ export async function redeemInvite(
     );
 
   if (error) {
-    throw new Error(
-      `invite_redemptions upsert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`invite_redemptions upsert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }

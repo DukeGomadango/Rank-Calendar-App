@@ -10,7 +10,14 @@ export async function GET(req: NextRequest) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  const redirectTo = requestUrl.searchParams.get("redirect_to") ?? "/dashboard";
+  const rawRedirect = requestUrl.searchParams.get("redirect_to") ?? "/dashboard";
+  // オープンリダイレクト防止: 相対パス（/ 始まりで // で始まらない）のみ許可
+  const redirectTo =
+    typeof rawRedirect === "string" &&
+    rawRedirect.startsWith("/") &&
+    !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/dashboard";
   return NextResponse.redirect(new URL(redirectTo, requestUrl.origin));
 }
 

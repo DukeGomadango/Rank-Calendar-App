@@ -1,3 +1,4 @@
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ScheduleEntryUpsertInput = {
@@ -48,10 +49,10 @@ export async function upsertScheduleEntryForDate(
     .single();
 
   if (error) {
-    throw new Error(
-      `schedule_entries upsert failed: ${error.message ?? ""} (code=${
-        error.code ?? "unknown"
-      })`
+    throwDataLayerError(
+      new Error(
+        `schedule_entries upsert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+      )
     );
   }
 
@@ -93,10 +94,10 @@ export async function getScheduleEntriesInRange(
     .order("date", { ascending: true });
 
   if (error) {
-    throw new Error(
-      `schedule_entries select failed: ${error.message ?? ""} (code=${
-        error.code ?? "unknown"
-      })`
+    throwDataLayerError(
+      new Error(
+        `schedule_entries select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+      )
     );
   }
 

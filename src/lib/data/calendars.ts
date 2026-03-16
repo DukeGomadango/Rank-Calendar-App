@@ -1,3 +1,5 @@
+import { cache } from "react";
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type CalendarRow = {
@@ -24,8 +26,8 @@ export async function getOrCreateDefaultCalendarForUser(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 
@@ -44,10 +46,10 @@ export async function getOrCreateDefaultCalendarForUser(
     .single();
 
   if (insertError || !inserted) {
-    throw new Error(
-      `calendars insert failed: ${
-        insertError?.message ?? "unknown error"
-      } (code=${insertError?.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(
+        `calendars insert failed: ${insertError?.message ?? "unknown error"} (code=${insertError?.code ?? "unknown"})`
+      )
     );
   }
 
@@ -57,8 +59,9 @@ export async function getOrCreateDefaultCalendarForUser(
 /**
  * ユーザーがオーナーであるカレンダーが1件以上あるかどうか。
  * レイアウトで「共有タブを表示するか」の判定に使用（作成はしない）。
+ * React cache() で同一リクエスト内の重複呼び出しを抑止し、タブ切り替え時の負荷を軽減する。
  */
-export async function hasOwnedCalendar(userId: string): Promise<boolean> {
+export const hasOwnedCalendar = cache(async (userId: string): Promise<boolean> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .schema("iriam")
@@ -69,12 +72,12 @@ export async function hasOwnedCalendar(userId: string): Promise<boolean> {
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return data != null;
-}
+});
 
 /**
  * ユーザーがオーナーであるカレンダー一覧を取得（作成はしない）。
@@ -91,8 +94,8 @@ export async function listCalendarsForUser(
     .order("created_at", { ascending: true });
 
   if (error) {
-    throw new Error(
-      `calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return (data ?? []) as CalendarRow[];
@@ -113,8 +116,8 @@ export async function getCalendarById(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`calendars select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return data as CalendarRow | null;
@@ -135,8 +138,8 @@ export async function updateCalendarName(
     .eq("id", calendarId);
 
   if (error) {
-    throw new Error(
-      `calendars update (name) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`calendars update (name) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }

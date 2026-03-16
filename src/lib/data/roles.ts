@@ -1,3 +1,4 @@
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PermissionKey } from "./permissions";
 
@@ -19,8 +20,8 @@ export async function listRolesForCalendar(
     .order("created_at", { ascending: true });
 
   if (error) {
-    throw new Error(
-      `roles select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`roles select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return (data ?? []) as RoleRow[];
@@ -39,8 +40,8 @@ export async function createRole(
     .single();
 
   if (error) {
-    throw new Error(
-      `roles insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`roles insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return data as RoleRow;
@@ -56,8 +57,8 @@ export async function deleteRole(roleId: string, calendarId: string): Promise<vo
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
-      `roles delete failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`roles delete failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }
@@ -73,8 +74,8 @@ export async function getPermissionsForRole(
     .eq("role_id", roleId);
 
   if (error) {
-    throw new Error(
-      `role_permissions select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`role_permissions select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return (data ?? []).map((r) => r.permission as PermissionKey);
@@ -98,8 +99,8 @@ export async function setRolePermissions(
       .insert(permissions.map((permission) => ({ role_id: roleId, permission })));
 
     if (error) {
-      throw new Error(
-        `role_permissions insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+      throwDataLayerError(
+        new Error(`role_permissions insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
       );
     }
   }

@@ -1,3 +1,4 @@
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ProfileRow = {
@@ -17,8 +18,8 @@ export async function getProfile(userId: string): Promise<ProfileRow | null> {
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `profiles select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`profiles select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return data as ProfileRow | null;
@@ -37,8 +38,8 @@ export async function upsertDisplayName(
     );
 
   if (error) {
-    throw new Error(
-      `profiles upsert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`profiles upsert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }
@@ -53,8 +54,8 @@ export async function setSetupWizardDone(userId: string): Promise<void> {
     );
 
   if (error) {
-    throw new Error(
-      `profiles update (setup_wizard_done) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`profiles update (setup_wizard_done) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }
@@ -72,8 +73,8 @@ export async function updateAvatarUrl(
     );
 
   if (error) {
-    throw new Error(
-      `profiles update (avatar_url) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`profiles update (avatar_url) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }
@@ -92,8 +93,8 @@ export async function updateOnboardingStep(
     );
 
   if (error) {
-    throw new Error(
-      `profiles update (onboarding_step) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`profiles update (onboarding_step) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }

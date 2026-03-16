@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PERMISSION_KEYS, type PermissionKey } from "@/lib/data/permissions";
 import { MOCK_ROLE_COOKIE } from "@/lib/auth/mock-role-cookie";
@@ -64,10 +65,10 @@ export async function getCalendarPermissionsForUser(
     .maybeSingle();
 
   if (calendarError) {
-    throw new Error(
-      `calendars select failed: ${calendarError.message ?? ""} (code=${
-        calendarError.code ?? "unknown"
-      })`
+    throwDataLayerError(
+      new Error(
+        `calendars select failed: ${calendarError.message ?? ""} (code=${calendarError.code ?? "unknown"})`
+      )
     );
   }
 
@@ -100,10 +101,10 @@ export async function getCalendarPermissionsForUser(
     .maybeSingle();
 
   if (shareError) {
-    throw new Error(
-      `shares select failed: ${shareError.message ?? ""} (code=${
-        shareError.code ?? "unknown"
-      })`
+    throwDataLayerError(
+      new Error(
+        `shares select failed: ${shareError.message ?? ""} (code=${shareError.code ?? "unknown"})`
+      )
     );
   }
 
@@ -130,10 +131,10 @@ export async function getCalendarPermissionsForUser(
     .eq("role_id", share.role_id);
 
   if (rolePermsError) {
-    throw new Error(
-      `role_permissions select failed: ${rolePermsError.message ?? ""} (code=${
-        rolePermsError.code ?? "unknown"
-      })`
+    throwDataLayerError(
+      new Error(
+        `role_permissions select failed: ${rolePermsError.message ?? ""} (code=${rolePermsError.code ?? "unknown"})`
+      )
     );
   }
 
@@ -142,6 +143,24 @@ export async function getCalendarPermissionsForUser(
     .filter((p): p is PermissionKey => PERMISSION_KEYS.includes(p));
 
   return flagsFromPermissions(perms, false);
+}
+
+/**
+ * 現在のユーザーが指定カレンダーを編集できることを確認する。
+ * 編集不可の場合はエラーをスローする。Server Action の先頭で呼び、IDOR を防ぐ。
+ */
+export async function ensureUserCanEditCalendar(calendarId: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error("未ログイン");
+  }
+  const permissions = await getCalendarPermissionsForUser(calendarId, user.id);
+  if (!permissions.canEditSchedule) {
+    throw new Error("このカレンダーを編集する権限がありません");
+  }
 }
 
 /** 開発用モック: クッキー iriam_mock_role に応じた権限。listener = リスナー（編集不可・ボーダー/メモ非表示）、それ以外 = オーナー。 */

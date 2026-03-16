@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 export type InviteLinkRow = {
@@ -34,8 +35,8 @@ export async function createInviteLink(
     .single();
 
   if (error) {
-    throw new Error(
-      `invite_links insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`invite_links insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return data as InviteLinkRow;
@@ -53,8 +54,8 @@ export async function listInviteLinksForCalendar(
     .order("created_at", { ascending: false });
 
   if (error) {
-    throw new Error(
-      `invite_links select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`invite_links select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   return (data ?? []) as InviteLinkRow[];
@@ -74,8 +75,8 @@ export async function getInviteLinkByToken(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `invite_links select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`invite_links select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
   if (!data) return null;
@@ -128,8 +129,8 @@ export async function deleteInviteLink(
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
-      `invite_links delete failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    throwDataLayerError(
+      new Error(`invite_links delete failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }

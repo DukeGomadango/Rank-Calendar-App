@@ -1,3 +1,4 @@
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type EventType = "ranking" | "achievement" | "background" | "other";
@@ -25,10 +26,8 @@ export async function listEventsForCalendar(
     .order("created_at", { ascending: true });
 
   if (error) {
-    throw new Error(
-      `events select failed: ${error.message ?? ""} (code=${
-        error.code ?? "unknown"
-      })`
+    throwDataLayerError(
+      new Error(`events select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 
@@ -58,10 +57,8 @@ export async function createEventForCalendar(
     });
 
   if (error) {
-    throw new Error(
-      `events insert failed: ${error.message ?? ""} (code=${
-        error.code ?? "unknown"
-      })`
+    throwDataLayerError(
+      new Error(`events insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }
@@ -77,10 +74,8 @@ export async function deleteEvent(id: string, calendarId: string) {
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
-      `events delete failed: ${error.message ?? ""} (code=${
-        error.code ?? "unknown"
-      })`
+    throwDataLayerError(
+      new Error(`events delete failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
     );
   }
 }
