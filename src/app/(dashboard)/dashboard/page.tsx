@@ -46,6 +46,9 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
     redirect("/login");
   }
 
+  // fromInvite=1 で来ている場合は「リスナー招待フロー」。ライバー用オンボーディングや
+  // カレンダー未作成時のリダイレクトとは切り離して扱う。
+
   if (isDevMock) {
     const calendar = { id: "dev-mock", name: "開発用モック" as string | null };
     const events: { id: string; name: string }[] = [];
@@ -200,18 +203,22 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
 
   const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
 
-  if (!currentCalendar) {
-    redirect("/dashboard/settings");
+  // カレンダーがまだ存在しない＝ライバーの初回セットアップ前とみなしてオンボーディングへ。
+  // リスナー招待（fromInvite=1）の場合は必ず calendarId 付きで来る想定なので、
+  // ここではライバーのみを対象とする。
+  if (!currentCalendar && !fromInvite) {
+    redirect("/dashboard/onboarding");
   }
 
-  if (!urlCalendarId) {
+  if (!urlCalendarId && currentCalendar) {
     const q = new URLSearchParams({ calendarId: currentCalendar.id });
     if (fromInvite) q.set("fromInvite", "1");
     redirect(`/dashboard?${q.toString()}`);
   }
 
   const isOwner = await hasOwnedCalendar(user.id);
-  if (isOwner) {
+  // リスナー招待（fromInvite=1）のときは、ライバー用オンボーディングへ飛ばさない。
+  if (isOwner && !fromInvite) {
     const profile = await getProfile(user.id);
     if (!profile?.setup_wizard_done) redirect("/dashboard/onboarding");
   }
