@@ -99,20 +99,28 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
     // 週ヘッダーのような日付レンジ行はスキップ
     if (/\d{1,2}\/\d{1,2}.*[～~〜].*\d{1,2}\/\d{1,2}/.test(line)) continue;
 
-    // ランク帯や記号を含む左側はざっくり捨てて、最初の日本語/英数ブロック以降をイベント名として扱う
-    const nameMatch = line.match(/[ぁ-んァ-ン一-龥A-Za-z0-9].*$/);
-    let cleaned = nameMatch ? nameMatch[0].trim() : "";
-
-    if (!cleaned) continue;
-
-    // 本体らしいキーワードがあれば、その位置から後ろだけを採用する
+    // まずは「本体っぽいキーワード」があれば、そこから右側だけをベースとする
+    let base = line;
     for (const kw of anchorKeywords) {
-      const idx = cleaned.indexOf(kw);
+      const idx = base.indexOf(kw);
       if (idx >= 0) {
-        cleaned = cleaned.slice(idx).trim();
+        base = base.slice(idx).trim();
         break;
       }
     }
+
+    // まだ先頭にランク帯などのノイズが残っていそうなら、
+    // 最初に登場する日本語文字から右側だけを使う（英語のみの行はそのまま）
+    if (base === line) {
+      const jpMatch = base.match(/[ぁ-んァ-ン一-龥].*$/);
+      if (jpMatch) {
+        base = jpMatch[0].trim();
+      }
+    }
+
+    let cleaned = base.trim();
+
+    if (!cleaned) continue;
 
     cleaned = normalizeJaSpaces(cleaned);
 
