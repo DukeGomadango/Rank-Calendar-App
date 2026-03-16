@@ -7,6 +7,7 @@ import "dayjs/locale/ja";
 import Link from "next/link";
 
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
+import type { EventRow } from "@/lib/data/events";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useToast } from "@/lib/toast-context";
 import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
@@ -135,7 +136,7 @@ type Props = {
   moveEntry: (calendarId: string, fromDate: string, toDate: string) => Promise<void>;
   saveAction: (formData: FormData) => void;
   /** イベント一覧（start_date/end_date があればその日にブロック表示。color で帯の色を指定） */
-  events: { id: string; name: string; start_date?: string | null; end_date?: string | null; color?: string | null }[];
+  events: EventRow[];
   /** 現在のランク周期（帯表示・canViewRank 時のみ） */
   currentRankCycle?: { start: string; end: string; rank: string | null } | null;
   /** 過去のランク周期履歴（帯表示用） */
@@ -157,9 +158,9 @@ function dateInCycle(date: string, start: string, end: string): boolean {
 
 /** 指定日が含まれるイベントを返す（start_date/end_date を保持して初日・最終日判定に使う） */
 function getEventsOnDate(
-  events: { id: string; name: string; start_date?: string | null; end_date?: string | null; color?: string | null }[],
+  events: EventRow[],
   date: string
-): { id: string; name: string; start_date?: string | null; end_date?: string | null; color?: string | null }[] {
+): EventRow[] {
   return events.filter((ev) => {
     const start = ev.start_date ?? ev.end_date;
     const end = ev.end_date ?? ev.start_date;

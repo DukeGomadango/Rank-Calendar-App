@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
+import type { EventRow } from "@/lib/data/events";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useMockSchedule } from "@/lib/mock-schedule-context";
 import { CalendarWithModal } from "./CalendarWithModal";
@@ -25,7 +26,7 @@ type Props = {
   permissions: CalendarPermissionFlags;
   moveEntry: (calendarId: string, fromDate: string, toDate: string) => Promise<void>;
   saveAction: (formData: FormData) => void;
-  events: { id: string; name: string }[];
+  events: EventRow[];
   currentRankCycle?: { start: string; end: string; rank: string | null } | null;
   rankCycleHistory?: { cycle_start_date: string; cycle_end_date: string; rank_during: string | null; cycle_total?: number | null }[];
   forecastLabel?: string | null;
