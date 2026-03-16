@@ -570,8 +570,9 @@ export function CalendarWithModal({
                           )}
                         </div>
                         {day.holidayName && !isSkip && (
-                          <span className="mt-0.5 line-clamp-1 text-[9px] text-red-500">
-                            {day.holidayName}
+                          <span className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-medium text-red-600 dark:bg-red-900/40 dark:text-red-200">
+                            <span className="shrink-0 text-[9px]">祝</span>
+                            <span className="min-w-0 truncate">{day.holidayName}</span>
                           </span>
                         )}
                         <div className="mt-0.5 flex flex-wrap items-center gap-0.5" aria-hidden>
@@ -599,8 +600,9 @@ export function CalendarWithModal({
                           )}
                         </div>
                         {day.holidayName && !isSkip && (
-                          <span className="mt-0.5 line-clamp-1 text-[9px] text-red-500">
-                            {day.holidayName}
+                          <span className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-medium text-red-600 dark:bg-red-900/40 dark:text-red-200">
+                            <span className="shrink-0 text-[9px]">祝</span>
+                            <span className="min-w-0 truncate">{day.holidayName}</span>
                           </span>
                         )}
                         {eventsOnDay.length > 0 && (
@@ -813,7 +815,10 @@ export function CalendarWithModal({
               </div>
 
               {day.holidayName && !isSkip && (
-                <p className="mt-0.5 text-[10px] text-red-500">{day.holidayName}</p>
+                <p className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-900/40 dark:text-red-200">
+                  <span className="shrink-0 text-[9px]">祝</span>
+                  <span className="min-w-0 truncate">{day.holidayName}</span>
+                </p>
               )}
 
               {eventsOnDay.length > 0 && (
@@ -932,9 +937,11 @@ export function CalendarWithModal({
           <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             カレンダー
           </h1>
-          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 md:mt-0 md:hidden">
-            {calendarName} の {monthLabel}
-            のスケジュールを表示しています。
+          <p className="mt-0.5 text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            {monthLabel}
+          </p>
+          <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+            {calendarName} のスケジュールを表示しています。
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 md:flex-shrink-0">

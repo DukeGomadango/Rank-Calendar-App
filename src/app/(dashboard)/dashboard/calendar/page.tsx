@@ -34,6 +34,27 @@ import { CalendarWithModal } from "@/components/schedule/CalendarWithModal";
 
 dayjs.locale("ja");
 
+/** 日本の祝日ライブラリには含まれない（または別名で表現したい）記念日を付加する */
+function getCustomDayLabel(cursor: dayjs.Dayjs): string | null {
+  const monthDay = cursor.format("MM-DD");
+
+  switch (monthDay) {
+    case "01-01":
+      // 元日（祝日）に加えて「正月」も併記したい
+      return "正月";
+    case "03-14":
+      return "ホワイトデー";
+    case "10-31":
+      return "ハロウィン";
+    case "12-25":
+      return "クリスマス";
+    case "12-31":
+      return "大晦日";
+    default:
+      return null;
+  }
+}
+
 function parseMonthParam(month?: string | string[]): dayjs.Dayjs {
   const raw = typeof month === "string" ? month : Array.isArray(month) ? month[0] : undefined;
   const jstFallback = () => dayjs(toJstDateString(new Date()), "YYYY-MM-DD");
@@ -136,8 +157,12 @@ export default async function CalendarPage(props: PageProps) {
     const end = dayjs(toDate);
     while (cursor.isSame(end) || cursor.isBefore(end)) {
       const dateStr = cursor.format("YYYY-MM-DD");
+      const jpHoliday = (await import("holiday-jp")).isHoliday(cursor.toDate());
+      const custom = getCustomDayLabel(cursor);
       const holidayName =
-        (await import("holiday-jp")).isHoliday(cursor.toDate())?.name ?? null;
+        jpHoliday?.name === "元日" && custom
+          ? `${jpHoliday.name} / ${custom}`
+          : jpHoliday?.name ?? custom;
       days.push({
         date: dateStr,
         isToday: cursor.isSame(today, "day"),
@@ -315,8 +340,12 @@ export default async function CalendarPage(props: PageProps) {
     const weekday = cursor.day();
     const isToday = cursor.isSame(today, "day");
     const isCurrentMonth = cursor.isSame(displayMonth, "month");
+    const jpHoliday = (await import("holiday-jp")).isHoliday(cursor.toDate());
+    const custom = getCustomDayLabel(cursor);
     const holidayName =
-      (await import("holiday-jp")).isHoliday(cursor.toDate())?.name ?? null;
+      jpHoliday?.name === "元日" && custom
+        ? `${jpHoliday.name} / ${custom}`
+        : jpHoliday?.name ?? custom;
 
     days.push({
       date: dateStr,
