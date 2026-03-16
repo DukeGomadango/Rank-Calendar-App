@@ -253,17 +253,81 @@ export function CalendarWithModal({
 
   const handleSave = useCallback(
     (formData: FormData) => {
+      const date = (formData.get("date") as string | null) ?? null;
+      if (!date) {
+        showToast("日付が不正です");
+        return;
+      }
+
+      prevLocalDaysRef.current = localDays;
+      setLocalDays((prev) =>
+        prev.map((day) => {
+          if (day.date !== date) return day;
+
+          const existing = day.entries[0] ?? null;
+          const parseNumber = (name: string): number | null => {
+            const raw = formData.get(name);
+            if (raw == null) return null;
+            const s = String(raw).trim();
+            if (!s) return null;
+            const n = Number(s);
+            return Number.isNaN(n) ? null : n;
+          };
+
+          const skipPassUsed = formData.get("skip_pass_used") === "on";
+          const targetPlus = parseNumber("target_plus");
+          const actualPlus = parseNumber("actual_plus");
+          const ansukoBaseline = parseNumber("ansuko_baseline");
+          const borderPlus2 = parseNumber("border_plus2");
+          const borderPlus4 = parseNumber("border_plus4");
+          const borderPlus6 = parseNumber("border_plus6");
+          const eventIdRaw = formData.get("event_id");
+          const memoRaw = formData.get("memo");
+          const streamContentRaw = formData.get("stream_content");
+          const streamContentColorRaw = formData.get("stream_content_color");
+
+          const nextEntry: ScheduleEntryRow = {
+            id: existing?.id ?? `temp-${day.date}`,
+            date,
+            ansuko_baseline: ansukoBaseline,
+            border_plus2: borderPlus2,
+            border_plus4: borderPlus4,
+            border_plus6: borderPlus6,
+            event_id: eventIdRaw ? String(eventIdRaw) || null : null,
+            memo: memoRaw ? (String(memoRaw).trim() || null) : null,
+            target_plus: targetPlus,
+            actual_plus: actualPlus,
+            skip_pass_used: skipPassUsed,
+            stream_content: streamContentRaw
+              ? (String(streamContentRaw).trim() || null)
+              : null,
+            stream_content_color: streamContentColorRaw
+              ? String(streamContentColorRaw) || null
+              : null,
+          };
+
+          return {
+            ...day,
+            entries: [nextEntry],
+          };
+        })
+      );
+
       setSelectedDate(null);
+
       Promise.resolve(saveAction(formData))
         .then(() => {
-          router.refresh();
           showToast("保存しました");
         })
         .catch(() => {
+          if (prevLocalDaysRef.current) {
+            setLocalDays(prevLocalDaysRef.current);
+          }
+          prevLocalDaysRef.current = null;
           showToast("保存に失敗しました");
         });
     },
-    [saveAction, router, showToast]
+    [localDays, saveAction, showToast]
   );
 
   const prevMonthParam = useMemo(() => {
@@ -283,6 +347,24 @@ export function CalendarWithModal({
   }, [currentWeekStart]);
   const prevWeekMonth = useMemo(() => dayjs(prevWeekStart).format("YYYY-MM"), [prevWeekStart]);
   const nextWeekMonth = useMemo(() => dayjs(nextWeekStart).format("YYYY-MM"), [nextWeekStart]);
+
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const goToMonth = useCallback(
+    (month: string) => {
+      setIsNavigating(true);
+      router.push(`/dashboard/calendar?month=${month}`);
+    },
+    [router]
+  );
+
+  const goToWeek = useCallback(
+    (month: string, weekStart: string) => {
+      setIsNavigating(true);
+      router.push(`/dashboard/calendar?month=${month}&week=${weekStart}`);
+    },
+    [router]
+  );
 
   const weekDays = useMemo(() => {
     const start = dayjs(currentWeekStart);
@@ -317,7 +399,6 @@ export function CalendarWithModal({
       });
       moveEntry(calendarId, fromDate, toDate)
         .then(() => {
-          router.refresh();
           showToast("日付を移動しました");
         })
         .catch((err: { message?: string }) => {
@@ -973,37 +1054,45 @@ export function CalendarWithModal({
           <nav className="flex items-center gap-0.5 text-zinc-700 dark:text-zinc-200">
             {view === "month" ? (
               <>
-                <Link
-                  href={`/dashboard/calendar?month=${prevMonthParam}`}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                <button
+                  type="button"
+                  onClick={() => goToMonth(prevMonthParam)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
                   aria-label="前月"
+                  disabled={isNavigating}
                 >
                   ‹
-                </Link>
-                <Link
-                  href={`/dashboard/calendar?month=${nextMonthParam}`}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToMonth(nextMonthParam)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
                   aria-label="次月"
+                  disabled={isNavigating}
                 >
                   ›
-                </Link>
+                </button>
               </>
             ) : (
               <>
-                <Link
-                  href={`/dashboard/calendar?month=${prevWeekMonth}&week=${prevWeekStart}`}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                <button
+                  type="button"
+                  onClick={() => goToWeek(prevWeekMonth, prevWeekStart)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
                   aria-label="前週"
+                  disabled={isNavigating}
                 >
                   ‹
-                </Link>
-                <Link
-                  href={`/dashboard/calendar?month=${nextWeekMonth}&week=${nextWeekStart}`}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToWeek(nextWeekMonth, nextWeekStart)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-sm font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
                   aria-label="次週"
+                  disabled={isNavigating}
                 >
                   ›
-                </Link>
+                </button>
               </>
             )}
           </nav>
