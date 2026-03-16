@@ -48,12 +48,6 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
     // 週ヘッダーのような日付レンジ行はスキップ
     if (/\d{1,2}\/\d{1,2}.*[～~〜].*\d{1,2}\/\d{1,2}/.test(line)) continue;
 
-    // 先頭〜数文字の中に「ランク帯らしきパターン」が無い行はイベント扱いしない
-    const head = line.slice(0, 20);
-    const looseRankPattern =
-      /S\s*\d\s*[~～\-→>〜]\s*S?\d|A\s*\d\s*[~～\-→>〜]\s*S?\d|D\s*[~～\-→>〜]\s*S?\d/;
-    if (!looseRankPattern.test(head)) continue;
-
     // ランク帯や記号を含む左側はざっくり捨てて、最初の日本語/英数ブロック以降をイベント名として扱う
     const nameMatch = line.match(/[ぁ-んァ-ン一-龥A-Za-z0-9].*$/);
     const cleaned = nameMatch ? nameMatch[0].trim() : "";
@@ -81,6 +75,7 @@ export function EventCalendarOcrImporter({ calendarId, createAction }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [status, setStatus] = useState<Status>({ type: "idle" });
   const [candidates, setCandidates] = useState<ParsedEventCandidate[]>([]);
+  const [rawLines, setRawLines] = useState<string[] | null>(null);
 
   const handleClick = useCallback(() => {
     setStatus({ type: "idle" });
@@ -112,6 +107,12 @@ export function EventCalendarOcrImporter({ calendarId, createAction }: Props) {
         data: { text },
       } = await worker.recognize(dataUrl);
       await worker.terminate();
+
+      const lines = text
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+      setRawLines(lines);
 
       const parsed = parseCalendarText(text);
       if (parsed.length === 0) {
@@ -254,6 +255,21 @@ export function EventCalendarOcrImporter({ calendarId, createAction }: Props) {
             </button>
           </div>
         </div>
+      )}
+
+      {rawLines && rawLines.length > 0 && (
+        <details className="mt-2 space-y-1 rounded-md border border-dashed border-zinc-300 bg-zinc-50/60 p-2 text-[10px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-300">
+          <summary className="cursor-pointer list-none text-[10px] font-medium text-zinc-500 dark:text-zinc-400 [&::-webkit-details-marker]:hidden">
+            OCR生テキスト（デバッグ用・イベント候補判定前）
+          </summary>
+          <div className="mt-1 max-h-48 space-y-0.5 overflow-y-auto">
+            {rawLines.map((line, idx) => (
+              <div key={`${idx}-${line.slice(0, 10)}`} className="whitespace-pre-wrap break-all">
+                {idx + 1}. {line}
+              </div>
+            ))}
+          </div>
+        </details>
       )}
     </section>
   );
