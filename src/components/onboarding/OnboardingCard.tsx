@@ -20,6 +20,23 @@ export function OnboardingCard() {
     setVisible(false);
   };
 
+  const handleStart = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, "1");
+      const card = document.getElementById("home-schedule-card");
+      if (card) {
+        card.scrollIntoView({ behavior: "smooth", block: "start" });
+        const firstField = card.querySelector<HTMLElement>(
+          "input, select, textarea, button"
+        );
+        if (firstField) {
+          firstField.focus();
+        }
+      }
+    }
+    setVisible(false);
+  };
+
   if (!visible) return null;
 
   return (
@@ -31,33 +48,32 @@ export function OnboardingCard() {
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-            ようこそ！IRIAM ランク管理をはじめましょう
+            ようこそ！スクショ一発でランク管理をはじめましょう
           </h2>
           <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
-            このアプリでは、デイリーランクの目標+・実績+・ボーダーを日別に記録し、週ごとの+合計でランクアップの目安を確認できます。
+            まずは右側の「今日のスケジュールを登録」フォームから、今日の予定を1つだけ登録してみましょう。
           </p>
-          <ul className="list-inside list-disc space-y-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">
-            <li>
-              <strong className="text-zinc-800 dark:text-zinc-200">目標+ / 実績+</strong>：その日の目標と実際の+（0/1/2/4/6）
-            </li>
-            <li>
-              <strong className="text-zinc-800 dark:text-zinc-200">ボーダー</strong>：+2 / +4 / +6 のライン
-            </li>
-            <li>
-              <strong className="text-zinc-800 dark:text-zinc-200">スキップパス</strong>：使用日は週の+集計から除外
-            </li>
-            <li>
-              <strong className="text-zinc-800 dark:text-zinc-200">週+18</strong>：翌日ランクアップの目安
-            </li>
-          </ul>
+          <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+            IRIAMのランキング画面のスクショを読み込むと、ボーダーなどを自動入力できます。
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="shrink-0 rounded-xl bg-accent-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent-600"
-        >
-          はじめる
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            type="button"
+            onClick={handleStart}
+            className="shrink-0 rounded-xl bg-accent-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent-600"
+          >
+            今日の予定を登録する
+          </button>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            aria-label="説明を閉じる"
+            className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+          >
+            ×
+          </button>
+        </div>
       </div>
     </section>
   );

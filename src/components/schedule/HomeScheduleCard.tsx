@@ -40,7 +40,10 @@ export function HomeScheduleCard({
 
   if (variant === "inline") {
     return (
-      <div className="rounded-2xl bg-white p-4 shadow-md dark:bg-slate-800">
+      <div
+        id="home-schedule-card"
+        className="rounded-2xl bg-white p-4 shadow-md dark:bg-slate-800"
+      >
         <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50">
           <span className="inline-flex h-4 w-4 items-center justify-center text-accent-500">
             <SparklesIcon className="h-4 w-4" />
