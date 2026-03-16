@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import dayjs from "dayjs";
+import { toJstDateString } from "@/lib/domain/calendar";
 import { RANK_ORDER } from "@/lib/domain/rank";
 import { EVENT_PALETTE } from "@/lib/event-colors";
 import {
@@ -50,11 +52,8 @@ export function SetupWizard({
 
   const resetDaysRemaining = useMemo(() => {
     if (!resetDateInput) return null;
-    const today = new Date();
-    const reset = new Date(resetDateInput);
-    const diffMs = reset.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays;
+    const todayJst = toJstDateString(new Date());
+    return dayjs(resetDateInput).diff(dayjs(todayJst), "day");
   }, [resetDateInput]);
 
   const run = async (fn: () => Promise<{ ok: boolean; error?: string }>, next?: number) => {

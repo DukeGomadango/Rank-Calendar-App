@@ -32,6 +32,7 @@ const DESCRIPTION =
   "IRIAMライバー向けの非公式ランク管理ツール。デイリーランクの目標+・実績+、ボーダー、スキップパスを日別に記録し、カレンダーとデータ表で一元管理できます。";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://dango-schedule.vercel.app"),
   title: {
     default: "IRIAM だんごスケジュール | デイリーランク・スケジュールを一元管理",
     template: `%s | ${SITE_NAME}`,
@@ -44,11 +45,21 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: "IRIAM だんごスケジュール | デイリーランク・スケジュールを一元管理",
     description: DESCRIPTION,
+    url: "/",
+    images: [
+      {
+        url: "/ogp.png",
+        width: 1200,
+        height: 630,
+        alt: "IRIAM だんごスケジュール",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "IRIAM だんごスケジュール | デイリーランク・スケジュールを一元管理",
     description: DESCRIPTION,
+    images: ["/ogp.png"],
   },
   icons: {
     icon: [

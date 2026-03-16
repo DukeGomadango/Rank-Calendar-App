@@ -14,10 +14,11 @@ import {
   noopDeleteEventAction,
 } from "./actions";
 import { EventsListClient } from "@/components/events/EventsListClient";
+import { toJstDateString } from "@/lib/domain/calendar";
 
 dayjs.locale("ja");
 
-const todayStr = () => dayjs().format("YYYY-MM-DD");
+const todayStr = () => toJstDateString(new Date());
 
 function splitActivePast(events: EventRow[]): { active: EventRow[]; past: EventRow[] } {
   const today = todayStr();

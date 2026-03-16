@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { addDays, getJstWeekStart } from "@/lib/domain/calendar";
+import { addDays, getJstWeekStart, toJstDateString } from "@/lib/domain/calendar";
 import type { MockEntry } from "@/lib/mock-schedule-context";
 import type { EventRow } from "@/lib/data/events";
 
@@ -17,7 +17,7 @@ const RANK_UP_SKIP_INDEX = 5;
  * @param todayStr 今日の日付 YYYY-MM-DD（JST）。省略時は実行時の今日。
  */
 export function getMockSeedEntries(todayStr?: string): Record<string, MockEntry> {
-  const today = todayStr ?? dayjs().format("YYYY-MM-DD");
+  const today = todayStr ?? toJstDateString(new Date());
   const cycleStart = getJstWeekStart(today);
   const cycleEnd = addDays(cycleStart, 6);
 
@@ -63,7 +63,7 @@ export function getMockSeedEntries(todayStr?: string): Record<string, MockEntry>
  * 開発用モックのイベント一覧（火曜〜月曜の1週間で配置。カレンダー・イベントタブで共通利用）。
  */
 export function getMockEvents(todayStr?: string): EventRow[] {
-  const today = todayStr ?? dayjs().format("YYYY-MM-DD");
+  const today = todayStr ?? toJstDateString(new Date());
   const todayDate = dayjs(today);
   const daysSinceTue = (todayDate.day() + 5) % 7;
   const thisWeekTue = todayDate.subtract(daysSinceTue, "day");

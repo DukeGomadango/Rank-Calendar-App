@@ -71,8 +71,8 @@ export default async function DataPage(props: PageProps) {
       cycleStart,
       cycleEnd
     );
-    const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
-    const to = today.add(daysRange, "day").format("YYYY-MM-DD");
+    const from = addDays(todayJst, -daysRange);
+    const to = addDays(todayJst, daysRange);
     const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
     const rows: {
       date: string;
@@ -173,9 +173,9 @@ export default async function DataPage(props: PageProps) {
     );
   }
 
-  const today = dayjs();
-  const from = today.subtract(daysRange, "day").format("YYYY-MM-DD");
-  const to = today.add(daysRange, "day").format("YYYY-MM-DD");
+  const todayJst = toJstDateString(new Date());
+  const from = addDays(todayJst, -daysRange);
+  const to = addDays(todayJst, daysRange);
 
   const [entries, events, rankState, rankCycleHistory] = await Promise.all([
     getScheduleEntriesInRange(currentCalendar.id, from, to),
@@ -190,7 +190,7 @@ export default async function DataPage(props: PageProps) {
   const cycleEnd = rankState.rank_reset_date;
 
   const snapshots = await getSkipPassSnapshotsBefore(currentCalendar.id, to);
-  const todayStr = today.format("YYYY-MM-DD");
+  const todayStr = todayJst;
   const getRemainingAsOf = (dateStr: string): number | null => {
     const s = snapshots.find((x: SkipPassSnapshotRow) => x.as_of_date <= dateStr);
     return s?.remaining ?? null;

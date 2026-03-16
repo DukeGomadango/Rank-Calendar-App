@@ -36,9 +36,10 @@ dayjs.locale("ja");
 
 function parseMonthParam(month?: string | string[]): dayjs.Dayjs {
   const raw = typeof month === "string" ? month : Array.isArray(month) ? month[0] : undefined;
-  if (!raw || !/^\d{4}-\d{2}$/.test(raw)) return dayjs();
+  const jstFallback = () => dayjs(toJstDateString(new Date()), "YYYY-MM-DD");
+  if (!raw || !/^\d{4}-\d{2}$/.test(raw)) return jstFallback();
   const parsed = dayjs(raw, "YYYY-MM", true);
-  return parsed.isValid() ? parsed : dayjs();
+  return parsed.isValid() ? parsed : jstFallback();
 }
 
 /** week=YYYY-MM-DD の週の日曜日を返す。不正なら今月15日を含む週の日曜。 */
@@ -201,7 +202,8 @@ export default async function CalendarPage(props: PageProps) {
 
   const events = await listEventsForCalendar(currentCalendar.id);
 
-  const today = dayjs();
+  const todayJst = toJstDateString(new Date());
+  const today = dayjs(todayJst);
   const monthStart = displayMonth.startOf("month");
   const monthEnd = displayMonth.endOf("month");
 
@@ -216,8 +218,6 @@ export default async function CalendarPage(props: PageProps) {
 
   await ensureSkipPassIncrementForLastWeek(currentCalendar.id);
   const rankStateLatest = await getOrCreateCalendarRankState(currentCalendar.id);
-
-  const todayJst = today.format("YYYY-MM-DD");
   let forecastLabel: string | null = null;
   if (permissions.canViewRank && rankState.current_rank != null) {
     const cycleStart = rankState.rank_cycle_start_date;

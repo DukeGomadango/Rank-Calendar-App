@@ -82,11 +82,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
       0,
       Math.ceil((resetDateOnly.getTime() - todayDateOnly.getTime()) / (24 * 60 * 60 * 1000))
     );
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const defaultDate = `${yyyy}-${mm}-${dd}`;
+    const defaultDate = todayJst;
     const weeklyEntries = rankEntries.map((e) => {
       const se = seed[e.date];
       return {
@@ -274,11 +270,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
     Math.ceil((resetDateOnly.getTime() - todayDateOnly.getTime()) / (24 * 60 * 60 * 1000))
   );
 
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
-  const defaultDate = `${yyyy}-${mm}-${dd}`;
+  const defaultDate = todayJst;
 
   const hasWeeklySchedule = weeklyEntries.length > 0;
   const todayEntry = weeklyEntries.find((e) => e.date === defaultDate);

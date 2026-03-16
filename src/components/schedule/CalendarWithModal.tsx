@@ -12,6 +12,7 @@ import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useToast } from "@/lib/toast-context";
 import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
 import { getEventColorClasses, getEventColorDotClass } from "@/lib/event-colors";
+import { toJstDateString } from "@/lib/domain/calendar";
 import { useViewMode } from "@/lib/view-mode-context";
 import { ScheduleForm } from "./ScheduleForm";
 import { DayDetailModal, type DayDetailRow } from "@/components/data/DayDetailModal";
@@ -204,7 +205,7 @@ export function CalendarWithModal({
   const { showToast } = useToast();
   const { viewMode, setViewMode } = useViewMode();
   const useSimpleView = !permissions.isOwner && viewMode === "simple";
-  const todayStr = todayJst ?? dayjs().format("YYYY-MM-DD");
+  const todayStr = todayJst ?? toJstDateString(new Date());
 
   const [localDays, setLocalDays] = useState<DayData[]>(days);
   const [moveError, setMoveError] = useState<string | null>(null);

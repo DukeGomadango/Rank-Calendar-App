@@ -7,6 +7,7 @@ import { upsertDisplayName, updateAvatarUrl } from "@/lib/data/profiles";
 import { getOrCreateDefaultCalendarForUser, listCalendarsForUser } from "@/lib/data/calendars";
 import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
+import { toJstDateString } from "@/lib/domain/calendar";
 
 const SETTINGS_PATH = "/dashboard/settings";
 
@@ -96,7 +97,7 @@ export async function exportCalendarCsv(
     ].join(",");
   });
   const csv = [header, ...rows].join("\n");
-  const filename = `iriam-calendar-${calendarId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.csv`;
+  const filename = `iriam-calendar-${calendarId.slice(0, 8)}-${toJstDateString(new Date())}.csv`;
   return { csv, filename };
 }
 

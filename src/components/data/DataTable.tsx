@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { EventRow } from "@/lib/data/events";
+import { toJstDateString } from "@/lib/domain/calendar";
 import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 import { useToast } from "@/lib/toast-context";
 import { useViewMode } from "@/lib/view-mode-context";
@@ -93,7 +94,7 @@ export function DataTable({
   const { viewMode } = useViewMode();
   const hideBordersInSimple = !permissions.isOwner && viewMode === "simple";
   const canEdit = permissions.canEditSchedule;
-  const todayStr = dayjs().format("YYYY-MM-DD");
+  const todayStr = toJstDateString(new Date());
 
   useEffect(() => {
     setRows(data);
