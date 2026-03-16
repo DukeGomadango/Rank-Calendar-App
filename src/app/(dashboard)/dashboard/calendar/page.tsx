@@ -247,13 +247,13 @@ export default async function CalendarPage(props: PageProps) {
     }
   }
 
-  /** 予測の次の周期に表示するランク（ランクアップ＝次のランク、キープ＝現ランク、ダウン＝1つ下）。forecastLabel の内容から逆算。 */
+  /** 予測の次の周期に表示するランク（ランクアップ＝次のランク、キープ＝現ランク、ダウン＝1つ下、最大ランク＝現ランクで維持）。forecastLabel の内容から逆算。 */
   const forecastNextRank =
     permissions.canViewRank && rankState.current_rank != null && forecastLabel != null
       ? ((): string | null => {
           const parsed = parseForecastRank(forecastLabel);
           if (parsed) return parsed;
-          if (forecastLabel.includes("キープ見込み")) return rankState.current_rank;
+          if (forecastLabel.includes("最大ランク") || forecastLabel.includes("キープ見込み")) return rankState.current_rank;
           if (forecastLabel.includes("ダウン見込み")) return getPreviousRank(rankState.current_rank) ?? rankState.current_rank;
           return null;
         })()
@@ -350,7 +350,8 @@ export default async function CalendarPage(props: PageProps) {
       futureCycles.push({ start: periodStart, end: periodEnd, rank: rankForThisPeriod });
       const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
       if (canRankUp) {
-        rankForThisPeriod = getNextRank(rankForThisPeriod as RankLabel);
+        const next = getNextRank(rankForThisPeriod as RankLabel);
+        rankForThisPeriod = next ?? rankForThisPeriod; // S3 のとき null → 維持
       } else if (isKeep) {
         rankForThisPeriod = rankForThisPeriod;
       } else {

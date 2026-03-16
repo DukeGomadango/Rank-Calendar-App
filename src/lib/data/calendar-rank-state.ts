@@ -1,3 +1,4 @@
+import { throwDataLayerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { addDays, getCycleEndDateIncludingSkips, getJstWeekStart, toJstDateString } from "@/lib/domain/calendar";
@@ -28,9 +29,9 @@ export async function getCalendarRankState(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
   return data as CalendarRankStateRow | null;
 }
@@ -65,9 +66,9 @@ export async function getOrCreateCalendarRankState(
     .single();
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
   return data as CalendarRankStateRow;
 }
@@ -93,9 +94,9 @@ export async function extendRankResetDate(
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state update (extend reset) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
 }
 
@@ -121,9 +122,9 @@ export async function insertSkipPassSnapshot(
       { onConflict: "calendar_id,as_of_date" }
     );
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `skip_pass_snapshots upsert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
 }
 
@@ -143,9 +144,9 @@ export async function getSkipPassSnapshotsBefore(
     .lte("as_of_date", toDate)
     .order("as_of_date", { ascending: false });
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `skip_pass_snapshots select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
   return (data ?? []) as SkipPassSnapshotRow[];
 }
@@ -171,9 +172,9 @@ export async function setSkipPassSnapshot(
     .update({ skip_pass_remaining: clamped })
     .eq("calendar_id", calendarId);
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state update (skip_pass sync) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
 }
 
@@ -209,9 +210,9 @@ export async function ensureSkipPassIncrementForLastWeek(
     })
     .eq("calendar_id", calendarId);
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state update (skip_pass increment) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
   await insertSkipPassSnapshot(calendarId, todayJst, nextRemaining);
 }
@@ -237,9 +238,9 @@ export async function decrementSkipPassRemaining(
     .update({ skip_pass_remaining: next })
     .eq("calendar_id", calendarId);
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state update (skip_pass decrement) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
   await insertSkipPassSnapshot(calendarId, usedOnDate, next);
 }
@@ -260,9 +261,9 @@ export async function updateSkipPassRemaining(
     .update({ skip_pass_remaining: clamped })
     .eq("calendar_id", calendarId);
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state update (skip_pass_remaining) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
   const todayJst = toJstDateString(new Date());
   await insertSkipPassSnapshot(calendarId, todayJst, clamped);
@@ -295,9 +296,9 @@ export async function getRankCycleHistory(
     .order("cycle_start_date", { ascending: true });
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_cycle_history select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
   return (data ?? []) as RankCycleHistoryRow[];
 }
@@ -323,14 +324,15 @@ export async function insertRankCycleHistory(
     });
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_cycle_history insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
 }
 
 /**
  * ランクアップを反映: 終了した周期を履歴に保存し、current_rank を1段階上げ、新周期を設定。
+ * S3 のときはランクはそのまま（維持）で、周期のみ進める。
  * 新周期の終了日は基準7日間にスキップが N 日あれば +N 日延長する。
  */
 export async function applyRankUp(
@@ -360,21 +362,24 @@ export async function applyRankUp(
     state.current_rank
   );
 
+  /** S3 のとき nextRank は null。ランクは変えず周期のみ更新する。 */
+  const newRank = nextRank ?? state.current_rank;
+
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .schema("iriam")
     .from("calendar_rank_state")
     .update({
-      current_rank: nextRank,
+      current_rank: newRank,
       rank_cycle_start_date: cycleStartNew,
       rank_reset_date: resetDateNew,
     })
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state applyRankUp failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
 }
 
@@ -394,9 +399,9 @@ export async function updateCurrentRank(
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state update (current_rank) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
 }
 
@@ -416,9 +421,9 @@ export async function updateTargetRank(
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state update (target_rank) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
 }
 
@@ -443,8 +448,8 @@ export async function updateRankResetDate(
     .eq("calendar_id", calendarId);
 
   if (error) {
-    throw new Error(
+    throwDataLayerError(new Error(
       `calendar_rank_state update (rank_reset_date) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
-    );
+    ));
   }
 }

@@ -1,3 +1,5 @@
+import { getNextRank, type RankLabel } from "@/lib/domain/rank";
+
 type DayEntry = {
   date: string;
   actual_plus: number | null;
@@ -10,6 +12,8 @@ type WeeklyPlusSummaryProps = {
   weekStartJst: string;
   weekEndJst: string;
   canRankUpNextDay?: boolean;
+  /** 現在ランク。S3 のときは「維持」文言にする。未指定ならランクアップ表記。 */
+  currentRank?: RankLabel | null;
   reachedIntermediate?: boolean;
   /** あと○日でリセット（null のときは表示しない） */
   daysUntilReset?: number | null;
@@ -32,11 +36,15 @@ export function WeeklyPlusSummary({
   weekStartJst,
   weekEndJst,
   canRankUpNextDay,
+  currentRank,
   reachedIntermediate,
   daysUntilReset,
   weeklyEntries = [],
   todayJst,
 }: WeeklyPlusSummaryProps) {
+  /** S3 は維持 or 降格のみなので、ランクアップ文言を使わない */
+  const isMaxRank = currentRank != null && getNextRank(currentRank) === null;
+
   const progressRatio = Math.max(
     0,
     Math.min(1, maxPlus === 0 ? 0 : totalPlus / maxPlus)
@@ -50,9 +58,13 @@ export function WeeklyPlusSummary({
   const remaining = Math.max(0, maxPlus - totalPlus);
   const microCopy =
     canRankUpNextDay
-      ? "＋18 達成！翌日ランクアップ条件クリア 🎉"
+      ? isMaxRank
+        ? "＋18 達成！維持条件クリア 🎉"
+        : "＋18 達成！翌日ランクアップ条件クリア 🎉"
       : remaining > 0
-        ? `あと ＋${remaining} でランクアップ！`
+        ? isMaxRank
+          ? `あと ＋${remaining} で維持`
+          : `あと ＋${remaining} でランクアップ！`
         : null;
   const daysCopy =
     daysUntilReset != null && daysUntilReset > 0
@@ -211,8 +223,12 @@ export function WeeklyPlusSummary({
               }
             >
               {canRankUpNextDay
-                ? "+18 達成！翌日ランクアップ条件クリア"
-                : "+18 で翌日ランクアップ"}
+                ? isMaxRank
+                  ? "+18 達成！維持条件クリア"
+                  : "+18 達成！翌日ランクアップ条件クリア"
+                : isMaxRank
+                  ? "+18 で維持"
+                  : "+18 で翌日ランクアップ"}
             </span>
             <span
               className={
@@ -222,8 +238,8 @@ export function WeeklyPlusSummary({
               }
             >
               {reachedIntermediate
-                ? "+12 以上（中間目標クリア）"
-                : "+12 で中間目標"}
+                ? "+12 以上（維持クリア）"
+                : "+12 で維持"}
             </span>
           </div>
         </div>

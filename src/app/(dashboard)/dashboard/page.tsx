@@ -8,7 +8,7 @@ import { listEventsForCalendar } from "@/lib/data/events";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
 import { toJstDateString, getJstWeekStart, addDays } from "@/lib/domain/calendar";
-import { judgeCycleRank, type RankEntry } from "@/lib/domain/rank";
+import { judgeCycleRank, getNextRank, type RankEntry } from "@/lib/domain/rank";
 import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { CurrentRankBadge } from "@/components/dashboard/CurrentRankBadge";
@@ -235,6 +235,8 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
   const { canRankUp: canRankUpNextDay, isKeep: reachedIntermediate } =
     judgeCycleRank(totalPlus);
   const maxPlus: number = 18;
+  /** S3 はランクアップなし（維持 or 降格のみ）なので、ボタンと文言はランクアップにしない */
+  const canRankUp = canRankUpNextDay && getNextRank(rankState.current_rank) != null;
 
   const [ry, rm, rd] = cycleEnd.split("-").map((v) => Number.parseInt(v, 10));
   const [ty, tm, td] = todayJst.split("-").map((v) => Number.parseInt(v, 10));
@@ -283,7 +285,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
           <CurrentRankBadge
             calendarId={calendar.id}
             currentRank={rankState.current_rank}
-            canRankUp={canRankUpNextDay}
+            canRankUp={canRankUp}
             daysUntilReset={daysUntilReset}
             onApplyRankUp={applyRankUp}
           />
@@ -315,6 +317,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
             weekStartJst={weekStartJst}
             weekEndJst={weekEndJst}
             canRankUpNextDay={canRankUpNextDay}
+            currentRank={rankState.current_rank}
             reachedIntermediate={reachedIntermediate}
             daysUntilReset={daysUntilReset}
             weeklyEntries={weeklyEntries}

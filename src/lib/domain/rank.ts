@@ -86,7 +86,7 @@ export function calculateWeeklyRankProgress(
  * 週ごとのランク判定を行う。
  *
  * - +18 到達で「翌日0:00にランクアップ可」とみなす
- * - +12 到達で「中間目標達成」とみなす
+ * - +12 到達で「維持」とみなす
  */
 export function judgeWeeklyRank(entries: RankEntry[]): RankJudgement[] {
   const weekly = calculateWeeklyRankProgress(entries);
