@@ -27,6 +27,10 @@ vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
+vi.mock("@/lib/auth/permission", () => ({
+  ensureUserCanEditCalendar: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("dashboard actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();

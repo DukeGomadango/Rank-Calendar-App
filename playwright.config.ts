@@ -9,11 +9,22 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
+  globalSetup: "./e2e/global-setup.ts",
   use: {
     baseURL,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "landing", testMatch: /landing\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "authenticated",
+      testMatch: /(dashboard|schedule)\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "e2e/.auth/user.json",
+      },
+    },
+  ],
   webServer: {
     command: "npm run dev",
     url: baseURL,

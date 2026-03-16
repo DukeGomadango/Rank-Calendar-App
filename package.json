@@ -9,12 +9,14 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "validate-env": "node scripts/validate-env.js"
   },
   "dependencies": {
     "@sentry/nextjs": "^9.47.1",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.0",
     "@tanstack/react-table": "^8.21.3",
     "dayjs": "^1.11.19",
@@ -28,11 +30,13 @@
   "devDependencies": {
     "@playwright/test": "^1.49.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "jsdom": "^25.0.1",
