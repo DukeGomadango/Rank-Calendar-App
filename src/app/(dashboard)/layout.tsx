@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ToastProvider } from "@/lib/toast-context";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { DashboardHamburgerNav } from "@/components/layout/DashboardHamburgerNav";
+import { DashboardNavLinks } from "@/components/layout/DashboardNavLinks";
 import { MockRoleSwitcher } from "@/components/mock/MockRoleSwitcher";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasOwnedCalendar } from "@/lib/data/calendars";
@@ -83,108 +84,18 @@ export default async function DashboardLayout({
           <div className="mb-6 text-xs font-semibold tracking-wide text-accent-500">
             IRIAM だんごスケジュール
           </div>
-          <nav className="space-y-2 text-zinc-700 dark:text-zinc-200">
-            <Link
-              href="/dashboard"
-              className="block rounded-md px-2 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              ホーム
-            </Link>
-            <Link
-              href="/dashboard/calendar"
-              className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              カレンダー
-            </Link>
-            <Link
-              href="/dashboard/data"
-              className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              データ
-            </Link>
-            <Link
-              href="/dashboard/events"
-              className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              イベント
-            </Link>
-            {isOwner && (
-              <Link
-                href="/dashboard/sharing"
-                className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              >
-                共有
-              </Link>
-            )}
-            <Link
-              href="/dashboard/settings"
-              className="block rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              設定
-            </Link>
-          </nav>
+          <DashboardNavLinks isOwner={isOwner} variant="sidebar" />
         </aside>
 
-          <main className="flex-1 px-4 pb-16 pt-4 sm:px-8 sm:pb-6 sm:pt-6 lg:pr-14">
+          <main className="min-w-0 flex-1 px-4 pb-16 pt-4 sm:px-8 sm:pb-6 sm:pt-6 lg:pr-14">
             {children}
           </main>
         </div>
       </div>
 
-      {/* モバイル: ボトムナビゲーション */}
-      <nav className="sticky bottom-0 border-t border-zinc-200 bg-white/90 px-2 py-1.5 text-[11px] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
-        <ul className="flex items-stretch justify-between gap-1">
-          <li className="flex-1">
-            <Link
-              href="/dashboard"
-              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              <span className="text-[10px] font-medium">ホーム</span>
-            </Link>
-          </li>
-          <li className="flex-1">
-            <Link
-              href="/dashboard/calendar"
-              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              <span className="text-[10px] font-medium">カレンダー</span>
-            </Link>
-          </li>
-          <li className="flex-1">
-            <Link
-              href="/dashboard/data"
-              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              <span className="text-[10px] font-medium">データ</span>
-            </Link>
-          </li>
-          <li className="flex-1">
-            <Link
-              href="/dashboard/events"
-              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              <span className="text-[10px] font-medium">イベント</span>
-            </Link>
-          </li>
-          {isOwner && (
-            <li className="flex-1">
-              <Link
-                href="/dashboard/sharing"
-                className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              >
-                <span className="text-[10px] font-medium">共有</span>
-              </Link>
-            </li>
-          )}
-          <li className="flex-1">
-            <Link
-              href="/dashboard/settings"
-              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              <span className="text-[10px] font-medium">設定</span>
-            </Link>
-          </li>
-        </ul>
+      {/* モバイル: ボトムナビゲーション（データ表の sticky より前面に） */}
+      <nav className="sticky bottom-0 z-30 border-t border-zinc-200 bg-white/90 px-2 py-1.5 text-[11px] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
+        <DashboardNavLinks isOwner={isOwner} variant="bottom" />
       </nav>
     </div>
     </ToastProvider>

@@ -65,16 +65,16 @@ type Props = {
   onUpdateSkipPassSnapshot?: UpdateSkipPassSnapshotAction;
 };
 
-/** 通常時は枠線なし、hover/focus 時のみ枠線（モダンなテーブルUX） */
+/** 通常時は枠線なし、hover/focus 時のみ枠線。スマホで潰れないよう最小幅を確保 */
 const inputClass =
-  "w-full min-w-[2.5rem] rounded border border-transparent bg-white px-1.5 py-0.5 text-[11px] text-zinc-900 outline-none transition-colors hover:border-zinc-300 focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:border-zinc-600 dark:focus:border-accent-400";
+  "w-full min-w-[80px] rounded border border-transparent bg-white px-1.5 py-0.5 text-[11px] text-zinc-900 outline-none transition-colors hover:border-zinc-300 focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:border-zinc-600 dark:focus:border-accent-400";
 const selectClass =
-  "w-full min-w-[2.5rem] rounded border border-transparent bg-white px-1 py-0.5 text-[11px] text-zinc-900 outline-none transition-colors hover:border-zinc-300 focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:border-zinc-600 dark:focus:border-accent-400";
+  "w-full min-w-[80px] rounded border border-transparent bg-white px-1 py-0.5 text-[11px] text-zinc-900 outline-none transition-colors hover:border-zinc-300 focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:border-zinc-600 dark:focus:border-accent-400";
 /** スキップパス使用行用：グレーアウト・非活性見た目 */
 const inputClassDisabled =
-  "w-full min-w-[2.5rem] rounded border border-transparent bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500 cursor-not-allowed";
+  "w-full min-w-[80px] rounded border border-transparent bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500 cursor-not-allowed";
 const selectClassDisabled =
-  "w-full min-w-[2.5rem] rounded border border-transparent bg-zinc-100 px-1 py-0.5 text-[11px] text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500 cursor-not-allowed";
+  "w-full min-w-[80px] rounded border border-transparent bg-zinc-100 px-1 py-0.5 text-[11px] text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500 cursor-not-allowed";
 
 export function DataTable({
   data,
@@ -184,7 +184,6 @@ export function DataTable({
     : [];
 
   const columns: ColumnDef<Row>[] = [
-    ...rankColumns,
     {
       accessorKey: "date",
       header: "日付",
@@ -213,6 +212,7 @@ export function DataTable({
         return w;
       },
     },
+    ...rankColumns,
     {
       accessorKey: "target_plus",
       header: "目標+",
@@ -572,24 +572,47 @@ export function DataTable({
           {updateError}
         </div>
       )}
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white/80 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80">
-        <table className="min-w-full border-separate border-spacing-0">
+      <div className="isolate min-w-0 overflow-x-auto overflow-y-hidden rounded-xl border border-zinc-200 bg-white/80 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80">
+        {/* 横スクロール時も左に残る「日付」「曜」用の sticky ヘッダーバー（thead th の sticky が効かないブラウザ対策） */}
+        <div
+          className="sticky left-0 top-0 z-20 flex w-0 min-w-[11rem] border-b border-zinc-200 bg-zinc-50 text-[11px] dark:border-zinc-800 dark:bg-zinc-900"
+          style={{ marginBottom: "-2rem" }}
+          aria-hidden
+        >
+          <div className="min-w-[8.5rem] border-r border-zinc-200 px-3 py-2 font-medium text-zinc-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:border-zinc-800 dark:text-zinc-300 dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.25)]">
+            日付
+          </div>
+          <div className="min-w-[2.5rem] px-3 py-2 font-medium text-zinc-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:text-zinc-300 dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.25)]">
+            曜
+          </div>
+        </div>
+        <table className="min-w-full border-separate border-spacing-0 whitespace-nowrap" style={{ marginTop: "-2rem" }}>
         <thead className="bg-zinc-50 text-[11px] text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="border-b border-zinc-200 px-3 py-2 text-left font-medium dark:border-zinc-800"
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </th>
-              ))}
+              {headerGroup.headers.map((header) => {
+                const colId = header.column.id;
+                const isDateCol = colId === "date";
+                const isWeekdayCol = colId === "weekday";
+                const stickyClass = isDateCol
+                  ? "sticky left-0 top-0 z-10 min-w-[8.5rem] bg-zinc-50 dark:bg-zinc-900 invisible [transform:translateZ(0)]"
+                  : isWeekdayCol
+                    ? "sticky left-[8.5rem] top-0 z-10 min-w-[2.5rem] bg-zinc-50 dark:bg-zinc-900 invisible [transform:translateZ(0)]"
+                    : "sticky top-0 z-20 bg-zinc-50 dark:bg-zinc-900 [transform:translateZ(0)]";
+                return (
+                  <th
+                    key={header.id}
+                    className={`border-b border-zinc-200 px-3 py-2 text-left font-medium dark:border-zinc-800 ${stickyClass}`}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </th>
+                );
+              })}
             </tr>
           ))}
         </thead>
@@ -604,16 +627,35 @@ export function DataTable({
             ]
               .filter(Boolean)
               .join(" ");
+            const stickyBg = isToday
+              ? "bg-accent-50/60 dark:bg-accent-950/40"
+              : isSkip
+                ? "bg-zinc-50/80 dark:bg-zinc-800/50"
+                : "bg-white dark:bg-zinc-900 hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60";
+            const stickyShadow = "shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.25)]";
             return (
               <tr key={row.id} className={rowClass}>
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-1.5 align-top">
-                    {flexRender(
-                      cell.column.columnDef.cell,
-                      cell.getContext(),
-                    )}
-                  </td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const colId = cell.column.id;
+                  const isDateCol = colId === "date";
+                  const isWeekdayCol = colId === "weekday";
+                  const stickyClass = isDateCol
+                    ? `sticky left-0 z-10 min-w-[8.5rem] ${stickyBg} ${stickyShadow}`
+                    : isWeekdayCol
+                      ? `sticky left-[8.5rem] z-10 min-w-[2.5rem] ${stickyBg} ${stickyShadow}`
+                      : "";
+                  return (
+                    <td
+                      key={cell.id}
+                      className={`px-3 py-1.5 align-top ${stickyClass}`}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}

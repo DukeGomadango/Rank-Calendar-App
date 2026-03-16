@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { DashboardNavLinks } from "@/components/layout/DashboardNavLinks";
 
 type Props = { isOwner: boolean };
 
@@ -52,52 +52,11 @@ export function DashboardHamburgerNav({ isOwner }: Props) {
                 閉じる
               </button>
             </div>
-            <nav className="space-y-1 text-zinc-700 dark:text-zinc-200">
-              <Link
-                href="/dashboard"
-                className="block rounded-md px-2 py-2 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setOpen(false)}
-              >
-                ホーム
-              </Link>
-              <Link
-                href="/dashboard/calendar"
-                className="block rounded-md px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setOpen(false)}
-              >
-                カレンダー
-              </Link>
-              <Link
-                href="/dashboard/data"
-                className="block rounded-md px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setOpen(false)}
-              >
-                データ
-              </Link>
-              <Link
-                href="/dashboard/events"
-                className="block rounded-md px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setOpen(false)}
-              >
-                イベント
-              </Link>
-              {isOwner && (
-                <Link
-                  href="/dashboard/sharing"
-                  className="block rounded-md px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  onClick={() => setOpen(false)}
-                >
-                  共有
-                </Link>
-              )}
-              <Link
-                href="/dashboard/settings"
-                className="block rounded-md px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setOpen(false)}
-              >
-                設定
-              </Link>
-            </nav>
+            <DashboardNavLinks
+              isOwner={isOwner}
+              variant="drawer"
+              onLinkClick={() => setOpen(false)}
+            />
           </aside>
         </>
       )}

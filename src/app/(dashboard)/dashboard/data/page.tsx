@@ -112,7 +112,7 @@ export default async function DataPage(props: PageProps) {
         (r.skip_pass_used ?? false)
     );
     return (
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
           <p>開発用モック表示です。データは保存されません。セルを編集すると画面上にだけ反映されます。</p>
         </section>
@@ -153,7 +153,7 @@ export default async function DataPage(props: PageProps) {
 
   if (!permissions.canViewTable) {
     return (
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <header className="space-y-1">
           <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             データ
@@ -261,7 +261,7 @@ export default async function DataPage(props: PageProps) {
   const hasAnyEntries = entries.length > 0;
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
           <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">

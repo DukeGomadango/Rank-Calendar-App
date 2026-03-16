@@ -1,0 +1,119 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Home,
+  Calendar,
+  BarChart3,
+  Gift,
+  Share2,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "ホーム", icon: Home },
+  { href: "/dashboard/calendar", label: "カレンダー", icon: Calendar },
+  { href: "/dashboard/data", label: "データ", icon: BarChart3 },
+  { href: "/dashboard/events", label: "イベント", icon: Gift },
+  { href: "/dashboard/sharing", label: "共有", icon: Share2 },
+  { href: "/dashboard/settings", label: "設定", icon: Settings },
+];
+
+const ICON_SIZE = 18;
+const ICON_SIZE_BOTTOM = 20;
+
+type Props = {
+  isOwner: boolean;
+  variant: "sidebar" | "drawer" | "bottom";
+  onLinkClick?: () => void;
+};
+
+export function DashboardNavLinks({ isOwner, variant, onLinkClick }: Props) {
+  const pathname = usePathname();
+
+  const items = NAV_ITEMS.filter(
+    (item) => item.href !== "/dashboard/sharing" || isOwner
+  );
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname.startsWith(href);
+  };
+
+  const linkBase =
+    "flex items-center gap-3 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:focus-visible:ring-accent-500";
+  const linkInactive =
+    "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100";
+  const linkActive =
+    "bg-zinc-100 font-medium text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50";
+
+  if (variant === "bottom") {
+    return (
+      <ul className="flex items-stretch justify-between gap-1">
+        {items.map(({ href, label, icon: Icon }) => {
+          const active = isActive(href);
+          return (
+            <li key={href} className="flex-1">
+              <Link
+                href={href}
+                onClick={onLinkClick}
+                className={`flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:focus-visible:ring-accent-500 ${
+                  active
+                    ? "bg-zinc-100 font-medium text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50"
+                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                }`}
+              >
+                <Icon
+                  size={ICON_SIZE_BOTTOM}
+                  strokeWidth={1.8}
+                  aria-hidden
+                  className="shrink-0"
+                />
+                <span className="text-[10px]">{label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  const padding = variant === "sidebar" ? "px-2 py-1.5 text-xs" : "px-2 py-2 text-xs";
+
+  return (
+    <nav
+      className={variant === "sidebar" ? "space-y-2" : "space-y-1"}
+      aria-label="メインメニュー"
+    >
+      {items.map(({ href, label, icon: Icon }) => {
+        const active = isActive(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            onClick={onLinkClick}
+            className={`${linkBase} ${padding} ${
+              active ? linkActive : linkInactive
+            }`}
+          >
+            <Icon
+              size={ICON_SIZE}
+              strokeWidth={1.8}
+              aria-hidden
+              className="shrink-0"
+            />
+            <span>{label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
