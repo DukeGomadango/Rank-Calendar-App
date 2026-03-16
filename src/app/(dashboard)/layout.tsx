@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ToastProvider } from "@/lib/toast-context";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { DashboardHamburgerNav } from "@/components/layout/DashboardHamburgerNav";
 import { MockRoleSwitcher } from "@/components/mock/MockRoleSwitcher";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasOwnedCalendar } from "@/lib/data/calendars";
@@ -43,9 +45,10 @@ export default async function DashboardLayout({
   return (
     <MockScheduleProvider initialEntries={initialEntries}>
     <ViewModeProvider>
+    <ToastProvider>
     <div className="flex min-h-screen flex-col bg-background">
-      {/* PC: 画面右上に固定（モバイルではヘッダー内に表示するため非表示） */}
-      <div className="fixed top-4 right-4 z-50 hidden flex-wrap items-center justify-end gap-2 sm:flex">
+      {/* PC: 画面右上に固定（サイドバー表示時のみ。sm〜lg はハンバーガーバー内に ThemeToggle） */}
+      <div className="fixed top-4 right-4 z-50 hidden flex-wrap items-center justify-end gap-2 lg:flex">
         {showMockRoleSwitcher && <MockRoleSwitcher currentRole={mockRole} />}
         <ThemeToggle />
       </div>
@@ -71,9 +74,12 @@ export default async function DashboardLayout({
         </div>
       </header>
 
-      <div className="flex flex-1">
-        {/* PC: 左サイドバー */}
-        <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white/80 px-4 py-6 text-sm shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:flex">
+      <div className="flex flex-1 flex-col">
+        {/* 横長（sm〜lg）: ハンバーガーバー＋ドロワー。lg 以上はサイドバー表示のため非表示 */}
+        <DashboardHamburgerNav isOwner={isOwner} />
+        <div className="flex flex-1">
+          {/* PC: 左サイドバー（lg 以上のみ。スマホ横向きでは非表示でカレンダー全幅） */}
+          <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white/80 px-4 py-6 text-sm shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 lg:flex">
           <div className="mb-6 text-xs font-semibold tracking-wide text-accent-500">
             IRIAM だんごスケジュール
           </div>
@@ -119,9 +125,10 @@ export default async function DashboardLayout({
           </nav>
         </aside>
 
-        <main className="flex-1 px-4 pb-16 pt-4 sm:px-8 sm:pb-6 sm:pt-6 sm:pr-14">
-          {children}
-        </main>
+          <main className="flex-1 px-4 pb-16 pt-4 sm:px-8 sm:pb-6 sm:pt-6 lg:pr-14">
+            {children}
+          </main>
+        </div>
       </div>
 
       {/* モバイル: ボトムナビゲーション */}
@@ -180,6 +187,7 @@ export default async function DashboardLayout({
         </ul>
       </nav>
     </div>
+    </ToastProvider>
     </ViewModeProvider>
     </MockScheduleProvider>
   );

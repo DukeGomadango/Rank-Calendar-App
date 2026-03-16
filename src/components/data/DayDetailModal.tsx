@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
+import { useToast } from "@/lib/toast-context";
 import type { EventRow } from "@/lib/data/events";
 import { getRankBadgeClass } from "@/lib/rank-styles";
 import { PLUS_SELECT_VALUES } from "@/lib/plus-options";
@@ -72,18 +74,49 @@ export function DayDetailModal({
   onUpdateField,
   onClose,
 }: Props) {
+  const router = useRouter();
+  const { showToast } = useToast();
   const [row, setRow] = useState(initialRow);
-  const [isPending, startTransition] = useTransition();
+  const [updatingKey, setUpdatingKey] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const dayEvents = eventsOnDate(events, row.date);
   const canEdit = permissions.canEditSchedule && calendarId && onUpdateField;
   const isSkip = !!row.skip_pass_used;
 
-  const update = (field: keyof DayDetailRow, value: unknown) => {
-    setRow((prev) => ({ ...prev, [field]: value }));
-    if (canEdit && calendarId && onUpdateField)
-      startTransition(() =>
-        onUpdateField(calendarId, row.date, field, value as string | number | boolean)
-      );
+  useEffect(() => {
+    setRow(initialRow);
+  }, [initialRow]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const update = (
+    field: keyof DayDetailRow,
+    value: unknown,
+    previousValue?: string | number | boolean | null
+  ) => {
+    const prev = previousValue ?? (row[field] as string | number | boolean | null | undefined);
+    setUpdateError(null);
+    setRow((prevRow) => ({ ...prevRow, [field]: value }));
+    if (!canEdit || !calendarId || !onUpdateField) return;
+    setUpdatingKey(field);
+    const date = row.date;
+    onUpdateField(calendarId, date, field, value as string | number | boolean)
+      .then(() => {
+        setUpdatingKey(null);
+        router.refresh();
+        showToast("保存しました");
+      })
+      .catch((err: { message?: string }) => {
+        setRow((prevRow) => ({ ...prevRow, [field]: prev }));
+        setUpdatingKey(null);
+        setUpdateError(err?.message ?? "更新に失敗しました");
+      });
   };
 
   return (
@@ -94,11 +127,11 @@ export function DayDetailModal({
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-slate-800"
+        className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-xl dark:bg-slate-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ヘッダー: 日付 + ランクバッジ + 閉じる */}
-        <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 p-4 dark:border-zinc-700">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-2 border-b border-zinc-100 p-4 dark:border-zinc-700">
           <div className="min-w-0 flex-1">
             <h2
               id="day-detail-modal-title"
@@ -133,7 +166,23 @@ export function DayDetailModal({
           </button>
         </div>
 
-        <div className="space-y-4 p-4 text-xs">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto space-y-4 p-4 text-xs"
+          onFocusCapture={(e) => {
+            const el = e.target as HTMLElement;
+            if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+              el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }
+          }}
+        >
+          {updateError && (
+            <div
+              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+              role="alert"
+            >
+              {updateError}
+            </div>
+          )}
           {/* メイン: 目標+ と 実績+ を大きく */}
           {permissions.canViewTargetActual && (
             <section>
@@ -149,9 +198,9 @@ export function DayDetailModal({
                     <select
                       value={row.target_plus ?? 0}
                       onChange={(e) =>
-                        update("target_plus", Number(e.target.value))
+                        update("target_plus", Number(e.target.value), row.target_plus ?? undefined)
                       }
-                      disabled={isPending}
+                      disabled={updatingKey === "target_plus"}
                       className="mt-0.5 w-full rounded border border-accent-200 bg-white px-2 py-1.5 text-base font-semibold text-zinc-900 dark:border-accent-800 dark:bg-slate-800 dark:text-zinc-50"
                     >
                       {PLUS_SELECT_VALUES.map((n) => (
@@ -180,9 +229,9 @@ export function DayDetailModal({
                     <select
                       value={row.actual_plus ?? 0}
                       onChange={(e) =>
-                        update("actual_plus", Number(e.target.value))
+                        update("actual_plus", Number(e.target.value), row.actual_plus ?? undefined)
                       }
-                      disabled={isPending}
+                      disabled={updatingKey === "actual_plus"}
                       className="mt-0.5 w-full rounded border border-accent-200 bg-white px-2 py-1.5 text-base font-semibold text-zinc-900 dark:border-accent-800 dark:bg-slate-800 dark:text-zinc-50"
                     >
                       {PLUS_SELECT_VALUES.map((n) => (
@@ -241,17 +290,10 @@ export function DayDetailModal({
                         }}
                         onBlur={(e) => {
                           const v = e.target.value;
-                          if (calendarId && onUpdateField)
-                            startTransition(() =>
-                              onUpdateField(
-                                calendarId,
-                                row.date,
-                                key,
-                                v === "" ? "" : Number(v)
-                              )
-                            );
+                          const numVal = v === "" ? "" : Number(v);
+                          update(key, numVal, row[key] ?? undefined);
                         }}
-                        disabled={isPending}
+                        disabled={updatingKey === key}
                         className="mt-0.5 w-full rounded border border-zinc-200 bg-white px-1.5 py-1 text-[11px] dark:border-zinc-600 dark:bg-slate-800"
                       />
                     ) : (
@@ -275,8 +317,8 @@ export function DayDetailModal({
                 <input
                   type="checkbox"
                   checked={!!row.skip_pass_used}
-                  onChange={(e) => update("skip_pass_used", e.target.checked)}
-                  disabled={isPending}
+                  onChange={(e) => update("skip_pass_used", e.target.checked, row.skip_pass_used)}
+                  disabled={updatingKey === "skip_pass_used"}
                   className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
                 />
                 <span className="text-[11px]">使用</span>
@@ -301,17 +343,10 @@ export function DayDetailModal({
                     setRow((prev) => ({ ...prev, memo: e.target.value }))
                   }
                   onBlur={(e) => {
-                    if (calendarId && onUpdateField)
-                      startTransition(() =>
-                        onUpdateField(
-                          calendarId,
-                          row.date,
-                          "memo",
-                          e.target.value.trim()
-                        )
-                      );
+                    const v = e.target.value.trim();
+                    update("memo", v, row.memo ?? undefined);
                   }}
-                  disabled={isPending}
+                  disabled={updatingKey === "memo"}
                   rows={3}
                   placeholder="未入力"
                   className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] placeholder:text-zinc-400 dark:border-zinc-600 dark:bg-slate-800 dark:placeholder:text-zinc-500"
@@ -344,7 +379,7 @@ export function DayDetailModal({
         </div>
 
         {/* フッター: 閉じる（プライマリ） */}
-        <div className="flex justify-end border-t border-zinc-100 p-4 dark:border-zinc-700">
+        <div className="flex shrink-0 justify-end border-t border-zinc-100 p-4 dark:border-zinc-700">
           <button
             type="button"
             onClick={onClose}

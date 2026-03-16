@@ -1,7 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
-import { RANK_ORDER, type RankLabel } from "@/lib/domain/rank";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { RANK_ORDER, getNextRank, type RankLabel } from "@/lib/domain/rank";
+import { useToast } from "@/lib/toast-context";
 
 type Props = {
   calendarId: string;
@@ -25,8 +27,34 @@ export function DashboardRankSection({
   onUpdateCurrentRank,
   onUpdateRankResetDate,
 }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const { showToast } = useToast();
+  const [optimisticRank, setOptimisticRank] = useState<RankLabel | null>(null);
+  const [rankUpSubmitting, setRankUpSubmitting] = useState(false);
+  const [rankUpError, setRankUpError] = useState<string | null>(null);
+  const [rankSelectPending, startRankSelectTransition] = useTransition();
   const [resetDatePending, startResetDateTransition] = useTransition();
+  const displayRank = optimisticRank ?? currentRank;
+
+  const handleApplyRankUp = () => {
+    if (!canRankUp) return;
+    setRankUpError(null);
+    const next = getNextRank(currentRank);
+    if (next != null) setOptimisticRank(next);
+    setRankUpSubmitting(true);
+    onApplyRankUp(calendarId)
+      .then(() => {
+        setOptimisticRank(null);
+        setRankUpSubmitting(false);
+        router.refresh();
+        showToast("ランクアップを反映しました");
+      })
+      .catch(() => {
+        setOptimisticRank(null);
+        setRankUpSubmitting(false);
+        setRankUpError("反映に失敗しました");
+      });
+  };
 
   return (
     <section className="space-y-3 rounded-2xl bg-white p-4 text-xs text-zinc-700 shadow-md dark:bg-slate-800 dark:text-zinc-200">
@@ -34,8 +62,8 @@ export function DashboardRankSection({
         現在のランク
       </h2>
       <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-        {currentRank != null ? (
-          <>IRIAM の現在ランク: <strong>{currentRank}</strong></>
+        {displayRank != null ? (
+          <>IRIAM の現在ランク: <strong>{displayRank}</strong></>
         ) : (
           "未設定（IRIAMアプリで確認し、下の「ランクを設定」で反映できます）"
         )}
@@ -45,7 +73,7 @@ export function DashboardRankSection({
           action={(formData) => {
             const r = formData.get("rank");
             const rank = r === "" || r == null ? null : String(r);
-            startTransition(() => onUpdateCurrentRank(calendarId, rank));
+            startRankSelectTransition(() => onUpdateCurrentRank(calendarId, rank));
           }}
           className="inline-flex items-center gap-2"
         >
@@ -60,7 +88,7 @@ export function DashboardRankSection({
               const form = e.target.form;
               if (form) form.requestSubmit();
             }}
-            disabled={isPending}
+            disabled={rankSelectPending}
             className="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] dark:border-zinc-600 dark:bg-zinc-900"
           >
             <option value="">—</option>
@@ -108,19 +136,25 @@ export function DashboardRankSection({
           </button>
         </form>
       </div>
+      {rankUpError && (
+        <p className="text-[11px] text-amber-600 dark:text-amber-400" role="alert">
+          {rankUpError}
+        </p>
+      )}
       {canRankUp && (
         <form
-          action={() => {
-            startTransition(() => onApplyRankUp(calendarId));
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleApplyRankUp();
           }}
           className="pt-1"
         >
           <button
             type="submit"
-            disabled={isPending}
+            disabled={rankUpSubmitting}
             className="rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-medium text-white transition hover:bg-emerald-600 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-700"
           >
-            {isPending ? "反映中…" : "ランクアップを反映"}
+            {rankUpSubmitting ? "反映中…" : "ランクアップを反映"}
           </button>
         </form>
       )}

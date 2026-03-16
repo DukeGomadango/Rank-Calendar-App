@@ -13,6 +13,7 @@ import {
   ensureSkipPassIncrementForLastWeek,
 } from "@/lib/data/calendar-rank-state";
 import { compareJstDate } from "@/lib/domain/calendar";
+import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
 import {
   saveScheduleEntrySchema,
   type SaveScheduleEntryResult,
@@ -53,6 +54,8 @@ export async function saveScheduleEntry(
     stream_content: streamContent,
     stream_content_color: streamContentColor,
   } = parsed.data;
+
+  await ensureUserCanEditCalendar(calendarId);
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
@@ -107,6 +110,8 @@ export async function moveScheduleEntry(
   if (!calendarId || !fromDate || !toDate || fromDate === toDate) {
     return;
   }
+
+  await ensureUserCanEditCalendar(calendarId);
 
   const [existing] = await getScheduleEntriesInRange(
     calendarId,
@@ -167,6 +172,8 @@ export async function updateScheduleEntryField(
   value: string | number | boolean
 ) {
   "use server";
+
+  await ensureUserCanEditCalendar(calendarId);
 
   const [existing] = await getScheduleEntriesInRange(calendarId, date, date);
   const base = {
@@ -266,6 +273,7 @@ export async function updateSkipPassRemaining(
   value: number
 ) {
   "use server";
+  await ensureUserCanEditCalendar(calendarId);
   await updateSkipPassRemainingState(calendarId, value);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/data");
@@ -280,6 +288,7 @@ export async function updateSkipPassSnapshot(
   value: number
 ) {
   "use server";
+  await ensureUserCanEditCalendar(calendarId);
   await setSkipPassSnapshot(calendarId, asOfDate, value);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/data");
@@ -340,6 +349,8 @@ export async function noopUpdateRankResetDate(
 export async function applyRankUp(calendarId: string) {
   "use server";
 
+  await ensureUserCanEditCalendar(calendarId);
+
   const { getOrCreateCalendarRankState, applyRankUp: applyRankUpState } = await import(
     "@/lib/data/calendar-rank-state"
   );
@@ -360,6 +371,8 @@ export async function updateCurrentRank(
   newRank: string | null
 ) {
   "use server";
+
+  await ensureUserCanEditCalendar(calendarId);
 
   const { updateCurrentRank: updateRankState } = await import(
     "@/lib/data/calendar-rank-state"
@@ -384,6 +397,8 @@ export async function updateRankResetDate(
   newResetDate: string
 ) {
   "use server";
+
+  await ensureUserCanEditCalendar(calendarId);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(newResetDate)) {
     return;

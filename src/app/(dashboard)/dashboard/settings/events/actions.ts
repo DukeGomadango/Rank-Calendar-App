@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 
+import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
 import {
   createEventForCalendar,
   deleteEvent,
@@ -19,6 +20,8 @@ export async function createEvent(formData: FormData) {
   if (typeof name !== "string" || !name.trim()) {
     throw new Error("イベント名を入力してください。");
   }
+
+  await ensureUserCanEditCalendar(calendarId);
 
   await createEventForCalendar(
     calendarId,
@@ -52,6 +55,8 @@ export async function deleteEventAction(formData: FormData) {
   if (typeof id !== "string" || !id) {
     throw new Error("イベントIDが不正です。");
   }
+
+  await ensureUserCanEditCalendar(calendarId);
 
   await deleteEvent(id, calendarId);
 

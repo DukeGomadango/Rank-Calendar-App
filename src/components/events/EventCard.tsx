@@ -13,10 +13,12 @@ type Props = {
   event: EventRow;
   calendarId: string;
   deleteAction: (formData: FormData) => Promise<void>;
+  /** 指定時は親が楽観的削除を行う。ボタン押下でこのコールバックを呼ぶ。 */
+  onDeleteRequest?: (id: string) => void;
   isPast?: boolean;
 };
 
-export function EventCard({ event, calendarId, deleteAction, isPast }: Props) {
+export function EventCard({ event, calendarId, deleteAction, onDeleteRequest, isPast }: Props) {
   const { leftBar } = getEventColorClasses(event.color);
   const typeLabel = event.event_type ? EVENT_TYPE_LABELS[event.event_type] ?? event.event_type : null;
 
@@ -39,16 +41,28 @@ export function EventCard({ event, calendarId, deleteAction, isPast }: Props) {
           <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">タグ: {typeLabel}</p>
         )}
       </div>
-      <form action={deleteAction}>
-        <input type="hidden" name="calendar_id" value={calendarId} />
-        <input type="hidden" name="id" value={event.id} />
+      {onDeleteRequest ? (
         <button
-          type="submit"
+          type="button"
+          onClick={() => {
+            if (window.confirm("このイベントを削除しますか？")) onDeleteRequest(event.id);
+          }}
           className="rounded-md px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
         >
           削除
         </button>
-      </form>
+      ) : (
+        <form action={deleteAction}>
+          <input type="hidden" name="calendar_id" value={calendarId} />
+          <input type="hidden" name="id" value={event.id} />
+          <button
+            type="submit"
+            className="rounded-md px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+          >
+            削除
+          </button>
+        </form>
+      )}
     </div>
   );
 }

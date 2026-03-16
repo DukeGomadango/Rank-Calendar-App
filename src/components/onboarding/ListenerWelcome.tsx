@@ -68,7 +68,7 @@ export function ListenerWelcome({ calendarId, calendarName, displayName }: Props
   if (step === "name") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-800">
+        <div className="w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-800">
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
             表示名を入力
           </h2>
@@ -80,6 +80,7 @@ export function ListenerWelcome({ calendarId, calendarName, displayName }: Props
               type="text"
               value={displayNameValue}
               onChange={(e) => setDisplayNameValue(e.target.value)}
+              onFocus={(e) => e.target.scrollIntoView({ block: "nearest", behavior: "smooth" })}
               placeholder="表示名"
               className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
               maxLength={100}

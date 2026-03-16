@@ -80,7 +80,7 @@ export function HomeScheduleCard({
           role="dialog"
           aria-labelledby="home-schedule-modal-title"
         >
-          <div className="w-full max-w-md rounded-2xl bg-white p-4 text-xs shadow-xl dark:bg-slate-800">
+          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-4 text-xs shadow-xl dark:bg-slate-800">
             <div className="mb-3 flex items-center justify-between">
               <h2
                 id="home-schedule-modal-title"

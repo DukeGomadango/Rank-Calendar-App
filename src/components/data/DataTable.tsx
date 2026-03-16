@@ -8,13 +8,18 @@ import {
 } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { EventRow } from "@/lib/data/events";
 import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
+import { useToast } from "@/lib/toast-context";
 import { useViewMode } from "@/lib/view-mode-context";
 import { DayDetailModal, type DayDetailRow } from "./DayDetailModal";
+
+function updatingKeyFor(date: string, field: string): string {
+  return `${date}-${field}`;
+}
 
 /** 日付・曜日は必ずあり、他は登録があれば入る。ランク・ランクスコアは周期対応時のみ。skip_pass_remaining_as_of はその日時点のスキパ枚数。 */
 type Row = {
@@ -80,12 +85,85 @@ export function DataTable({
   onUpdateSkipPassSnapshot,
 }: Props) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const { showToast } = useToast();
+  const [rows, setRows] = useState<Row[]>(data);
+  const [updatingKey, setUpdatingKey] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const [detailRow, setDetailRow] = useState<Row | null>(null);
   const { viewMode } = useViewMode();
   const hideBordersInSimple = !permissions.isOwner && viewMode === "simple";
   const canEdit = permissions.canEditSchedule;
   const todayStr = dayjs().format("YYYY-MM-DD");
+
+  useEffect(() => {
+    setRows(data);
+  }, [data]);
+
+  const handleOptimisticUpdate = (
+    date: string,
+    field: keyof Row,
+    value: string | number | boolean,
+    previousValue: string | number | boolean | null | undefined
+  ) => {
+    setUpdateError(null);
+    setRows((prev) =>
+      prev.map((r) =>
+        r.date === date ? { ...r, [field]: value } : r
+      )
+    );
+    const key = updatingKeyFor(date, field);
+    setUpdatingKey(key);
+    onUpdateField(calendarId, date, field, value)
+      .then(() => {
+        setUpdatingKey(null);
+        router.refresh();
+        showToast("保存しました");
+      })
+      .catch((err) => {
+        setRows((prev) =>
+          prev.map((r) =>
+            r.date === date ? { ...r, [field]: previousValue } : r
+          )
+        );
+        setUpdatingKey(null);
+        setUpdateError(err?.message ?? "更新に失敗しました");
+      });
+  };
+
+  const handleOptimisticSkipPass = (
+    date: string,
+    value: number,
+    previousValue: number | null | undefined
+  ) => {
+    if (!onUpdateSkipPassSnapshot) return;
+    setUpdateError(null);
+    setRows((prev) =>
+      prev.map((r) =>
+        r.date === date
+          ? { ...r, skip_pass_remaining_as_of: value }
+          : r
+      )
+    );
+    const key = updatingKeyFor(date, "skip_pass_remaining");
+    setUpdatingKey(key);
+    onUpdateSkipPassSnapshot(calendarId, date, value)
+      .then(() => {
+        setUpdatingKey(null);
+        router.refresh();
+        showToast("保存しました");
+      })
+      .catch((err) => {
+        setRows((prev) =>
+          prev.map((r) =>
+            r.date === date
+              ? { ...r, skip_pass_remaining_as_of: previousValue }
+              : r
+          )
+        );
+        setUpdatingKey(null);
+        setUpdateError(err?.message ?? "更新に失敗しました");
+      });
+  };
 
   const rankColumns: ColumnDef<Row>[] = permissions.canViewRank
     ? [
@@ -143,18 +221,18 @@ export function DataTable({
         const v = getValue<number | null | undefined>();
         const displayVal = normalizePlusValue(v);
         const skip = !!row.original.skip_pass_used;
+        const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "target_plus");
         if (canEdit && !skip) {
           return (
             <select
-              defaultValue={displayVal}
+              value={displayVal}
               onChange={(e) => {
                 const next = Number(e.target.value);
-                startTransition(() =>
-                  onUpdateField(calendarId, row.original.date, "target_plus", next)
-                );
+                handleOptimisticUpdate(date, "target_plus", next, v);
               }}
               className={selectClass}
-              disabled={isPending}
+              disabled={updatingKey === cellKey}
             >
               {PLUS_SELECT_VALUES.map((n) => (
                 <option key={n} value={n}>
@@ -190,18 +268,18 @@ export function DataTable({
         const v = getValue<number | null | undefined>();
         const displayVal = normalizePlusValue(v);
         const skip = !!row.original.skip_pass_used;
+        const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "actual_plus");
         if (canEdit && !skip) {
           return (
             <select
-              defaultValue={displayVal}
+              value={displayVal}
               onChange={(e) => {
                 const next = Number(e.target.value);
-                startTransition(() =>
-                  onUpdateField(calendarId, row.original.date, "actual_plus", next)
-                );
+                handleOptimisticUpdate(date, "actual_plus", next, v);
               }}
               className={selectClass}
-              disabled={isPending}
+              disabled={updatingKey === cellKey}
             >
               {PLUS_SELECT_VALUES.map((n) => (
                 <option key={n} value={n}>
@@ -236,6 +314,8 @@ export function DataTable({
         if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
         const skip = !!row.original.skip_pass_used;
+        const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "ansuko_baseline");
         if (canEdit && !skip) {
           return (
             <input
@@ -244,12 +324,11 @@ export function DataTable({
               defaultValue={v != null ? String(v) : ""}
               onBlur={(e) => {
                 const next = e.target.value;
-                startTransition(() =>
-                  onUpdateField(calendarId, row.original.date, "ansuko_baseline", next === "" ? "" : Number(next))
-                );
+                const nextVal = next === "" ? "" : Number(next);
+                handleOptimisticUpdate(date, "ansuko_baseline", nextVal, v);
               }}
               className={inputClass}
-              disabled={isPending}
+              disabled={updatingKey === cellKey}
             />
           );
         }
@@ -275,6 +354,8 @@ export function DataTable({
         if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
         const skip = !!row.original.skip_pass_used;
+        const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "border_plus2");
         if (canEdit && !skip) {
           return (
             <input
@@ -283,12 +364,11 @@ export function DataTable({
               defaultValue={v != null ? String(v) : ""}
               onBlur={(e) => {
                 const next = e.target.value;
-                startTransition(() =>
-                  onUpdateField(calendarId, row.original.date, "border_plus2", next === "" ? "" : Number(next))
-                );
+                const nextVal = next === "" ? "" : Number(next);
+                handleOptimisticUpdate(date, "border_plus2", nextVal, v);
               }}
               className={inputClass}
-              disabled={isPending}
+              disabled={updatingKey === cellKey}
             />
           );
         }
@@ -314,6 +394,8 @@ export function DataTable({
         if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
         const skip = !!row.original.skip_pass_used;
+        const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "border_plus4");
         if (canEdit && !skip) {
           return (
             <input
@@ -322,12 +404,11 @@ export function DataTable({
               defaultValue={v != null ? String(v) : ""}
               onBlur={(e) => {
                 const next = e.target.value;
-                startTransition(() =>
-                  onUpdateField(calendarId, row.original.date, "border_plus4", next === "" ? "" : Number(next))
-                );
+                const nextVal = next === "" ? "" : Number(next);
+                handleOptimisticUpdate(date, "border_plus4", nextVal, v);
               }}
               className={inputClass}
-              disabled={isPending}
+              disabled={updatingKey === cellKey}
             />
           );
         }
@@ -353,6 +434,8 @@ export function DataTable({
         if (!permissions.canViewBorders || hideBordersInSimple) return "";
         const v = getValue<number | null | undefined>();
         const skip = !!row.original.skip_pass_used;
+        const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "border_plus6");
         if (canEdit && !skip) {
           return (
             <input
@@ -361,12 +444,11 @@ export function DataTable({
               defaultValue={v != null ? String(v) : ""}
               onBlur={(e) => {
                 const next = e.target.value;
-                startTransition(() =>
-                  onUpdateField(calendarId, row.original.date, "border_plus6", next === "" ? "" : Number(next))
-                );
+                const nextVal = next === "" ? "" : Number(next);
+                handleOptimisticUpdate(date, "border_plus6", nextVal, v);
               }}
               className={inputClass}
-              disabled={isPending}
+              disabled={updatingKey === cellKey}
             />
           );
         }
@@ -390,21 +472,20 @@ export function DataTable({
       header: "スキップ",
       cell: ({ row, getValue }) => {
         const checked = !!getValue<boolean>();
+        const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "skip_pass_used");
         if (canEdit) {
           return (
             <label className="inline-flex items-center gap-1">
               <input
                 type="checkbox"
-                defaultChecked={checked}
+                checked={checked}
                 onChange={(e) => {
-                  startTransition(() =>
-                    onUpdateField(calendarId, row.original.date, "skip_pass_used", e.target.checked).then(
-                      () => router.refresh()
-                    )
-                  );
+                  const next = e.target.checked;
+                  handleOptimisticUpdate(date, "skip_pass_used", next, checked);
                 }}
                 className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
-                disabled={isPending}
+                disabled={updatingKey === cellKey}
               />
               {checked ? "使用" : ""}
             </label>
@@ -419,6 +500,7 @@ export function DataTable({
       cell: ({ row }: { row: { original: Row } }) => {
         const asOf = row.original.skip_pass_remaining_as_of;
         const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "skip_pass_remaining");
         if (canEdit && onUpdateSkipPassSnapshot) {
           return (
             <input
@@ -430,15 +512,11 @@ export function DataTable({
               onBlur={(e) => {
                 const v = Number(e.target.value);
                 if (!Number.isNaN(v) && v >= 0 && v <= 10) {
-                  startTransition(() =>
-                    onUpdateSkipPassSnapshot(calendarId, date, v).then(() =>
-                      router.refresh()
-                    )
-                  );
+                  handleOptimisticSkipPass(date, v, asOf);
                 }
               }}
               className={`${inputClass} w-12`}
-              disabled={isPending}
+              disabled={updatingKey === cellKey}
             />
           );
         }
@@ -453,6 +531,8 @@ export function DataTable({
           return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
         }
         const memo = row.original.memo ?? "";
+        const date = row.original.date;
+        const cellKey = updatingKeyFor(date, "memo");
         if (canEdit) {
           return (
             <input
@@ -462,14 +542,12 @@ export function DataTable({
                 const v = e.target.value.trim();
                 const prev = (row.original.memo ?? "").trim();
                 if (v !== prev) {
-                  startTransition(() =>
-                    onUpdateField(calendarId, row.original.date, "memo", v)
-                  );
+                  handleOptimisticUpdate(date, "memo", v, row.original.memo);
                 }
               }}
               placeholder="メモ"
               className={inputClass}
-              disabled={isPending}
+              disabled={updatingKey === cellKey}
             />
           );
         }
@@ -479,13 +557,21 @@ export function DataTable({
   ];
 
   const table = useReactTable({
-    data,
+    data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
 
   return (
     <>
+      {updateError && (
+        <div
+          className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+          role="alert"
+        >
+          {updateError}
+        </div>
+      )}
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white/80 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80">
         <table className="min-w-full border-separate border-spacing-0">
         <thead className="bg-zinc-50 text-[11px] text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">

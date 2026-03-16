@@ -19,9 +19,11 @@ function addDays(dateStr: string, days: number): string {
 type Props = {
   calendarId: string;
   createAction: (formData: FormData) => Promise<void>;
+  /** 指定時はクライアント送信。楽観的UI用。 */
+  onSubmit?: (formData: FormData) => Promise<void>;
 };
 
-export function EventFormClient({ calendarId, createAction }: Props) {
+export function EventFormClient({ calendarId, createAction, onSubmit }: Props) {
   const endDateRef = useRef<HTMLInputElement>(null);
 
   function handleStartDateChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -30,8 +32,19 @@ export function EventFormClient({ calendarId, createAction }: Props) {
     endDateRef.current.value = addDays(start, 6);
   }
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    if (onSubmit) {
+      e.preventDefault();
+      await onSubmit(new FormData(e.currentTarget));
+    }
+  };
+
   return (
-    <form action={createAction} className="grid gap-3 md:grid-cols-2">
+    <form
+      action={onSubmit ? undefined : createAction}
+      onSubmit={onSubmit ? handleSubmit : undefined}
+      className="grid gap-3 md:grid-cols-2"
+    >
       <input type="hidden" name="calendar_id" value={calendarId} />
       <label className="flex flex-col gap-1 md:col-span-2">
         <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">イベント名</span>
