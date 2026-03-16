@@ -32,6 +32,7 @@ import {
   createInviteLinkAction,
   deleteInviteLink,
   assignRoleToUser,
+  removeShare,
   noopCreateRole,
   noopDeleteRole,
   noopSaveRolePermissions,
@@ -468,34 +469,40 @@ export default async function SharingPage({ searchParams }: PageProps) {
                   key={r.id}
                   className="flex flex-wrap items-center gap-2 rounded border border-zinc-100 py-2 px-2 dark:border-zinc-800"
                 >
-                  <span className="text-xs text-zinc-900 dark:text-zinc-50">
-                    {r.display_name ?? r.user_id.slice(0, 8)}
-                  </span>
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {new Date(r.redeemed_at).toLocaleString("ja")}
-                  </span>
-                  <form action={assignRoleToUser} className="flex items-center gap-1">
-                    <input type="hidden" name="calendar_id" value={currentCalendar.id} />
-                    <input type="hidden" name="user_id" value={r.user_id} />
-                    <select
-                      name="role_id"
-                      defaultValue={currentRoleId}
-                      className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-[11px] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                    >
-                      <option value="none">未付与</option>
-                      {roles.map((role) => (
-                        <option key={role.id} value={role.id}>
-                          {role.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="submit"
-                      className="rounded bg-zinc-200 px-2 py-0.5 text-[11px] hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600"
-                    >
-                      反映
-                    </button>
-                  </form>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <form action={assignRoleToUser} className="flex items-center gap-1">
+                      <input type="hidden" name="calendar_id" value={currentCalendar.id} />
+                      <input type="hidden" name="user_id" value={r.user_id} />
+                      <select
+                        name="role_id"
+                        defaultValue={currentRoleId}
+                        className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-[11px] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                      >
+                        <option value="none">未付与</option>
+                        {roles.map((role) => (
+                          <option key={role.id} value={role.id}>
+                            {role.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="rounded bg-zinc-200 px-2 py-0.5 text-[11px] hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+                      >
+                        反映
+                      </button>
+                    </form>
+                    <form action={removeShare}>
+                      <input type="hidden" name="calendar_id" value={currentCalendar.id} />
+                      <input type="hidden" name="user_id" value={r.user_id} />
+                      <button
+                        type="submit"
+                        className="text-[11px] text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
+                      >
+                        共有を解除
+                      </button>
+                    </form>
+                  </div>
                 </li>
               );
             })}

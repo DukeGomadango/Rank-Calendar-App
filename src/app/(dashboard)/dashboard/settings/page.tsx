@@ -19,6 +19,7 @@ import { AccountSection } from "@/components/settings/AccountSection";
 import { DataManagementSection } from "@/components/settings/DataManagementSection";
 import { DangerZoneSection } from "@/components/settings/DangerZoneSection";
 import { AppAboutSection } from "@/components/settings/AppAboutSection";
+import { LeaveCalendarSection } from "@/components/settings/LeaveCalendarSection";
 import { RankSettingsForm } from "@/components/settings/RankSettingsForm";
 import { AccountLinkingSection } from "@/components/settings/AccountLinkingSection";
 import { CalendarSwitcher } from "@/components/settings/CalendarSwitcher";
@@ -184,8 +185,13 @@ export default async function SettingsPage({ searchParams }: PageProps) {
         <ViewModeToggle />
       </section>
 
-      {currentCalendar.isOwner && (
+      {currentCalendar.isOwner ? (
         <DataManagementSection calendarId={currentCalendar.id} isMock={false} />
+      ) : (
+        <LeaveCalendarSection
+          calendarId={currentCalendar.id}
+          calendarName={currentCalendar.name ?? "このカレンダー"}
+        />
       )}
       <AppAboutSection />
       {currentCalendar.isOwner && (

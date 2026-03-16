@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   resetCalendarData,
-  deleteMyAccountData,
+  deleteMyAccountAndUser,
 } from "@/app/(dashboard)/dashboard/settings/actions";
 
 type Props = {
@@ -50,7 +50,7 @@ export function DangerZoneSection({ calendarId, isMock }: Props) {
   async function handleDeleteAccountConfirm() {
     setDeletePending(true);
     try {
-      const result = await deleteMyAccountData();
+      const result = await deleteMyAccountAndUser();
       if (!result.ok) {
         alert(result.error ?? "データの削除に失敗しました");
         setDeletePending(false);

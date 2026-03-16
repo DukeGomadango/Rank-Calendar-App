@@ -2,7 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createSupabaseServerClient, createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  createSupabaseRouteHandlerClient,
+  createSupabaseServiceRoleClient,
+} from "@/lib/supabase/server";
 import { upsertDisplayName, updateAvatarUrl } from "@/lib/data/profiles";
 import { getOrCreateDefaultCalendarForUser, listCalendarsForUser } from "@/lib/data/calendars";
 import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
@@ -133,6 +137,36 @@ export async function resetCalendarData(
 }
 
 /**
+ * リスナーが自分でこのカレンダーから抜ける。
+ * オーナーではない共有ユーザー向け。
+ */
+export async function leaveCalendar(
+  calendarId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "未ログインです" };
+
+  const { error } = await supabase
+    .schema("iriam")
+    .from("shares")
+    .delete()
+    .eq("calendar_id", calendarId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/calendar");
+  return { ok: true };
+}
+
+/**
  * アカウント削除前に、このユーザーがオーナーの全データを削除する。
  * 呼び出し元で supabase.auth.deleteUser() を実行すること。
  */
@@ -201,5 +235,32 @@ export async function deleteMyAccountData(): Promise<{
     await supabase.schema("iriam").from("calendars").delete().eq("id", cal.id);
   }
   revalidatePath("/");
+  return { ok: true };
+}
+
+/**
+ * アカウント削除（退会）用に、オーナーデータの削除と auth.users の削除までまとめて行う。
+ */
+export async function deleteMyAccountAndUser(): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "未ログインです" };
+
+  const dataResult = await deleteMyAccountData();
+  if (!dataResult.ok) {
+    return dataResult;
+  }
+
+  const admin = createSupabaseServiceRoleClient();
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  if (error) {
+    return { ok: false, error: "アカウントの削除に失敗しました" };
+  }
+
   return { ok: true };
 }
