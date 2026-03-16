@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { EventRow, EventType } from "@/lib/data/events";
+import { EVENT_PALETTE } from "@/lib/event-colors";
 import { useToast } from "@/lib/toast-context";
 import { EventCalendarOcrImporter } from "@/components/ocr/EventCalendarOcrImporter";
 import { EventFormClient } from "./EventFormClient";
