@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/lib/toast-context";
 
 type ParsedEventCandidate = {
   id: string;
@@ -146,6 +148,8 @@ export function EventCalendarOcrImporter({ calendarId, createAction }: Props) {
   const [status, setStatus] = useState<Status>({ type: "idle" });
   const [candidates, setCandidates] = useState<ParsedEventCandidate[]>([]);
   const [rawLines, setRawLines] = useState<string[] | null>(null);
+  const router = useRouter();
+  const { showToast } = useToast();
 
   const handleClick = useCallback(() => {
     setStatus({ type: "idle" });
@@ -245,11 +249,16 @@ export function EventCalendarOcrImporter({ calendarId, createAction }: Props) {
 
     if (failed === 0) {
       setStatus({ type: "success", message: `${success}件のイベントを追加しました。` });
+      showToast("イベントを追加しました");
+      router.refresh();
     } else {
       setStatus({
         type: "error",
         message: `${success}件のイベントを追加しましたが、${failed}件でエラーが発生しました。`,
       });
+      if (success > 0) {
+        router.refresh();
+      }
     }
   };
 
@@ -327,7 +336,7 @@ export function EventCalendarOcrImporter({ calendarId, createAction }: Props) {
         </div>
       )}
 
-      {rawLines && rawLines.length > 0 && (
+      {process.env.NODE_ENV !== "production" && rawLines && rawLines.length > 0 && (
         <details className="mt-2 space-y-1 rounded-md border border-dashed border-zinc-300 bg-zinc-50/60 p-2 text-[10px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-300">
           <summary className="cursor-pointer list-none text-[10px] font-medium text-zinc-500 dark:text-zinc-400 [&::-webkit-details-marker]:hidden">
             OCR生テキスト（デバッグ用・イベント候補判定前）
