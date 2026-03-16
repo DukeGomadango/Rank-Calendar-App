@@ -210,6 +210,12 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
     redirect("/dashboard/onboarding");
   }
 
+   // fromInvite=1 なのに currentCalendar が取れないのは異常系なので、
+   // いったん設定ページへ逃がす（型的にもここから先は non-null とみなせる）。
+  if (!currentCalendar) {
+    redirect("/dashboard/settings");
+  }
+
   if (!urlCalendarId && currentCalendar) {
     const q = new URLSearchParams({ calendarId: currentCalendar.id });
     if (fromInvite) q.set("fromInvite", "1");
