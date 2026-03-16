@@ -37,11 +37,6 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
     "スケジュールは変更の可能性があります",
   ];
 
-  // 行頭のランク帯 + 記号（S1～S3 / A1～S3 / D～S3 など）を表すパターン。
-  // OCR の揺れを多少許容するため、記号類はややゆるめにマッチさせる。
-  const rankPrefixPattern =
-    /^(?:S\d+|A\d+|D)[^ぁ-んァ-ヶ一-龥A-Za-z0-9]{0,3}(?:S?\d+)?\s*[～~\-→>〜]?\s*S?\d*\s*[●○◎★☆]?\s*/u;
-
   const eventLines: string[] = [];
 
   for (const line of lines) {
@@ -53,17 +48,21 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
     // 週ヘッダーのような日付レンジ行はスキップ
     if (/\d{1,2}\/\d{1,2}.*[～~〜].*\d{1,2}\/\d{1,2}/.test(line)) continue;
 
-    // 行頭にランク帯プレフィクスが無い行はイベント扱いしない
-    if (!rankPrefixPattern.test(line)) continue;
+    // 先頭〜数文字の中に「ランク帯らしきパターン」が無い行はイベント扱いしない
+    const head = line.slice(0, 20);
+    const looseRankPattern =
+      /S\s*\d\s*[~～\-→>〜]\s*S?\d|A\s*\d\s*[~～\-→>〜]\s*S?\d|D\s*[~～\-→>〜]\s*S?\d/;
+    if (!looseRankPattern.test(head)) continue;
 
-    // ランク帯 + 記号を取り除いて名前部分を抽出
-    const cleaned = line.replace(rankPrefixPattern, "").trim();
+    // ランク帯や記号を含む左側はざっくり捨てて、最初の日本語/英数ブロック以降をイベント名として扱う
+    const nameMatch = line.match(/[ぁ-んァ-ン一-龥A-Za-z0-9].*$/);
+    const cleaned = nameMatch ? nameMatch[0].trim() : "";
 
     if (!cleaned) continue;
 
     // ひらがな・カタカナ・漢字・英数がある程度含まれている行のみ採用
     const contentChars = (cleaned.match(/[ぁ-んァ-ン一-龥A-Za-z0-9]/g) ?? []).length;
-    if (contentChars < 4) continue;
+    if (contentChars < 6) continue;
 
     eventLines.push(cleaned);
   }
