@@ -1,0 +1,39 @@
+﻿# Dependencies（コンテキスト不要）
+node_modules/
+.pnp
+.pnp.*
+.yarn/
+
+# ビルド・出力
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# テスト・カバレッジ・レポート
+coverage/
+test-results/
+playwright-report/
+e2e/.auth/
+
+# 環境・機密
+.env
+.env.*
+!.env.example
+
+# ログ・デバッグ
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Vercel
+.vercel/
+
+# その他
+.DS_Store
+*.pem
+.git/

@@ -573,20 +573,7 @@ export function DataTable({
         </div>
       )}
       <div className="isolate min-w-0 overflow-x-auto overflow-y-hidden rounded-xl border border-zinc-200 bg-white/80 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80">
-        {/* 横スクロール時も左に残る「日付」「曜」用の sticky ヘッダーバー（thead th の sticky が効かないブラウザ対策） */}
-        <div
-          className="sticky left-0 top-0 z-20 flex w-0 min-w-[11rem] border-b border-zinc-200 bg-zinc-50 text-[11px] dark:border-zinc-800 dark:bg-zinc-900"
-          style={{ marginBottom: "-2rem" }}
-          aria-hidden
-        >
-          <div className="min-w-[8.5rem] border-r border-zinc-200 px-3 py-2 font-medium text-zinc-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:border-zinc-800 dark:text-zinc-300 dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.25)]">
-            日付
-          </div>
-          <div className="min-w-[2.5rem] px-3 py-2 font-medium text-zinc-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:text-zinc-300 dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.25)]">
-            曜
-          </div>
-        </div>
-        <table className="min-w-full border-separate border-spacing-0 whitespace-nowrap" style={{ marginTop: "-2rem" }}>
+        <table className="min-w-full border-separate border-spacing-0 whitespace-nowrap">
         <thead className="bg-zinc-50 text-[11px] text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -595,9 +582,9 @@ export function DataTable({
                 const isDateCol = colId === "date";
                 const isWeekdayCol = colId === "weekday";
                 const stickyClass = isDateCol
-                  ? "sticky left-0 top-0 z-10 min-w-[8.5rem] bg-zinc-50 dark:bg-zinc-900 invisible [transform:translateZ(0)]"
+                  ? "sticky left-0 top-0 z-30 min-w-[8.5rem] bg-zinc-50 dark:bg-zinc-900 [transform:translateZ(0)]"
                   : isWeekdayCol
-                    ? "sticky left-[8.5rem] top-0 z-10 min-w-[2.5rem] bg-zinc-50 dark:bg-zinc-900 invisible [transform:translateZ(0)]"
+                    ? "sticky left-[8.5rem] top-0 z-30 min-w-[2.5rem] bg-zinc-50 dark:bg-zinc-900 [transform:translateZ(0)]"
                     : "sticky top-0 z-20 bg-zinc-50 dark:bg-zinc-900 [transform:translateZ(0)]";
                 return (
                   <th
@@ -640,10 +627,10 @@ export function DataTable({
                   const isDateCol = colId === "date";
                   const isWeekdayCol = colId === "weekday";
                   const stickyClass = isDateCol
-                    ? `sticky left-0 z-10 min-w-[8.5rem] ${stickyBg} ${stickyShadow}`
+                    ? `sticky left-0 z-30 min-w-[8.5rem] ${stickyBg} ${stickyShadow}`
                     : isWeekdayCol
-                      ? `sticky left-[8.5rem] z-10 min-w-[2.5rem] ${stickyBg} ${stickyShadow}`
-                      : "";
+                      ? `sticky left-[8.5rem] z-30 min-w-[2.5rem] ${stickyBg} ${stickyShadow}`
+                      : "relative z-0";
                   return (
                     <td
                       key={cell.id}
