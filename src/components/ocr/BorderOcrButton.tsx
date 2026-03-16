@@ -54,6 +54,9 @@ export function BorderOcrButton({
 
       const { createWorker } = await import("tesseract.js");
       const worker = await createWorker("eng", 1);
+      await worker.setParameters({
+        tessedit_char_whitelist: "0123456789,",
+      });
 
       /**
        * 与えられた領域（キャンバス座標比率）から 5〜6 桁の最大値を 1 つ抽出する。
@@ -81,6 +84,21 @@ export function BorderOcrButton({
         if (!rctx) return null;
 
         rctx.drawImage(canvas, sx, sy, regionWidth, regionHeight, 0, 0, regionWidth, regionHeight);
+
+        const imageData = rctx.getImageData(0, 0, regionWidth, regionHeight);
+        const { data } = imageData;
+        const threshold = 160;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i] ?? 0;
+          const g = data[i + 1] ?? 0;
+          const b = data[i + 2] ?? 0;
+          const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+          const v = luminance >= threshold ? 255 : 0;
+          data[i] = v;
+          data[i + 1] = v;
+          data[i + 2] = v;
+        }
+        rctx.putImageData(imageData, 0, 0);
         const dataUrl = regionCanvas.toDataURL("image/png");
 
         const {
