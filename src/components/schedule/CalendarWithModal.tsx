@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
 import Link from "next/link";
 
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
-import { getRankBarDashedLineClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
-import { getEventColorClasses } from "@/lib/event-colors";
+import { useToast } from "@/lib/toast-context";
+import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
+import { getEventColorClasses, getEventColorDotClass } from "@/lib/event-colors";
 import { useViewMode } from "@/lib/view-mode-context";
 import { ScheduleForm } from "./ScheduleForm";
 
@@ -196,25 +198,69 @@ export function CalendarWithModal({
   todayJst,
   skipPassRemaining,
 }: Props) {
+  const router = useRouter();
+  const { showToast } = useToast();
   const { viewMode, setViewMode } = useViewMode();
   const useSimpleView = !permissions.isOwner && viewMode === "simple";
   const todayStr = todayJst ?? dayjs().format("YYYY-MM-DD");
 
-  const [isPending, startTransition] = useTransition();
+  const [localDays, setLocalDays] = useState<DayData[]>(days);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const prevLocalDaysRef = useRef<DayData[] | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
+  /** モバイルでボトムシートを下からせり上がらせる用。開いた直後に true にして transition をかける */
+  const [sheetEntered, setSheetEntered] = useState(false);
+
+  useEffect(() => {
+    setLocalDays(days);
+  }, [days]);
+
+  useEffect(() => {
+    if (!selectedDate) {
+      setSheetEntered(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setSheetEntered(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedDate(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedDate]);
 
   const selectedDay = selectedDate
-    ? days.find((d) => d.date === selectedDate) ?? null
+    ? localDays.find((d) => d.date === selectedDate) ?? null
     : null;
+
+  /** 参加イベントの初期値。スケジュールに event_id が無くても、その日をまたぐイベントが1件だけならそれを選ぶ */
+  const effectiveDefaultEventId =
+    selectedDay?.entries[0]?.event_id ??
+    (selectedDate && (() => {
+      const onDay = getEventsOnDate(events, selectedDate);
+      return onDay.length === 1 ? onDay[0].id : undefined;
+    })());
 
   const handleSave = useCallback(
     (formData: FormData) => {
-      startTransition(() => {
-        Promise.resolve(saveAction(formData)).then(() => setSelectedDate(null));
-      });
+      setSelectedDate(null);
+      Promise.resolve(saveAction(formData))
+        .then(() => {
+          router.refresh();
+          showToast("保存しました");
+        })
+        .catch(() => {
+          showToast("保存に失敗しました");
+        });
     },
-    [saveAction]
+    [saveAction, router, showToast]
   );
 
   const prevMonthParam = useMemo(() => {
@@ -238,11 +284,47 @@ export function CalendarWithModal({
   const weekDays = useMemo(() => {
     const start = dayjs(currentWeekStart);
     const end = start.add(6, "day");
-    return days.filter((d) => {
+    return localDays.filter((d) => {
       const t = dayjs(d.date);
       return (t.isSame(start) || t.isAfter(start)) && (t.isSame(end) || t.isBefore(end));
     });
-  }, [days, currentWeekStart]);
+  }, [localDays, currentWeekStart]);
+
+  const handleMoveEntry = useCallback(
+    (fromDate: string, toDate: string) => {
+      if (fromDate === toDate) return;
+      setMoveError(null);
+      prevLocalDaysRef.current = localDays;
+      setLocalDays((prev) => {
+        const fromIdx = prev.findIndex((d) => d.date === fromDate);
+        const toIdx = prev.findIndex((d) => d.date === toDate);
+        if (fromIdx < 0 || toIdx < 0) return prev;
+        const fromDay = prev[fromIdx];
+        const toDay = prev[toIdx];
+        const entry = fromDay.entries[0];
+        if (!entry) return prev;
+        const next = prev.map((d, i) => {
+          if (i === fromIdx)
+            return { ...fromDay, entries: [] };
+          if (i === toIdx)
+            return { ...toDay, entries: [entry] };
+          return d;
+        });
+        return next;
+      });
+      moveEntry(calendarId, fromDate, toDate)
+        .then(() => {
+          router.refresh();
+          showToast("日付を移動しました");
+        })
+        .catch((err: { message?: string }) => {
+          if (prevLocalDaysRef.current) setLocalDays(prevLocalDaysRef.current);
+          prevLocalDaysRef.current = null;
+          setMoveError(err?.message ?? "移動に失敗しました");
+        });
+    },
+    [calendarId, localDays, moveEntry, router, showToast]
+  );
 
   /** この日付が属する周期（現在 > 履歴 > 予測）と周期種別・予測フラグ */
   const getCycleForDate = useCallback(
@@ -330,11 +412,11 @@ export function CalendarWithModal({
 
   const monthWeeks = useMemo(() => {
     const chunks: DayData[][] = [];
-    for (let i = 0; i < days.length; i += 7) {
-      chunks.push(days.slice(i, i + 7));
+    for (let i = 0; i < localDays.length; i += 7) {
+      chunks.push(localDays.slice(i, i + 7));
     }
     return chunks;
-  }, [days]);
+  }, [localDays]);
 
   const renderMonthGrid = () => (
     <section className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
@@ -416,7 +498,7 @@ export function CalendarWithModal({
                       if (!canDrop || !permissions.isOwner) return;
                       const fromDate = e.dataTransfer.getData("text/plain");
                       if (!fromDate || fromDate === day.date) return;
-                      startTransition(() => void moveEntry(calendarId, fromDate, day.date));
+                      handleMoveEntry(fromDate, day.date);
                     }}
                     style={{ gridColumn: dayIdx + 1 }}
                     className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-0 flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
@@ -433,108 +515,140 @@ export function CalendarWithModal({
                           title={formatCycleBandLabel(cycle.rank, cycle.start, cycle.end) + (cycle.isPredicted ? "（予測）" : "")}
                         >
                           {cycle.isPredicted ? (
-                            <div className={`min-w-0 flex-1 h-0 ${getRankBarDashedLineClass(cycle.rank)}`} />
+                            <div className={`min-w-0 flex-1 h-0 border-t-2 md:border-t-4 ${getRankBarDashedLineColorClass(cycle.rank)}`} />
                           ) : (
-                            <div className={`h-1 min-w-0 flex-1 ${getRankBarLineClass(cycle.rank)}`} />
+                            <div className={`h-0.5 md:h-1 min-w-0 flex-1 ${getRankBarLineClass(cycle.rank)}`} />
                           )}
-                          <span className={`shrink-0 text-[8px] font-medium ${getRankBarTextClass(cycle.rank)}`}>
+                          <span className={`shrink-0 text-[7px] md:text-[8px] font-medium ${getRankBarTextClass(cycle.rank)}`}>
                             {cycle.rank ?? "—"}
                           </span>
                         </div>
                       );
                     })()}
                     <div className="flex flex-1 flex-col p-1">
-                      <div className="flex items-center justify-between gap-0.5">
-                        <span className={`flex items-center gap-0.5 text-[11px] font-medium ${textColor}`}>
-                          {dateObj.date()}
-                          {showEventIcon && <span className="text-[10px]" title="イベント">🎉</span>}
-                          {showMemoIcon && <span className="text-[10px]" title="メモ">📝</span>}
-                        </span>
-                        {day.isToday && (
-                          <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[9px] font-medium text-white shrink-0">
-                            今日
+                      {/* モバイル月ビュー: 日付＋インジケーター（ドット）のみ */}
+                      <div className="flex flex-1 flex-col md:hidden">
+                        <div className="flex items-center justify-between gap-0.5">
+                          <span className={`flex items-center gap-0.5 text-[11px] font-medium ${textColor}`}>
+                            {dateObj.date()}
+                            {showEventIcon && <span className="text-[10px]" title="イベント">🎉</span>}
+                            {showMemoIcon && <span className="text-[10px]" title="メモ">📝</span>}
+                          </span>
+                          {day.isToday && (
+                            <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[9px] font-medium text-white shrink-0">
+                              今日
+                            </span>
+                          )}
+                        </div>
+                        {day.holidayName && !isSkip && (
+                          <span className="mt-0.5 line-clamp-1 text-[9px] text-red-500">
+                            {day.holidayName}
                           </span>
                         )}
+                        <div className="mt-0.5 flex flex-wrap items-center gap-0.5" aria-hidden>
+                          {isSkip && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" title="スキパ" />}
+                          {!isSkip && eventsOnDay.map((ev) => (
+                            <span key={ev.id} className={`h-1.5 w-1.5 shrink-0 rounded-full ${getEventColorDotClass(ev.color ?? null)}`} title={ev.name} />
+                          ))}
+                          {!isSkip && hasEntry && (
+                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${getEventColorDotClass(entry?.stream_content_color ?? "blue")}`} title={entry?.stream_content ?? "予定"} />
+                          )}
+                        </div>
                       </div>
-                      {day.holidayName && !isSkip && (
-                        <span className="mt-0.5 line-clamp-1 text-[9px] text-red-500">
-                          {day.holidayName}
-                        </span>
-                      )}
-                      {eventsOnDay.length > 0 && (
-                        <div className="mt-0.5 flex flex-col gap-px -mx-1.5 shrink-0">
-                          {eventsOnDay.map((ev) => {
-                            const isStart = ev.start_date != null && ev.start_date === day.date;
-                            const isEnd = ev.end_date != null && ev.end_date === day.date;
-                            const { border, bg, text } = getEventColorClasses(ev.color ?? null);
-                            return (
-                              <div
-                                key={ev.id}
-                                className={`${bg} py-px text-[10px] font-medium line-clamp-1 ${text} ${isStart ? "rounded-l border-l-4 pl-1 " + border : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
-                                title={ev.name}
-                              >
-                                {isStart ? ev.name : "\u00A0"}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {!isSkip && entry?.stream_content?.trim() && (() => {
-                        const streamStyle = getEventColorClasses(entry.stream_content_color ?? null);
-                        return (
-                          <div
-                            className={`mt-0.5 shrink-0 line-clamp-1 py-px pl-1 text-[9px] font-medium rounded-r ${streamStyle.leftBar} ${streamStyle.bg} ${streamStyle.text}`}
-                            title={entry.stream_content}
-                          >
-                            {entry.stream_content.trim()}
-                          </div>
-                        );
-                      })()}
-                      {!hasEntry && !isSkip && permissions.canEditSchedule && (
-                        <p className="mt-1 flex-1 text-[9px] text-zinc-400 dark:text-zinc-500 line-clamp-2">
-                          ここに予定を追加
-                        </p>
-                      )}
-                      {isSkip ? (
-                        <div className="mt-1 flex flex-1 items-center justify-center min-h-0">
-                          <span className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
-                            スキパ
+                      {/* PC月ビュー: 従来のフル表示 */}
+                      <div className="hidden md:flex flex-1 flex-col">
+                        <div className="flex items-center justify-between gap-0.5">
+                          <span className={`flex items-center gap-0.5 text-[11px] font-medium ${textColor}`}>
+                            {dateObj.date()}
+                            {showEventIcon && <span className="text-[10px]" title="イベント">🎉</span>}
+                            {showMemoIcon && <span className="text-[10px]" title="メモ">📝</span>}
                           </span>
+                          {day.isToday && (
+                            <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[9px] font-medium text-white shrink-0">
+                              今日
+                            </span>
+                          )}
                         </div>
-                      ) : (
-                        hasEntry && (
-                          <div className="mt-1 flex flex-wrap items-center gap-0.5">
-                            {day.entries.map((e) => {
-                              const disp = getTargetActualDisplay(
-                                e.target_plus,
-                                e.actual_plus,
-                                day.date > todayStr
+                        {day.holidayName && !isSkip && (
+                          <span className="mt-0.5 line-clamp-1 text-[9px] text-red-500">
+                            {day.holidayName}
+                          </span>
+                        )}
+                        {eventsOnDay.length > 0 && (
+                          <div className="mt-0.5 flex flex-col gap-px -mx-1.5 shrink-0">
+                            {eventsOnDay.map((ev) => {
+                              const isStart = ev.start_date != null && ev.start_date === day.date;
+                              const isEnd = ev.end_date != null && ev.end_date === day.date;
+                              const { border, bg, text } = getEventColorClasses(ev.color ?? null);
+                              return (
+                                <div
+                                  key={ev.id}
+                                  className={`${bg} py-px text-[10px] font-medium line-clamp-1 ${text} ${isStart ? "rounded-l border-l-4 pl-1 " + border : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
+                                  title={ev.name}
+                                >
+                                  {isStart ? ev.name : "\u00A0"}
+                                </div>
                               );
-                              return permissions.canViewTargetActual ? (
-                                <span key={e.id} className="inline-flex items-center gap-0.5">
-                                  <span className={disp.targetClass} title="目標">
-                                    {disp.targetLabel}
-                                  </span>
-                                  <span className="text-[8px] text-zinc-400 dark:text-zinc-500">/</span>
-                                  <span className={disp.actualClass} title="実績">
-                                    {disp.actualLabel}
-                                  </span>
-                                </span>
-                              ) : null;
                             })}
                           </div>
-                        )
-                      )}
-                      {showBordersInCell && hasEntry && entry && (
-                        <p className="mt-0.5 line-clamp-1 text-[8px] text-zinc-400 dark:text-zinc-500">
-                          +2:{entry.border_plus2 ?? "-"} +4:{entry.border_plus4 ?? "-"} +6:{entry.border_plus6 ?? "-"}
-                        </p>
-                      )}
-                      {isCycleEnd && permissions.canViewRank && !cycle.isPredicted && cycle.periodType === "past" && cycle.cycleTotal != null && (
-                        <p className="mt-0.5 text-[7px] text-zinc-400 dark:text-zinc-500" title="周期の最終合計">
-                          🏁 +{cycle.cycleTotal}
-                        </p>
-                      )}
+                        )}
+                        {!isSkip && entry?.stream_content?.trim() && (() => {
+                          const streamStyle = getEventColorClasses(entry.stream_content_color ?? null);
+                          return (
+                            <div
+                              className={`mt-0.5 shrink-0 line-clamp-1 py-px pl-1 text-[9px] font-medium rounded-r ${streamStyle.leftBar} ${streamStyle.bg} ${streamStyle.text}`}
+                              title={entry.stream_content}
+                            >
+                              {entry.stream_content.trim()}
+                            </div>
+                          );
+                        })()}
+                        {!hasEntry && !isSkip && permissions.canEditSchedule && (
+                          <p className="mt-1 flex-1 text-[9px] text-zinc-400 dark:text-zinc-500 line-clamp-2">
+                            ここに予定を追加
+                          </p>
+                        )}
+                        {isSkip ? (
+                          <div className="mt-1 flex flex-1 items-center justify-center min-h-0">
+                            <span className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
+                              スキパ
+                            </span>
+                          </div>
+                        ) : (
+                          hasEntry && (
+                            <div className="mt-1 flex flex-wrap items-center gap-0.5">
+                              {day.entries.map((e) => {
+                                const disp = getTargetActualDisplay(
+                                  e.target_plus,
+                                  e.actual_plus,
+                                  day.date > todayStr
+                                );
+                                return permissions.canViewTargetActual ? (
+                                  <span key={e.id} className="inline-flex items-center gap-0.5">
+                                    <span className={disp.targetClass} title="目標">
+                                      {disp.targetLabel}
+                                    </span>
+                                    <span className="text-[8px] text-zinc-400 dark:text-zinc-500">/</span>
+                                    <span className={disp.actualClass} title="実績">
+                                      {disp.actualLabel}
+                                    </span>
+                                  </span>
+                                ) : null;
+                              })}
+                            </div>
+                          )
+                        )}
+                        {showBordersInCell && hasEntry && entry && (
+                          <p className="mt-0.5 line-clamp-1 text-[8px] text-zinc-400 dark:text-zinc-500">
+                            +2:{entry.border_plus2 ?? "-"} +4:{entry.border_plus4 ?? "-"} +6:{entry.border_plus6 ?? "-"}
+                          </p>
+                        )}
+                        {isCycleEnd && permissions.canViewRank && !cycle.isPredicted && cycle.periodType === "past" && cycle.cycleTotal != null && (
+                          <p className="mt-0.5 text-[7px] text-zinc-400 dark:text-zinc-500" title="周期の最終合計">
+                            🏁 +{cycle.cycleTotal}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </button>
                 );
@@ -620,9 +734,7 @@ export function CalendarWithModal({
                 if (!canDrop || !permissions.isOwner) return;
                 const fromDate = e.dataTransfer.getData("text/plain");
                 if (!fromDate || fromDate === day.date) return;
-                startTransition(() => {
-                  void moveEntry(calendarId, fromDate, day.date);
-                });
+                handleMoveEntry(fromDate, day.date);
               }}
               className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-[120px] flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
             >
@@ -638,11 +750,11 @@ export function CalendarWithModal({
                     title={formatCycleBandLabel(cycle.rank, cycle.start, cycle.end) + (cycle.isPredicted ? "（予測）" : "")}
                   >
                     {cycle.isPredicted ? (
-<div className={`min-w-0 flex-1 h-0 ${getRankBarDashedLineClass(cycle.rank)}`} />
-                      ) : (
-                        <div className={`h-1 min-w-0 flex-1 ${getRankBarLineClass(cycle.rank)}`} />
-                      )}
-                    <span className={`shrink-0 text-[9px] font-medium ${getRankBarTextClass(cycle.rank)}`}>
+                      <div className={`min-w-0 flex-1 h-0 border-t-2 md:border-t-4 ${getRankBarDashedLineColorClass(cycle.rank)}`} />
+                    ) : (
+                      <div className={`h-0.5 md:h-1 min-w-0 flex-1 ${getRankBarLineClass(cycle.rank)}`} />
+                    )}
+                    <span className={`shrink-0 text-[7px] md:text-[9px] font-medium ${getRankBarTextClass(cycle.rank)}`}>
                       {cycle.rank ?? "—"}
                     </span>
                   </div>
@@ -789,17 +901,18 @@ export function CalendarWithModal({
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
+      {/* 縦幅を節約: md 以上（横長含む）はタイトル＋操作を1行に */}
+      <header className="flex flex-wrap items-baseline justify-between gap-2 md:flex-row md:items-center md:gap-3">
+        <div className="min-w-0 md:shrink-0">
           <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             カレンダー
           </h1>
-          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 md:mt-0 md:hidden">
             {calendarName} の {monthLabel}
             のスケジュールを表示しています。
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 md:flex-shrink-0">
           {/* 月 / 週 切り替え（PC・モバイル共通で表示） */}
           <div className="flex items-center gap-1 rounded-full bg-zinc-100 p-1 text-[11px] text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300">
             <button
@@ -893,15 +1006,18 @@ export function CalendarWithModal({
 
       {view === "week" ? renderWeekGrid() : renderMonthGrid()}
 
-      {isPending && (
-        <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-          日付を移動中です…
-        </p>
+      {moveError && (
+        <div
+          className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+          role="alert"
+        >
+          {moveError}
+        </div>
       )}
 
       {permissions.canEditSchedule && selectedDate && selectedDay && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-8">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+        <div className={`fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/40 px-0 md:px-4 py-0 md:py-8 transition-opacity duration-200 ${sheetEntered ? "opacity-100" : "opacity-0"} md:opacity-100`}>
+          <div className={`w-full max-h-[85vh] md:max-h-none max-w-md rounded-t-2xl md:rounded-2xl border border-zinc-200 border-b-0 md:border-b bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900 overflow-y-auto transition-transform duration-200 ease-out ${sheetEntered ? "translate-y-0" : "translate-y-full md:translate-y-0"}`}>
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
@@ -931,7 +1047,7 @@ export function CalendarWithModal({
               defaultBorderPlus2={selectedDay?.entries[0]?.border_plus2}
               defaultBorderPlus4={selectedDay?.entries[0]?.border_plus4}
               defaultBorderPlus6={selectedDay?.entries[0]?.border_plus6}
-              defaultEventId={selectedDay?.entries[0]?.event_id}
+              defaultEventId={effectiveDefaultEventId}
               defaultMemo={selectedDay?.entries[0]?.memo}
               defaultSkipPassUsed={selectedDay?.entries[0]?.skip_pass_used}
               skipPassRemaining={skipPassRemaining}

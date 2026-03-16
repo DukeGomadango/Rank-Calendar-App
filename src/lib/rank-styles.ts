@@ -84,6 +84,13 @@ export function getRankBarDashedLineClass(rank: string | null): string {
   return `border-t-4 border-dashed ${RANK_TIER_BORDER_DASHED[tier]}`;
 }
 
+/** 点線の色のみ（太さは呼び出し元で border-t-2 md:border-t-4 など指定）。モバイルで華奢にする用 */
+export function getRankBarDashedLineColorClass(rank: string | null): string {
+  const tier = getRankTier(rank);
+  if (tier == null) return "border-dashed border-zinc-300 dark:border-zinc-600";
+  return `border-dashed ${RANK_TIER_BORDER_DASHED[tier]}`;
+}
+
 /** カギカッコ風：ランクバー左右の縦線（┌─┐ の垂らし）。通常 */
 const RANK_TIER_VERT: Record<RankTier, string> = {
   D: "border-blue-400 dark:border-blue-600",

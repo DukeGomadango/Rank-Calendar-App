@@ -24,3 +24,10 @@ export function getEventColorClasses(color: string | null): { border: string; bg
   const text = found ? found.text : FALLBACK.text;
   return { border: b, bg, text, leftBar: `border-l-4 ${b}` };
 }
+
+/** モバイル月ビューのドット用。パレットのスウォッチ（ solid ）を返す。 */
+export function getEventColorDotClass(color: string | null): string {
+  if (!color) return FALLBACK.swatch;
+  const found = EVENT_PALETTE.find((c) => c.id === color);
+  return found ? found.swatch : FALLBACK.swatch;
+}
