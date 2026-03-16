@@ -10,6 +10,7 @@ import {
   updateCurrentRank,
   updateTargetRank,
   updateSkipPassRemaining,
+  updateRankResetDate,
 } from "@/lib/data/calendar-rank-state";
 import { upsertDisplayName, setSetupWizardDone, updateOnboardingStep } from "@/lib/data/profiles";
 import { createEventForCalendar } from "@/lib/data/events";
@@ -90,6 +91,29 @@ export async function saveOnboardingStep4(formData: FormData): Promise<{ ok: boo
     const calendar = await getOrCreateDefaultCalendarForUser(user.id);
     await updateTargetRank(calendar.id, rank);
     await updateOnboardingStep(user.id, 5);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "保存に失敗しました" };
+  }
+  revalidatePath("/dashboard/onboarding");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function saveOnboardingStep5(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "未ログインです" };
+
+  const raw = (formData.get("rank_reset_date") as string | null)?.trim() ?? "";
+  const isValid = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  if (!isValid) {
+    return { ok: false, error: "日付の形式が正しくありません" };
+  }
+
+  try {
+    const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+    await updateRankResetDate(calendar.id, raw);
+    await updateOnboardingStep(user.id, 6);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "保存に失敗しました" };
   }

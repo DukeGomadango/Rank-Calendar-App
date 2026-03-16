@@ -83,7 +83,7 @@ export async function updateOnboardingStep(
   userId: string,
   step: number
 ): Promise<void> {
-  if (step < 1 || step > 5) return;
+  if (step < 1 || step > 6) return;
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("profiles")

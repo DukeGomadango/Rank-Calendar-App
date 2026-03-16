@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RANK_ORDER } from "@/lib/domain/rank";
 import { EVENT_PALETTE } from "@/lib/event-colors";
@@ -9,6 +9,7 @@ import {
   saveOnboardingStep2,
   saveOnboardingStep3,
   saveOnboardingStep4,
+  saveOnboardingStep5,
   saveOnboardingStep5AndFinish,
   finishOnboardingWithoutEvent,
 } from "@/app/(dashboard)/dashboard/onboarding/actions";
@@ -18,7 +19,8 @@ const STEPS = [
   { id: 2, title: "現在のランク" },
   { id: 3, title: "スキップパス枚数" },
   { id: 4, title: "目標ランク" },
-  { id: 5, title: "直近のイベント（任意）" },
+  { id: 5, title: "次のランクリセット日" },
+  { id: 6, title: "直近のイベント（任意）" },
 ] as const;
 
 type Props = {
@@ -29,6 +31,7 @@ type Props = {
   initialCurrentRank: string;
   initialSkipPassCount: number;
   initialTargetRank: string;
+  initialRankResetDate: string;
 };
 
 export function SetupWizard({
@@ -37,11 +40,22 @@ export function SetupWizard({
   initialCurrentRank,
   initialSkipPassCount,
   initialTargetRank,
+  initialRankResetDate,
 }: Props) {
   const router = useRouter();
-  const [step, setStep] = useState(Math.min(5, Math.max(1, initialStep)));
+  const [step, setStep] = useState(Math.min(6, Math.max(1, initialStep)));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetDateInput, setResetDateInput] = useState(initialRankResetDate);
+
+  const resetDaysRemaining = useMemo(() => {
+    if (!resetDateInput) return null;
+    const today = new Date();
+    const reset = new Date(resetDateInput);
+    const diffMs = reset.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, [resetDateInput]);
 
   const run = async (fn: () => Promise<{ ok: boolean; error?: string }>, next?: number) => {
     setError(null);
@@ -202,6 +216,44 @@ export function SetupWizard({
       )}
 
       {step === 5 && (
+        <form
+          action={async (fd) => {
+            await run(async () => saveOnboardingStep5(fd), 6);
+          }}
+          className="space-y-4"
+        >
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            IRIAM の次のランクリセット日を教えてください。
+          </p>
+          <input
+            type="date"
+            name="rank_reset_date"
+            defaultValue={initialRankResetDate}
+            onChange={(e) => setResetDateInput(e.target.value)}
+            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+          />
+          {resetDaysRemaining != null && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              今日からあと{" "}
+              <span className="font-medium">
+                {resetDaysRemaining === 0
+                  ? "0日（本日リセット）"
+                  : `${resetDaysRemaining}日`}
+              </span>
+              でリセットされます。
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded-xl bg-accent-500 py-2.5 text-sm font-medium text-white hover:bg-accent-600 disabled:opacity-50"
+          >
+            {pending ? "保存中…" : "次へ"}
+          </button>
+        </form>
+      )}
+
+      {step === 6 && (
         <div className="space-y-4">
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             参加中または直近で参加するイベントがあれば登録できます。スキップしても大丈夫です。
