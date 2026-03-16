@@ -15,7 +15,11 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "landing", testMatch: /landing\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "landing",
+      testMatch: /(landing|auth)\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
     {
       name: "authenticated",
       testMatch: /(dashboard|schedule)\.spec\.ts/,

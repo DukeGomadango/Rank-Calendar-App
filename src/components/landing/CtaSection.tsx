@@ -13,13 +13,13 @@ export function CtaSection() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/signup"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-amber-400 px-8 text-base font-semibold text-slate-900 shadow-lg shadow-amber-500/35 transition hover:bg-amber-300 dark:bg-amber-400 dark:text-slate-900 dark:hover:bg-amber-300"
+            className="inline-flex h-12 items-center justify-center rounded-lg bg-amber-400 px-8 text-base font-semibold text-slate-900 shadow-sm transition hover:bg-amber-300 dark:bg-amber-400 dark:text-slate-900 dark:hover:bg-amber-300"
           >
             無料ではじめる
           </Link>
           <Link
             href="/login"
-            className="inline-flex h-12 items-center justify-center rounded-full border-2 border-white/60 px-8 text-base font-medium text-white transition hover:bg-white/15 dark:border-white/50 dark:hover:bg-white/10"
+            className="inline-flex h-12 items-center justify-center rounded-lg border border-white/60 px-8 text-base font-medium text-white transition hover:bg-white/15 dark:border-white/50 dark:hover:bg-white/10"
           >
             ログイン
           </Link>

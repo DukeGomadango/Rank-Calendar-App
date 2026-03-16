@@ -14,6 +14,7 @@ import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { CurrentRankBadge } from "@/components/dashboard/CurrentRankBadge";
 import { WeeklyPlusSummary } from "@/components/dashboard/WeeklyPlusSummary";
 import { HomeScheduleCard } from "@/components/schedule/HomeScheduleCard";
+import { CalendarIcon, SparklesIcon } from "@/components/icons/DashboardIcons";
 import {
   saveScheduleEntry,
   noopSaveEntry,
@@ -139,8 +140,14 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
                 id="empty-schedule-cta"
                 className="rounded-2xl bg-gradient-to-br from-accent-50/90 to-white p-4 text-xs shadow-md dark:from-accent-950/30 dark:to-slate-800"
               >
-                <p className="font-medium text-accent-800 dark:text-accent-200">
-                  📅 今週の配信予定を立ててみよう！✨
+                <p className="flex items-center gap-1.5 font-medium text-accent-800 dark:text-accent-200">
+                  <span className="inline-flex h-4 w-4 items-center justify-center">
+                    <CalendarIcon className="h-4 w-4" />
+                  </span>
+                  <span>今週の配信予定を立ててみよう！</span>
+                  <span className="inline-flex h-4 w-4 items-center justify-center text-accent-500">
+                    <SparklesIcon className="h-4 w-4" />
+                  </span>
                 </p>
                 <p className="mt-1 text-[11px] text-accent-700 dark:text-accent-300">
                   右のフォームから今日の目標+を登録すると、今の集計周期の+サマリに反映されます。
@@ -149,8 +156,11 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
             )}
             {hasWeeklySchedule && !todayEntry && (
               <section className="rounded-2xl bg-amber-50/90 p-3 text-[11px] shadow-sm dark:bg-amber-500/15 dark:border dark:border-amber-500/30">
-                <p className="text-amber-800 dark:text-amber-200">
-                  📅 今日の記録、まだだね。右のフォームからサクッと登録しよう！
+                <p className="flex items-center gap-1.5 text-amber-800 dark:text-amber-200">
+                  <span className="inline-flex h-4 w-4 items-center justify-center">
+                    <CalendarIcon className="h-4 w-4" />
+                  </span>
+                  <span>今日の記録、まだだね。右のフォームからサクッと登録しよう！</span>
                 </p>
               </section>
             )}
@@ -298,8 +308,14 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
               id="empty-schedule-cta"
               className="rounded-2xl bg-gradient-to-br from-accent-50/90 to-white p-4 text-xs shadow-md dark:from-accent-950/30 dark:to-slate-800"
             >
-              <p className="font-medium text-accent-800 dark:text-accent-200">
-                📅 今週の配信予定を立ててみよう！✨
+              <p className="flex items-center gap-1.5 font-medium text-accent-800 dark:text-accent-200">
+                <span className="inline-flex h-4 w-4 items-center justify-center">
+                  <CalendarIcon className="h-4 w-4" />
+                </span>
+                <span>今週の配信予定を立ててみよう！</span>
+                <span className="inline-flex h-4 w-4 items-center justify-center text-accent-500">
+                  <SparklesIcon className="h-4 w-4" />
+                </span>
               </p>
               <p className="mt-1 text-[11px] text-accent-700 dark:text-accent-300">
                 右のフォームから今日の目標+を登録すると、今週の+サマリに反映されます。
@@ -309,8 +325,11 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
 
           {hasWeeklySchedule && !todayEntry && (
             <section className="rounded-2xl bg-amber-50/90 p-3 text-[11px] shadow-sm dark:bg-amber-500/15 dark:border dark:border-amber-500/30">
-              <p className="text-amber-800 dark:text-amber-200">
-                📅 今日の記録、まだだね。右のフォームからサクッと登録しよう！
+              <p className="flex items-center gap-1.5 text-amber-800 dark:text-amber-200">
+                <span className="inline-flex h-4 w-4 items-center justify-center">
+                  <CalendarIcon className="h-4 w-4" />
+                </span>
+                <span>今日の記録、まだだね。右のフォームからサクッと登録しよう！</span>
               </p>
             </section>
           )}

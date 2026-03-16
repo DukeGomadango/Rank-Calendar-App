@@ -102,6 +102,58 @@ describe("rank domain", () => {
     });
   });
 
+  describe("edge cases", () => {
+    it("calculateWeeklyRankProgress handles long multi-week ranges and gaps", () => {
+      const weekly = calculateWeeklyRankProgress([
+        // week 1
+        { date: "2024-01-01", actual_plus: 6, skip_pass_used: false },
+        { date: "2024-01-07", actual_plus: 6, skip_pass_used: false },
+        // big gap, then week 4
+        { date: "2024-01-22", actual_plus: 2, skip_pass_used: false },
+        { date: "2024-01-28", actual_plus: 4, skip_pass_used: false },
+      ]);
+
+      expect(weekly).toHaveLength(2);
+      expect(weekly[0]).toMatchObject({ weekStart: "2024-01-01", totalPlus: 12 });
+      expect(weekly[1]).toMatchObject({ weekStart: "2024-01-22", totalPlus: 6 });
+    });
+
+    it("judgeWeeklyRank does not rank up when totalPlus is just below threshold", () => {
+      const judgements = judgeWeeklyRank([
+        { date: "2024-01-01", actual_plus: 6, skip_pass_used: false },
+        { date: "2024-01-02", actual_plus: 6, skip_pass_used: false },
+      ]); // total 12
+
+      expect(judgements).toHaveLength(1);
+      expect(judgements[0].totalPlus).toBe(12);
+      expect(judgements[0].canRankUpNextDay).toBe(false);
+    });
+
+    it("calculateCycleCumulativeByDate skips days with skip_pass_used and out-of-range dates", () => {
+      const byDate = calculateCycleCumulativeByDate(
+        [
+          { date: "2024-02-01", actual_plus: 2, skip_pass_used: false },
+          { date: "2024-02-02", actual_plus: 6, skip_pass_used: true }, // ignored
+          { date: "2024-02-03", actual_plus: 4, skip_pass_used: false },
+          { date: "2024-01-31", actual_plus: 6, skip_pass_used: false }, // before cycle
+        ],
+        "2024-02-01",
+        "2024-02-07",
+      );
+
+      expect(byDate["2024-02-01"]).toBe(2);
+      expect(byDate["2024-02-02"]).toBe(2);
+      expect(byDate["2024-02-03"]).toBe(6);
+      expect(byDate["2024-01-31"]).toBeUndefined();
+    });
+
+    it("getNextRank/getPreviousRank behave at boundaries", () => {
+      expect(getNextRank("S3")).toBe(null);
+      expect(getPreviousRank("D")).toBe(null);
+      expect(getPreviousRank(null)).toBe(null);
+    });
+  });
+
   describe("getNextRank", () => {
     it("returns next rank in order", () => {
       expect(getNextRank(null)).toBe("D");

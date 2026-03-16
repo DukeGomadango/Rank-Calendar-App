@@ -12,16 +12,16 @@ export function LandingHeader() {
         >
           IRIAM だんごスケジュール
         </Link>
-        <nav className="flex items-center gap-3">
+        <nav className="hidden items-center gap-3 sm:flex">
           <Link
             href="/login"
-            className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             ログイン
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-amber-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-amber-300 dark:bg-amber-400 dark:hover:bg-amber-300"
+            className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-amber-300 dark:bg-amber-400 dark:hover:bg-amber-300"
           >
             新規登録
           </Link>

@@ -13,7 +13,7 @@ import {
 } from "./calendars";
 
 const maybeSingleMock = vi.fn();
-const singleMock = vi.fn();
+const rpcMock = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(() => {
@@ -27,14 +27,11 @@ vi.mock("@/lib/supabase/server", () => ({
           maybeSingle: maybeSingleMock,
         })),
       })),
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({ single: singleMock })),
-      })),
       update: vi.fn(() => ({
         eq: vi.fn(() => Promise.resolve({ error: null })),
       })),
     }));
-    const schema = vi.fn(() => ({ from }));
+    const schema = vi.fn(() => ({ from, rpc: rpcMock }));
     return Promise.resolve({ schema });
   }),
 }));
@@ -49,38 +46,36 @@ describe("calendars", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     maybeSingleMock.mockResolvedValue({ data: null, error: null });
-    singleMock.mockResolvedValue({ data: null, error: null });
+    rpcMock.mockResolvedValue({ data: null, error: null });
   });
 
   describe("getOrCreateDefaultCalendarForUser", () => {
-    it("既存カレンダーがあればそれを返す", async () => {
+    it("RPC が行を返せばそのカレンダーを返す", async () => {
       const existing = { id: "cal-1", name: "マイカレンダー" };
-      maybeSingleMock.mockResolvedValueOnce({ data: existing, error: null });
+      rpcMock.mockResolvedValueOnce({ data: [existing], error: null });
 
       const result = await getOrCreateDefaultCalendarForUser("user-1");
 
-      expect(result).toEqual(existing);
+      expect(result).toEqual({ id: "cal-1", name: "マイカレンダー" });
     });
 
-    it("既存が無ければ作成して返す", async () => {
-      maybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
-      const inserted = { id: "cal-new", name: "メインカレンダー" };
-      singleMock.mockResolvedValueOnce({ data: inserted, error: null });
+    it("RPC が空配列を返した場合はエラーになる", async () => {
+      rpcMock.mockResolvedValueOnce({ data: [], error: null });
 
-      const result = await getOrCreateDefaultCalendarForUser("user-1");
-
-      expect(result).toEqual(inserted);
+      await expect(
+        getOrCreateDefaultCalendarForUser("user-1")
+      ).rejects.toThrow(/create_my_default_calendar returned no row/);
     });
 
-    it("select がエラー時は throwDataLayerError する", async () => {
-      maybeSingleMock.mockResolvedValueOnce({
+    it("RPC がエラー時は throwDataLayerError する", async () => {
+      rpcMock.mockResolvedValueOnce({
         data: null,
         error: { message: "db error", code: "ERR" },
       });
 
-      await expect(getOrCreateDefaultCalendarForUser("user-1")).rejects.toThrow(
-        /calendars select failed/
-      );
+      await expect(
+        getOrCreateDefaultCalendarForUser("user-1")
+      ).rejects.toThrow(/create_my_default_calendar failed/);
     });
   });
 

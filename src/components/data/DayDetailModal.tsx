@@ -8,6 +8,7 @@ import type { EventRow } from "@/lib/data/events";
 import { getRankBadgeClass } from "@/lib/rank-styles";
 import { getEventColorClasses } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES } from "@/lib/plus-options";
+import { ConfettiIcon, FireIcon, TicketIcon } from "@/components/icons/DashboardIcons";
 
 export type DayDetailRow = {
   date: string;
@@ -328,14 +329,14 @@ export function DayDetailModal({
                     if (target == null && actual == null) {
                       mainText = "目標未設定";
                     } else if (target != null && achieved) {
-                      mainText = `🎉 目標（+${target}）クリア！`;
-                      mainClass = "text-sm font-semibold text-emerald-800 dark:text-emerald-200";
+                      mainText = `目標（+${target}）クリア！`;
+                      mainClass = "flex items-center gap-1 text-sm font-semibold text-emerald-800 dark:text-emerald-200";
                     } else if (target != null && gap != null && gap > 0) {
-                      mainText = `🔥 目標まで あと +${gap}！`;
-                      mainClass = "text-sm font-semibold text-accent-700 dark:text-accent-300";
+                      mainText = `目標まで あと +${gap}！`;
+                      mainClass = "flex items-center gap-1 text-sm font-semibold text-accent-700 dark:text-accent-300";
                     } else if (target != null) {
-                      mainText = `🔥 目標 +${target} に挑戦中`;
-                      mainClass = "text-sm font-semibold text-accent-700 dark:text-accent-300";
+                      mainText = `目標 +${target} に挑戦中`;
+                      mainClass = "flex items-center gap-1 text-sm font-semibold text-accent-700 dark:text-accent-300";
                     } else {
                       mainText = "今日の進捗";
                     }
@@ -356,7 +357,19 @@ export function DayDetailModal({
                     return (
                       <>
                         <div className={containerClass}>
-                          <p className={mainClass}>{mainText}</p>
+                          <p className={mainClass}>
+                            {achieved && (
+                              <span className="inline-flex h-4 w-4 items-center justify-center text-emerald-500">
+                                <ConfettiIcon className="h-4 w-4" />
+                              </span>
+                            )}
+                            {!achieved && target != null && (
+                              <span className="inline-flex h-4 w-4 items-center justify-center text-accent-500">
+                                <FireIcon className="h-4 w-4" />
+                              </span>
+                            )}
+                            <span>{mainText}</span>
+                          </p>
                           <p className="mt-0.5 text-[10px] text-emerald-900/70 dark:text-emerald-200/80">
                             実績 {actual != null ? `+${actual}` : "—"} / 目標{" "}
                             {target != null ? `+${target}` : "—"}
@@ -433,8 +446,11 @@ export function DayDetailModal({
               {/* 5. スキパ: 使用時だけ目立たせる。未使用時は控えめに */}
               {isSkip && (
                 <section className="rounded-lg border border-teal-200 bg-teal-50/80 py-2.5 px-3 text-left dark:border-teal-800 dark:bg-teal-950/40">
-                  <p className="text-[13px] font-medium text-teal-800 dark:text-teal-200">
-                    🎫 今日はスキパでお休みです
+                  <p className="flex items-center gap-1.5 text-[13px] font-medium text-teal-800 dark:text-teal-200">
+                    <span className="inline-flex h-4 w-4 items-center justify-center text-teal-500">
+                      <TicketIcon className="h-4 w-4" />
+                    </span>
+                    <span>今日はスキパでお休みです</span>
                   </p>
                 </section>
               )}

@@ -18,12 +18,11 @@ export default defineConfig({
         "**/*.d.ts",
         "**/types/**",
       ],
-      // 現状のカバーに合わせた初期値。テスト追加に応じて段階的に引き上げ可能。
       thresholds: {
-        lines: 7,
-        functions: 8,
-        branches: 5,
-        statements: 7,
+        lines: 11,
+        functions: 11,
+        branches: 9,
+        statements: 11,
       },
     },
   },

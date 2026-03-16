@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { SparklesIcon } from "@/components/icons/DashboardIcons";
 import { ScheduleForm } from "./ScheduleForm";
 
 type TodayEntry = {
@@ -40,8 +41,11 @@ export function HomeScheduleCard({
   if (variant === "inline") {
     return (
       <div className="rounded-2xl bg-white p-4 shadow-md dark:bg-slate-800">
-        <h2 className="mb-3 text-xs font-semibold text-zinc-900 dark:text-zinc-50">
-          ✨ 今日のスケジュールを登録
+        <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+          <span className="inline-flex h-4 w-4 items-center justify-center text-accent-500">
+            <SparklesIcon className="h-4 w-4" />
+          </span>
+          <span>今日のスケジュールを登録</span>
         </h2>
         <ScheduleForm
           calendarId={calendarId}
@@ -69,8 +73,11 @@ export function HomeScheduleCard({
         onClick={() => setOpen(true)}
         className="block w-full rounded-2xl bg-white p-4 text-left text-xs shadow-md transition hover:bg-accent-50/70 dark:bg-slate-800 dark:hover:bg-accent-950/30"
       >
-        <span className="font-medium text-zinc-900 dark:text-zinc-50">
-          ✨ 今日のスケジュールを登録
+        <span className="flex items-center gap-1.5 font-medium text-zinc-900 dark:text-zinc-50">
+          <span className="inline-flex h-4 w-4 items-center justify-center text-accent-500">
+            <SparklesIcon className="h-4 w-4" />
+          </span>
+          <span>今日のスケジュールを登録</span>
         </span>
       </button>
 
@@ -84,9 +91,12 @@ export function HomeScheduleCard({
             <div className="mb-3 flex items-center justify-between">
               <h2
                 id="home-schedule-modal-title"
-                className="text-xs font-semibold text-zinc-900 dark:text-zinc-50"
+                className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50"
               >
-                ✨ 今日のスケジュールを登録
+                <span className="inline-flex h-4 w-4 items-center justify-center text-accent-500">
+                  <SparklesIcon className="h-4 w-4" />
+                </span>
+                <span>今日のスケジュールを登録</span>
               </h2>
               <button
                 type="button"

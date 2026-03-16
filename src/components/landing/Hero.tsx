@@ -47,37 +47,28 @@ export function Hero() {
 
       <div className="relative z-10 mx-auto max-w-6xl">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 lg:items-center">
-          {/* 左: ヒーローテキスト（大見出しは白、本文は濃いネイビーで可読性確保） */}
-          <div className="rounded-2xl border border-white/25 bg-white/10 p-6 backdrop-blur-md dark:border-white/15 dark:bg-white/5 sm:p-8">
-            <p
-              className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-100"
-              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.08)" }}
-            >
+          {/* 左: ヒーローテキスト（白ベースカードでコントラストを確保） */}
+          <div className="rounded-2xl border border-white/80 bg-white px-6 py-8 shadow-2xl sm:px-8 sm:py-10 dark:border-slate-700 dark:bg-slate-900">
+            <p className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-100">
               IRIAM だんごスケジュール（非公式）
             </p>
-            <h1
-              className="mt-4 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl"
-              style={{ textShadow: "0 2px 4px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.15)" }}
-            >
-              IRIAMのランク管理を、<span className="text-white">ひとつに。</span>
+            <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl dark:text-white">
+              IRIAMのランク管理を、<span className="text-accent-500">ひとつに。</span>
             </h1>
-            <p
-              className="mt-6 max-w-xl text-lg leading-relaxed text-slate-900 dark:text-slate-100"
-              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.08)" }}
-            >
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-800 dark:text-slate-100">
               デイリーランクの目標+・実績+、ボーダー、スキップパスを日別に記録。
               カレンダーとデータ表でスケジュールを一元管理できる、IRIAMライバー向けのツールです。
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href="/signup"
-                className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-amber-400 px-8 text-base font-semibold text-slate-900 shadow-lg shadow-amber-500/30 transition hover:bg-amber-300 dark:bg-amber-400 dark:text-slate-900 dark:hover:bg-amber-300 sm:flex-initial"
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-lg bg-gradient-to-r from-orange-400 to-amber-400 px-8 text-base font-bold text-white shadow-md transition-all hover:shadow-lg hover:brightness-105 dark:from-orange-400 dark:to-amber-400 sm:flex-initial"
               >
                 無料ではじめる
               </Link>
               <Link
                 href="/login"
-                className="inline-flex h-12 flex-1 items-center justify-center rounded-full border-2 border-slate-800 px-8 text-base font-medium text-slate-900 transition hover:bg-white/20 dark:border-slate-300 dark:text-slate-100 dark:hover:bg-white/15 sm:flex-initial"
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-lg border border-zinc-300 px-8 text-base font-medium text-zinc-800 transition hover:bg-zinc-50 dark:border-zinc-500 dark:text-slate-100 dark:hover:bg-white/10 sm:flex-initial"
               >
                 ログイン
               </Link>
