@@ -22,6 +22,19 @@ type Props = {
   createAction: (formData: FormData) => Promise<void>;
 };
 
+function normalizeJaSpaces(input: string): string {
+  let result = input;
+  // 日本語同士の間のスペースを除去
+  result = result.replace(/([ぁ-んァ-ン一-龥])\s+([ぁ-んァ-ン一-龥])/g, "$1$2");
+  // 記号の直前のスペースを削除
+  result = result.replace(/\s+([!！?？\-・〜～、。:：])/g, "$1");
+  // 記号の直後の過剰なスペースを1つに
+  result = result.replace(/([!！?？\-・〜～、。:：])\s+/g, "$1 ");
+  // 半角/全角スペースが連続しているところは1つに
+  result = result.replace(/\s{2,}/g, " ");
+  return result.trim();
+}
+
 function parseCalendarText(rawText: string): ParsedEventCandidate[] {
   const lines = rawText
     .split(/\r?\n/)
@@ -50,6 +63,12 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
     "MUSIC",
     "STYLE COLLECTION",
     "illustration for you",
+    "ミニ ",
+    "カス タム 背景",
+    "イラ ギフ フェ スタ",
+    "描き 下ろ し",
+    "IRIAMx 自 遊 空間",
+    "IRIAMx コ ンプ ティ ー ク",
     "えき ポス",
     "プチ ギフ フェ スタ",
     "背景 フェ スタ",
@@ -81,6 +100,8 @@ function parseCalendarText(rawText: string): ParsedEventCandidate[] {
         break;
       }
     }
+
+    cleaned = normalizeJaSpaces(cleaned);
 
     // ひらがな・カタカナ・漢字・英数がある程度含まれている行のみ採用
     const contentChars = (cleaned.match(/[ぁ-んァ-ン一-龥A-Za-z0-9]/g) ?? []).length;
