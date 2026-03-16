@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { hasOwnedCalendar } from "@/lib/data/calendars";
 import { getProfile } from "@/lib/data/profiles";
 import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
 import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
@@ -12,11 +11,6 @@ export default async function OnboardingPage() {
 
   if (!user) {
     redirect("/login");
-  }
-
-  const isOwner = await hasOwnedCalendar(user.id);
-  if (!isOwner) {
-    redirect("/dashboard");
   }
 
   const profile = await getProfile(user.id);
