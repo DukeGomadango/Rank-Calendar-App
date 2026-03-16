@@ -84,7 +84,7 @@ export function DayDetailModal({
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const dayEvents = eventsOnDate(events, row.date);
-  const canEdit = permissions.canEditSchedule && calendarId && onUpdateField;
+  const canEdit = !!(permissions.canEditSchedule && calendarId && onUpdateField);
   const isSkip = !!row.skip_pass_used;
 
   useEffect(() => {
