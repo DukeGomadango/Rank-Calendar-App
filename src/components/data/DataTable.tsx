@@ -183,6 +183,298 @@ export function DataTable({
       ]
     : [];
 
+  const targetActualColumns: ColumnDef<Row>[] = permissions.canViewTargetActual
+    ? [
+        {
+          accessorKey: "target_plus",
+          header: "目標+",
+          cell: ({ row, getValue }) => {
+            const v = getValue<number | null | undefined>();
+            const displayVal = normalizePlusValue(v);
+            const skip = !!row.original.skip_pass_used;
+            const date = row.original.date;
+            const cellKey = updatingKeyFor(date, "target_plus");
+            if (canEdit && !skip) {
+              return (
+                <select
+                  value={displayVal}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    handleOptimisticUpdate(date, "target_plus", next, v);
+                  }}
+                  className={selectClass}
+                  disabled={updatingKey === cellKey}
+                >
+                  {PLUS_SELECT_VALUES.map((n) => (
+                    <option key={n} value={n}>
+                      +{n}
+                    </option>
+                  ))}
+                </select>
+              );
+            }
+            if (canEdit && skip) {
+              return (
+                <select
+                  defaultValue={displayVal}
+                  className={selectClassDisabled}
+                  disabled
+                >
+                  {PLUS_SELECT_VALUES.map((n) => (
+                    <option key={n} value={n}>
+                      +{n}
+                    </option>
+                  ))}
+                </select>
+              );
+            }
+            return `+${displayVal}`;
+          },
+        },
+        {
+          accessorKey: "actual_plus",
+          header: "実績+",
+          cell: ({ row, getValue }) => {
+            const v = getValue<number | null | undefined>();
+            const displayVal = normalizePlusValue(v);
+            const skip = !!row.original.skip_pass_used;
+            const date = row.original.date;
+            const cellKey = updatingKeyFor(date, "actual_plus");
+            if (canEdit && !skip) {
+              return (
+                <select
+                  value={displayVal}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    handleOptimisticUpdate(date, "actual_plus", next, v);
+                  }}
+                  className={selectClass}
+                  disabled={updatingKey === cellKey}
+                >
+                  {PLUS_SELECT_VALUES.map((n) => (
+                    <option key={n} value={n}>
+                      +{n}
+                    </option>
+                  ))}
+                </select>
+              );
+            }
+            if (canEdit && skip) {
+              return (
+                <select
+                  defaultValue={displayVal}
+                  className={selectClassDisabled}
+                  disabled
+                >
+                  {PLUS_SELECT_VALUES.map((n) => (
+                    <option key={n} value={n}>
+                      +{n}
+                    </option>
+                  ))}
+                </select>
+              );
+            }
+            return `+${displayVal}`;
+          },
+        },
+      ]
+    : [];
+
+  const showBorders = permissions.canViewBorders && !hideBordersInSimple;
+  const borderColumns: ColumnDef<Row>[] = showBorders
+    ? [
+        {
+          accessorKey: "ansuko_baseline",
+          header: "アンスコ",
+          cell: ({ row, getValue }) => {
+            const v = getValue<number | null | undefined>();
+            const skip = !!row.original.skip_pass_used;
+            const date = row.original.date;
+            const cellKey = updatingKeyFor(date, "ansuko_baseline");
+            if (canEdit && !skip) {
+              return (
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v != null ? String(v) : ""}
+                  onBlur={(e) => {
+                    const next = e.target.value;
+                    const nextVal = next === "" ? "" : Number(next);
+                    handleOptimisticUpdate(date, "ansuko_baseline", nextVal, v);
+                  }}
+                  className={inputClass}
+                  disabled={updatingKey === cellKey}
+                />
+              );
+            }
+            if (canEdit && skip) {
+              return (
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v != null ? String(v) : ""}
+                  className={inputClassDisabled}
+                  disabled
+                  readOnly
+                />
+              );
+            }
+            return v != null ? String(v) : "";
+          },
+        },
+        {
+          accessorKey: "border_plus2",
+          header: "+2ボーダー",
+          cell: ({ row, getValue }) => {
+            const v = getValue<number | null | undefined>();
+            const skip = !!row.original.skip_pass_used;
+            const date = row.original.date;
+            const cellKey = updatingKeyFor(date, "border_plus2");
+            if (canEdit && !skip) {
+              return (
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v != null ? String(v) : ""}
+                  onBlur={(e) => {
+                    const next = e.target.value;
+                    const nextVal = next === "" ? "" : Number(next);
+                    handleOptimisticUpdate(date, "border_plus2", nextVal, v);
+                  }}
+                  className={inputClass}
+                  disabled={updatingKey === cellKey}
+                />
+              );
+            }
+            if (canEdit && skip) {
+              return (
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v != null ? String(v) : ""}
+                  className={inputClassDisabled}
+                  disabled
+                  readOnly
+                />
+              );
+            }
+            return v != null ? String(v) : "";
+          },
+        },
+        {
+          accessorKey: "border_plus4",
+          header: "+4ボーダー",
+          cell: ({ row, getValue }) => {
+            const v = getValue<number | null | undefined>();
+            const skip = !!row.original.skip_pass_used;
+            const date = row.original.date;
+            const cellKey = updatingKeyFor(date, "border_plus4");
+            if (canEdit && !skip) {
+              return (
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v != null ? String(v) : ""}
+                  onBlur={(e) => {
+                    const next = e.target.value;
+                    const nextVal = next === "" ? "" : Number(next);
+                    handleOptimisticUpdate(date, "border_plus4", nextVal, v);
+                  }}
+                  className={inputClass}
+                  disabled={updatingKey === cellKey}
+                />
+              );
+            }
+            if (canEdit && skip) {
+              return (
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v != null ? String(v) : ""}
+                  className={inputClassDisabled}
+                  disabled
+                  readOnly
+                />
+              );
+            }
+            return v != null ? String(v) : "";
+          },
+        },
+        {
+          accessorKey: "border_plus6",
+          header: "+6ボーダー",
+          cell: ({ row, getValue }) => {
+            const v = getValue<number | null | undefined>();
+            const skip = !!row.original.skip_pass_used;
+            const date = row.original.date;
+            const cellKey = updatingKeyFor(date, "border_plus6");
+            if (canEdit && !skip) {
+              return (
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v != null ? String(v) : ""}
+                  onBlur={(e) => {
+                    const next = e.target.value;
+                    const nextVal = next === "" ? "" : Number(next);
+                    handleOptimisticUpdate(date, "border_plus6", nextVal, v);
+                  }}
+                  className={inputClass}
+                  disabled={updatingKey === cellKey}
+                />
+              );
+            }
+            if (canEdit && skip) {
+              return (
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v != null ? String(v) : ""}
+                  className={inputClassDisabled}
+                  disabled
+                  readOnly
+                />
+              );
+            }
+            return v != null ? String(v) : "";
+          },
+        },
+      ]
+    : [];
+
+  const memoColumn: ColumnDef<Row>[] = permissions.canViewMemo
+    ? [
+        {
+          accessorKey: "memo",
+          header: "メモ",
+          cell: ({ row }) => {
+            const memo = row.original.memo ?? "";
+            const date = row.original.date;
+            const cellKey = updatingKeyFor(date, "memo");
+            if (canEdit) {
+              return (
+                <input
+                  type="text"
+                  defaultValue={memo}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    const prev = (row.original.memo ?? "").trim();
+                    if (v !== prev) {
+                      handleOptimisticUpdate(date, "memo", v, row.original.memo);
+                    }
+                  }}
+                  placeholder="メモ"
+                  className={inputClass}
+                  disabled={updatingKey === cellKey}
+                />
+              );
+            }
+            return memo ? <span className="line-clamp-2">{memo}</span> : "—";
+          },
+        },
+      ]
+    : [];
+
   const columns: ColumnDef<Row>[] = [
     {
       accessorKey: "date",
@@ -213,260 +505,8 @@ export function DataTable({
       },
     },
     ...rankColumns,
-    {
-      accessorKey: "target_plus",
-      header: "目標+",
-      cell: ({ row, getValue }) => {
-        if (!permissions.canViewTargetActual) return "";
-        const v = getValue<number | null | undefined>();
-        const displayVal = normalizePlusValue(v);
-        const skip = !!row.original.skip_pass_used;
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "target_plus");
-        if (canEdit && !skip) {
-          return (
-            <select
-              value={displayVal}
-              onChange={(e) => {
-                const next = Number(e.target.value);
-                handleOptimisticUpdate(date, "target_plus", next, v);
-              }}
-              className={selectClass}
-              disabled={updatingKey === cellKey}
-            >
-              {PLUS_SELECT_VALUES.map((n) => (
-                <option key={n} value={n}>
-                  +{n}
-                </option>
-              ))}
-            </select>
-          );
-        }
-        if (canEdit && skip) {
-          return (
-            <select
-              defaultValue={displayVal}
-              className={selectClassDisabled}
-              disabled
-            >
-              {PLUS_SELECT_VALUES.map((n) => (
-                <option key={n} value={n}>
-                  +{n}
-                </option>
-              ))}
-            </select>
-          );
-        }
-        return `+${displayVal}`;
-      },
-    },
-    {
-      accessorKey: "actual_plus",
-      header: "実績+",
-      cell: ({ row, getValue }) => {
-        if (!permissions.canViewTargetActual) return "";
-        const v = getValue<number | null | undefined>();
-        const displayVal = normalizePlusValue(v);
-        const skip = !!row.original.skip_pass_used;
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "actual_plus");
-        if (canEdit && !skip) {
-          return (
-            <select
-              value={displayVal}
-              onChange={(e) => {
-                const next = Number(e.target.value);
-                handleOptimisticUpdate(date, "actual_plus", next, v);
-              }}
-              className={selectClass}
-              disabled={updatingKey === cellKey}
-            >
-              {PLUS_SELECT_VALUES.map((n) => (
-                <option key={n} value={n}>
-                  +{n}
-                </option>
-              ))}
-            </select>
-          );
-        }
-        if (canEdit && skip) {
-          return (
-            <select
-              defaultValue={displayVal}
-              className={selectClassDisabled}
-              disabled
-            >
-              {PLUS_SELECT_VALUES.map((n) => (
-                <option key={n} value={n}>
-                  +{n}
-                </option>
-              ))}
-            </select>
-          );
-        }
-        return `+${displayVal}`;
-      },
-    },
-    {
-      accessorKey: "ansuko_baseline",
-      header: "アンスコ",
-      cell: ({ row, getValue }) => {
-        if (!permissions.canViewBorders || hideBordersInSimple) return "";
-        const v = getValue<number | null | undefined>();
-        const skip = !!row.original.skip_pass_used;
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "ansuko_baseline");
-        if (canEdit && !skip) {
-          return (
-            <input
-              type="number"
-              min={0}
-              defaultValue={v != null ? String(v) : ""}
-              onBlur={(e) => {
-                const next = e.target.value;
-                const nextVal = next === "" ? "" : Number(next);
-                handleOptimisticUpdate(date, "ansuko_baseline", nextVal, v);
-              }}
-              className={inputClass}
-              disabled={updatingKey === cellKey}
-            />
-          );
-        }
-        if (canEdit && skip) {
-          return (
-            <input
-              type="number"
-              min={0}
-              defaultValue={v != null ? String(v) : ""}
-              className={inputClassDisabled}
-              disabled
-              readOnly
-            />
-          );
-        }
-        return v != null ? String(v) : "";
-      },
-    },
-    {
-      accessorKey: "border_plus2",
-      header: "+2ボーダー",
-      cell: ({ row, getValue }) => {
-        if (!permissions.canViewBorders || hideBordersInSimple) return "";
-        const v = getValue<number | null | undefined>();
-        const skip = !!row.original.skip_pass_used;
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "border_plus2");
-        if (canEdit && !skip) {
-          return (
-            <input
-              type="number"
-              min={0}
-              defaultValue={v != null ? String(v) : ""}
-              onBlur={(e) => {
-                const next = e.target.value;
-                const nextVal = next === "" ? "" : Number(next);
-                handleOptimisticUpdate(date, "border_plus2", nextVal, v);
-              }}
-              className={inputClass}
-              disabled={updatingKey === cellKey}
-            />
-          );
-        }
-        if (canEdit && skip) {
-          return (
-            <input
-              type="number"
-              min={0}
-              defaultValue={v != null ? String(v) : ""}
-              className={inputClassDisabled}
-              disabled
-              readOnly
-            />
-          );
-        }
-        return v != null ? String(v) : "";
-      },
-    },
-    {
-      accessorKey: "border_plus4",
-      header: "+4ボーダー",
-      cell: ({ row, getValue }) => {
-        if (!permissions.canViewBorders || hideBordersInSimple) return "";
-        const v = getValue<number | null | undefined>();
-        const skip = !!row.original.skip_pass_used;
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "border_plus4");
-        if (canEdit && !skip) {
-          return (
-            <input
-              type="number"
-              min={0}
-              defaultValue={v != null ? String(v) : ""}
-              onBlur={(e) => {
-                const next = e.target.value;
-                const nextVal = next === "" ? "" : Number(next);
-                handleOptimisticUpdate(date, "border_plus4", nextVal, v);
-              }}
-              className={inputClass}
-              disabled={updatingKey === cellKey}
-            />
-          );
-        }
-        if (canEdit && skip) {
-          return (
-            <input
-              type="number"
-              min={0}
-              defaultValue={v != null ? String(v) : ""}
-              className={inputClassDisabled}
-              disabled
-              readOnly
-            />
-          );
-        }
-        return v != null ? String(v) : "";
-      },
-    },
-    {
-      accessorKey: "border_plus6",
-      header: "+6ボーダー",
-      cell: ({ row, getValue }) => {
-        if (!permissions.canViewBorders || hideBordersInSimple) return "";
-        const v = getValue<number | null | undefined>();
-        const skip = !!row.original.skip_pass_used;
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "border_plus6");
-        if (canEdit && !skip) {
-          return (
-            <input
-              type="number"
-              min={0}
-              defaultValue={v != null ? String(v) : ""}
-              onBlur={(e) => {
-                const next = e.target.value;
-                const nextVal = next === "" ? "" : Number(next);
-                handleOptimisticUpdate(date, "border_plus6", nextVal, v);
-              }}
-              className={inputClass}
-              disabled={updatingKey === cellKey}
-            />
-          );
-        }
-        if (canEdit && skip) {
-          return (
-            <input
-              type="number"
-              min={0}
-              defaultValue={v != null ? String(v) : ""}
-              className={inputClassDisabled}
-              disabled
-              readOnly
-            />
-          );
-        }
-        return v != null ? String(v) : "";
-      },
-    },
+    ...targetActualColumns,
+    ...borderColumns,
     {
       accessorKey: "skip_pass_used",
       header: "スキップ",
@@ -523,37 +563,7 @@ export function DataTable({
         return asOf != null ? String(asOf) : "—";
       },
     },
-    {
-      accessorKey: "memo",
-      header: "メモ",
-      cell: ({ row }) => {
-        if (!permissions.canViewMemo) {
-          return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
-        }
-        const memo = row.original.memo ?? "";
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "memo");
-        if (canEdit) {
-          return (
-            <input
-              type="text"
-              defaultValue={memo}
-              onBlur={(e) => {
-                const v = e.target.value.trim();
-                const prev = (row.original.memo ?? "").trim();
-                if (v !== prev) {
-                  handleOptimisticUpdate(date, "memo", v, row.original.memo);
-                }
-              }}
-              placeholder="メモ"
-              className={inputClass}
-              disabled={updatingKey === cellKey}
-            />
-          );
-        }
-        return memo ? <span className="line-clamp-2">{memo}</span> : "—";
-      },
-    },
+    ...memoColumn,
   ];
 
   const table = useReactTable({

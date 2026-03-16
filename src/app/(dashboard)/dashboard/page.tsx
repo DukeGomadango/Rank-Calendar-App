@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultCalendarForUser, hasOwnedCalendar, getCalendarById } from "@/lib/data/calendars";
+import { getCurrentCalendarForUser, hasOwnedCalendar } from "@/lib/data/calendars";
 import { getProfile } from "@/lib/data/profiles";
 import { listEventsForCalendar } from "@/lib/data/events";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
@@ -37,7 +37,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
   } = await supabase.auth.getUser();
   const params = searchParams ? await searchParams : undefined;
   const fromInvite = params?.fromInvite === "1";
-  const welcomeCalendarId = params?.calendarId ?? null;
+  const urlCalendarId = params?.calendarId ?? null;
 
   const isDevMock = process.env.NODE_ENV === "development" && !user;
 
@@ -188,28 +188,32 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
 
   if (!user) redirect("/login");
 
+  const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
+
+  if (!currentCalendar) {
+    redirect("/dashboard/settings");
+  }
+
+  if (!urlCalendarId) {
+    const q = new URLSearchParams({ calendarId: currentCalendar.id });
+    if (fromInvite) q.set("fromInvite", "1");
+    redirect(`/dashboard?${q.toString()}`);
+  }
+
   const isOwner = await hasOwnedCalendar(user.id);
   if (isOwner) {
     const profile = await getProfile(user.id);
     if (!profile?.setup_wizard_done) redirect("/dashboard/onboarding");
   }
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
-
-  let welcomeCalendar: { name: string | null } | null = null;
   let welcomeProfile: { display_name: string | null } | null = null;
-  if (fromInvite && welcomeCalendarId) {
-    const [cal, prof] = await Promise.all([
-      getCalendarById(welcomeCalendarId),
-      getProfile(user.id),
-    ]);
-    welcomeCalendar = cal;
-    welcomeProfile = prof;
+  if (fromInvite) {
+    welcomeProfile = await getProfile(user.id);
   }
 
   const [events, rankState] = await Promise.all([
-    listEventsForCalendar(calendar.id),
-    getOrCreateCalendarRankState(calendar.id),
+    listEventsForCalendar(currentCalendar.id),
+    getOrCreateCalendarRankState(currentCalendar.id),
   ]);
 
   const todayJst = toJstDateString(new Date());
@@ -219,7 +223,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
   const weekEndJst = cycleEnd;
 
   const weeklyEntries = await getScheduleEntriesInRange(
-    calendar.id,
+    currentCalendar.id,
     cycleStart,
     cycleEnd
   );
@@ -258,11 +262,11 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      {fromInvite && welcomeCalendarId && (
+      {fromInvite && (
         <Suspense fallback={<div className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800" />}>
           <ListenerWelcome
-            calendarId={welcomeCalendarId}
-            calendarName={welcomeCalendar?.name ?? null}
+            calendarId={currentCalendar.id}
+            calendarName={currentCalendar.name}
             displayName={welcomeProfile?.display_name ?? null}
           />
         </Suspense>
@@ -273,7 +277,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
         </h1>
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
           ログイン中のライバー用に、カレンダー
-          <span className="font-medium">「{calendar.name ?? "メインカレンダー"}」</span>
+          <span className="font-medium">「{currentCalendar.name ?? "メインカレンダー"}」</span>
           を基準にしたサマリをここに表示していきます。
         </p>
       </section>
@@ -283,7 +287,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
       <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8 lg:items-start">
         <div className="space-y-6">
           <CurrentRankBadge
-            calendarId={calendar.id}
+            calendarId={currentCalendar.id}
             currentRank={rankState.current_rank}
             canRankUp={canRankUp}
             daysUntilReset={daysUntilReset}
@@ -334,7 +338,7 @@ export default async function DashboardHomePage({ searchParams }: PageProps) {
         <section className="rounded-2xl lg:sticky lg:top-6">
           <HomeScheduleCard
             variant="inline"
-            calendarId={calendar.id}
+            calendarId={currentCalendar.id}
             defaultDate={defaultDate}
             action={saveScheduleEntry}
             events={events}

@@ -6,6 +6,7 @@ import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useToast } from "@/lib/toast-context";
 import type { EventRow } from "@/lib/data/events";
 import { getRankBadgeClass } from "@/lib/rank-styles";
+import { getEventColorClasses } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES } from "@/lib/plus-options";
 
 export type DayDetailRow = {
@@ -23,6 +24,8 @@ export type DayDetailRow = {
   rank_score_cumulative?: number | null;
   memo?: string | null;
   event_id?: string | null;
+  stream_content?: string | null;
+  stream_content_color?: string | null;
 };
 
 function eventsOnDate(events: EventRow[], date: string): EventRow[] {
@@ -183,198 +186,259 @@ export function DayDetailModal({
               {updateError}
             </div>
           )}
-          {/* メイン: 目標+ と 実績+ を大きく */}
-          {permissions.canViewTargetActual && (
-            <section>
-              <h3 className="mb-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                目標・実績
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-accent-50/80 p-3 dark:bg-accent-950/30">
-                  <p className="text-[10px] text-accent-700 dark:text-accent-300">
-                    目標+
-                  </p>
-                  {canEdit && !isSkip ? (
-                    <select
-                      value={row.target_plus ?? 0}
-                      onChange={(e) =>
-                        update("target_plus", Number(e.target.value), row.target_plus ?? undefined)
-                      }
-                      disabled={updatingKey === "target_plus"}
-                      className="mt-0.5 w-full rounded border border-accent-200 bg-white px-2 py-1.5 text-base font-semibold text-zinc-900 dark:border-accent-800 dark:bg-slate-800 dark:text-zinc-50"
-                    >
-                      {PLUS_SELECT_VALUES.map((n) => (
-                        <option key={n} value={n}>
-                          +{n}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="mt-0.5 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                      {row.target_plus != null ? (
-                        <>+{row.target_plus}</>
-                      ) : (
-                        <span className="text-zinc-400 dark:text-zinc-500">
-                          未入力
-                        </span>
-                      )}
-                    </p>
-                  )}
-                </div>
-                <div className="rounded-xl bg-accent-50/80 p-3 dark:bg-accent-950/30">
-                  <p className="text-[10px] text-accent-700 dark:text-accent-300">
-                    実績+
-                  </p>
-                  {canEdit && !isSkip ? (
-                    <select
-                      value={row.actual_plus ?? 0}
-                      onChange={(e) =>
-                        update("actual_plus", Number(e.target.value), row.actual_plus ?? undefined)
-                      }
-                      disabled={updatingKey === "actual_plus"}
-                      className="mt-0.5 w-full rounded border border-accent-200 bg-white px-2 py-1.5 text-base font-semibold text-zinc-900 dark:border-accent-800 dark:bg-slate-800 dark:text-zinc-50"
-                    >
-                      {PLUS_SELECT_VALUES.map((n) => (
-                        <option key={n} value={n}>
-                          +{n}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="mt-0.5 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                      {row.actual_plus != null ? (
-                        <>+{row.actual_plus}</>
-                      ) : (
-                        <span className="text-zinc-400 dark:text-zinc-500">
-                          未入力
-                        </span>
-                      )}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-          )}
 
-          {/* アンスコ・ボーダー: 横4列グリッド */}
-          {permissions.canViewBorders && (
-            <section>
-              <h3 className="mb-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                アンスコ・ボーダー
-              </h3>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { key: "ansuko_baseline" as const, label: "アンスコ" },
-                  { key: "border_plus2" as const, label: "+2" },
-                  { key: "border_plus4" as const, label: "+4" },
-                  { key: "border_plus6" as const, label: "+6" },
-                ].map(({ key, label }) => (
-                  <div
-                    key={key}
-                    className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-700 dark:bg-zinc-800/50"
-                  >
-                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                      {label}
-                    </p>
-                    {canEdit && !isSkip ? (
-                      <input
-                        type="number"
-                        min={0}
-                        value={row[key] ?? ""}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setRow((prev) => ({
-                            ...prev,
-                            [key]: v === "" ? null : Number(v),
-                          }));
-                        }}
-                        onBlur={(e) => {
-                          const v = e.target.value;
-                          const numVal = v === "" ? "" : Number(v);
-                          update(key, numVal, row[key] ?? undefined);
-                        }}
-                        disabled={updatingKey === key}
-                        className="mt-0.5 w-full rounded border border-zinc-200 bg-white px-1.5 py-1 text-[11px] dark:border-zinc-600 dark:bg-slate-800"
-                      />
-                    ) : (
-                      <p className="mt-0.5 text-[11px] text-zinc-700 dark:text-zinc-200">
-                        <EmptyOrValue value={row[key]} type="text" />
-                      </p>
-                    )}
+          {canEdit ? (
+            /* オーナー: 編集用レイアウト（従来どおり） */
+            <>
+              {permissions.canViewTargetActual && (
+                <section>
+                  <h3 className="mb-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    目標・実績
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-accent-50/80 p-3 dark:bg-accent-950/30">
+                      <p className="text-[10px] text-accent-700 dark:text-accent-300">目標+</p>
+                      {!isSkip ? (
+                        <select
+                          value={row.target_plus ?? 0}
+                          onChange={(e) =>
+                            update("target_plus", Number(e.target.value), row.target_plus ?? undefined)
+                          }
+                          disabled={updatingKey === "target_plus"}
+                          className="mt-0.5 w-full rounded border border-accent-200 bg-white px-2 py-1.5 text-base font-semibold text-zinc-900 dark:border-accent-800 dark:bg-slate-800 dark:text-zinc-50"
+                        >
+                          {PLUS_SELECT_VALUES.map((n) => (
+                            <option key={n} value={n}>+{n}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="mt-0.5 text-lg font-semibold text-zinc-500 dark:text-zinc-400">—</p>
+                      )}
+                    </div>
+                    <div className="rounded-xl bg-accent-50/80 p-3 dark:bg-accent-950/30">
+                      <p className="text-[10px] text-accent-700 dark:text-accent-300">実績+</p>
+                      {!isSkip ? (
+                        <select
+                          value={row.actual_plus ?? 0}
+                          onChange={(e) =>
+                            update("actual_plus", Number(e.target.value), row.actual_plus ?? undefined)
+                          }
+                          disabled={updatingKey === "actual_plus"}
+                          className="mt-0.5 w-full rounded border border-accent-200 bg-white px-2 py-1.5 text-base font-semibold text-zinc-900 dark:border-accent-800 dark:bg-slate-800 dark:text-zinc-50"
+                        >
+                          {PLUS_SELECT_VALUES.map((n) => (
+                            <option key={n} value={n}>+{n}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="mt-0.5 text-lg font-semibold text-zinc-500 dark:text-zinc-400">—</p>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* スキップ */}
-          <section className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <span className="text-[11px] text-zinc-600 dark:text-zinc-400">
-              スキップパス
-            </span>
-            {canEdit ? (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={!!row.skip_pass_used}
-                  onChange={(e) => update("skip_pass_used", e.target.checked, row.skip_pass_used)}
-                  disabled={updatingKey === "skip_pass_used"}
-                  className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
-                />
-                <span className="text-[11px]">使用</span>
-              </label>
-            ) : (
-              <span className="text-[11px] text-zinc-700 dark:text-zinc-200">
-                {row.skip_pass_used ? "使用" : "未使用"}
-              </span>
-            )}
-          </section>
-
-          {/* メモ */}
-          {permissions.canViewMemo && (
-            <section>
-              <h3 className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                メモ
-              </h3>
-              {canEdit ? (
-                <textarea
-                  value={row.memo ?? ""}
-                  onChange={(e) =>
-                    setRow((prev) => ({ ...prev, memo: e.target.value }))
-                  }
-                  onBlur={(e) => {
-                    const v = e.target.value.trim();
-                    update("memo", v, row.memo ?? undefined);
-                  }}
-                  disabled={updatingKey === "memo"}
-                  rows={3}
-                  placeholder="未入力"
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] placeholder:text-zinc-400 dark:border-zinc-600 dark:bg-slate-800 dark:placeholder:text-zinc-500"
-                />
-              ) : row.memo?.trim() ? (
-                <p className="rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-[11px] text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-200">
-                  {row.memo}
-                </p>
-              ) : (
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
-                  未入力
-                </p>
+                </section>
               )}
-            </section>
-          )}
+              {permissions.canViewBorders && (
+                <section>
+                  <h3 className="mb-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">アンスコ・ボーダー</h3>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { key: "ansuko_baseline" as const, label: "アンスコ" },
+                      { key: "border_plus2" as const, label: "+2" },
+                      { key: "border_plus4" as const, label: "+4" },
+                      { key: "border_plus6" as const, label: "+6" },
+                    ].map(({ key, label }) => (
+                      <div key={key} className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-700 dark:bg-zinc-800/50">
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{label}</p>
+                        {canEdit && !isSkip ? (
+                          <input
+                            type="number"
+                            min={0}
+                            value={row[key] ?? ""}
+                            onChange={(e) => setRow((prev) => ({ ...prev, [key]: e.target.value === "" ? null : Number(e.target.value) }))}
+                            onBlur={(e) => {
+                              const v = e.target.value;
+                              update(key, v === "" ? "" : Number(v), row[key] ?? undefined);
+                            }}
+                            disabled={updatingKey === key}
+                            className="mt-0.5 w-full rounded border border-zinc-200 bg-white px-1.5 py-1 text-[11px] dark:border-zinc-600 dark:bg-slate-800"
+                          />
+                        ) : (
+                          <p className="mt-0.5 text-[11px] text-zinc-700 dark:text-zinc-200">
+                            <EmptyOrValue value={row[key]} type="text" />
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <section className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <span className="text-[11px] text-zinc-600 dark:text-zinc-400">スキップパス</span>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!row.skip_pass_used}
+                    onChange={(e) => update("skip_pass_used", e.target.checked, row.skip_pass_used)}
+                    disabled={updatingKey === "skip_pass_used"}
+                    className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
+                  />
+                  <span className="text-[11px]">使用</span>
+                </label>
+              </section>
+              {permissions.canViewMemo && (
+                <section>
+                  <h3 className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">メモ</h3>
+                  <textarea
+                    value={row.memo ?? ""}
+                    onChange={(e) => setRow((prev) => ({ ...prev, memo: e.target.value }))}
+                    onBlur={(e) => { const v = e.target.value.trim(); update("memo", v, row.memo ?? undefined); }}
+                    disabled={updatingKey === "memo"}
+                    rows={3}
+                    placeholder="未入力"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] placeholder:text-zinc-400 dark:border-zinc-600 dark:bg-slate-800 dark:placeholder:text-zinc-500"
+                  />
+                </section>
+              )}
+              {permissions.canViewEvents && dayEvents.length > 0 && (
+                <section>
+                  <h3 className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">イベント</h3>
+                  <ul className="list-inside list-disc space-y-0.5 text-[11px] text-zinc-700 dark:text-zinc-200">
+                    {dayEvents.map((ev) => (
+                      <li key={ev.id}>{ev.name}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </>
+          ) : (
+            /* リスナー: ミッション＋Calm Design（詳細閲覧用） */
+            <>
+              {/* 1. 目標・実績を「メッセージ」に統合 */}
+              {permissions.canViewTargetActual && (
+                <section>
+                  {(() => {
+                    const target = row.target_plus ?? null;
+                    const actual = row.actual_plus ?? null;
+                    const gap = target != null && actual != null ? target - actual : null;
+                    const achieved = target != null && actual != null && actual >= target;
+                    let mainText: string;
+                    let mainClass =
+                      "text-sm font-medium text-zinc-700 dark:text-zinc-200";
 
-          {/* イベント（該当ありのみ表示） */}
-          {permissions.canViewEvents && dayEvents.length > 0 && (
-            <section>
-              <h3 className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                イベント
-              </h3>
-              <ul className="list-inside list-disc space-y-0.5 text-[11px] text-zinc-700 dark:text-zinc-200">
-                {dayEvents.map((ev) => (
-                  <li key={ev.id}>{ev.name}</li>
-                ))}
-              </ul>
-            </section>
+                    if (target == null && actual == null) {
+                      mainText = "目標未設定";
+                    } else if (target != null && achieved) {
+                      mainText = `🎉 目標（+${target}）クリア！`;
+                      mainClass = "text-sm font-semibold text-emerald-800 dark:text-emerald-200";
+                    } else if (target != null && gap != null && gap > 0) {
+                      mainText = `🔥 目標まで あと +${gap}！`;
+                      mainClass = "text-sm font-semibold text-accent-700 dark:text-accent-300";
+                    } else if (target != null) {
+                      mainText = `🔥 目標 +${target} に挑戦中`;
+                      mainClass = "text-sm font-semibold text-accent-700 dark:text-accent-300";
+                    } else {
+                      mainText = "今日の進捗";
+                    }
+
+                    let containerClass =
+                      "rounded-lg px-3 py-2 text-left border ";
+                    if (target == null && actual == null) {
+                      containerClass +=
+                        "border-zinc-200 bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-800/40";
+                    } else if (achieved) {
+                      containerClass +=
+                        "border-emerald-100 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/40";
+                    } else {
+                      containerClass +=
+                        "border-sky-100 bg-sky-50/80 dark:border-sky-900 dark:bg-sky-950/40";
+                    }
+
+                    return (
+                      <>
+                        <div className={containerClass}>
+                          <p className={mainClass}>{mainText}</p>
+                          <p className="mt-0.5 text-[10px] text-emerald-900/70 dark:text-emerald-200/80">
+                            実績 {actual != null ? `+${actual}` : "—"} / 目標{" "}
+                            {target != null ? `+${target}` : "—"}
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </section>
+              )}
+
+              {/* 2. イベント・配信内容を主役級に（上に配置・色付き） */}
+              {(permissions.canViewEvents && (dayEvents.length > 0 || (row.stream_content?.trim() ?? ""))) && (
+                <section>
+                  <h3 className="mb-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">今日の予定</h3>
+                  <ul className="space-y-1.5">
+                    {dayEvents.map((ev) => {
+                      const { leftBar, text } = getEventColorClasses(ev.color ?? null);
+                      return (
+                        <li
+                          key={ev.id}
+                          className={`flex items-center gap-2 rounded-md border border-zinc-200 bg-white py-1.5 pl-3 pr-2 dark:border-zinc-700 dark:bg-slate-900 ${leftBar} ${text}`}
+                        >
+                          <span className="font-medium">{ev.name}</span>
+                        </li>
+                      );
+                    })}
+                    {row.stream_content?.trim() && (() => {
+                      const streamStyle = getEventColorClasses(row.stream_content_color ?? null);
+                      return (
+                        <li
+                          className={`flex items-center gap-2 rounded-md border border-zinc-200 bg-white py-1.5 pl-3 pr-2 dark:border-zinc-700 dark:bg-slate-900 ${streamStyle.leftBar} ${streamStyle.text}`}
+                        >
+                          <span className="font-medium">{row.stream_content!.trim()}</span>
+                        </li>
+                      );
+                    })()}
+                  </ul>
+                </section>
+              )}
+
+              {/* 3. アンスコ・ボーダー */}
+              {permissions.canViewBorders && (
+                <section>
+                  <h3 className="mb-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">アンスコ・ボーダー</h3>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { key: "ansuko_baseline" as const, label: "アンスコ" },
+                      { key: "border_plus2" as const, label: "+2" },
+                      { key: "border_plus4" as const, label: "+4" },
+                      { key: "border_plus6" as const, label: "+6" },
+                    ].map(({ key, label }) => (
+                      <div key={key} className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-700 dark:bg-zinc-800/50">
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{label}</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-700 dark:text-zinc-200">
+                          <EmptyOrValue value={row[key]} type="text" />
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* 4. メモ */}
+              {permissions.canViewMemo && row.memo?.trim() && (
+                <section>
+                  <h3 className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">メモ</h3>
+                  <p className="rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-[11px] text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-200">
+                    {row.memo}
+                  </p>
+                </section>
+              )}
+
+              {/* 5. スキパ: 使用時だけ目立たせる。未使用時は控えめに */}
+              {isSkip && (
+                <section className="rounded-lg border border-teal-200 bg-teal-50/80 py-2.5 px-3 text-left dark:border-teal-800 dark:bg-teal-950/40">
+                  <p className="text-[13px] font-medium text-teal-800 dark:text-teal-200">
+                    🎫 今日はスキパでお休みです
+                  </p>
+                </section>
+              )}
+            </>
           )}
         </div>
 

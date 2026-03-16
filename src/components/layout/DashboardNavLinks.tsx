@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home,
   Calendar,
@@ -32,15 +32,35 @@ const ICON_SIZE_BOTTOM = 20;
 
 type Props = {
   isOwner: boolean;
+  /** 表示中のカレンダーがこの一覧に含まれるときだけ「共有」タブを表示する（リスナーに切り替えたときは非表示） */
+  ownedCalendarIds: string[];
   variant: "sidebar" | "drawer" | "bottom";
   onLinkClick?: () => void;
 };
 
-export function DashboardNavLinks({ isOwner, variant, onLinkClick }: Props) {
+function buildHref(path: string, calendarId: string | null): string {
+  if (!calendarId) return path;
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}calendarId=${encodeURIComponent(calendarId)}`;
+}
+
+export function DashboardNavLinks({
+  isOwner,
+  ownedCalendarIds,
+  variant,
+  onLinkClick,
+}: Props) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const calendarId = searchParams.get("calendarId");
+
+  const showSharing =
+    calendarId != null
+      ? ownedCalendarIds.includes(calendarId)
+      : isOwner;
 
   const items = NAV_ITEMS.filter(
-    (item) => item.href !== "/dashboard/sharing" || isOwner
+    (item) => item.href !== "/dashboard/sharing" || showSharing
   );
 
   const isActive = (href: string) => {
@@ -63,7 +83,7 @@ export function DashboardNavLinks({ isOwner, variant, onLinkClick }: Props) {
           return (
             <li key={href} className="flex-1">
               <Link
-                href={href}
+                href={buildHref(href, calendarId)}
                 onClick={onLinkClick}
                 className={`flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:focus-visible:ring-accent-500 ${
                   active
@@ -98,7 +118,7 @@ export function DashboardNavLinks({ isOwner, variant, onLinkClick }: Props) {
         return (
           <Link
             key={href}
-            href={href}
+            href={buildHref(href, calendarId)}
             onClick={onLinkClick}
             className={`${linkBase} ${padding} ${
               active ? linkActive : linkInactive

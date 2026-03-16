@@ -1,15 +1,26 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { upsertDisplayName, updateAvatarUrl } from "@/lib/data/profiles";
-import {
-  getOrCreateDefaultCalendarForUser,
-  listCalendarsForUser,
-} from "@/lib/data/calendars";
+import { getOrCreateDefaultCalendarForUser, listCalendarsForUser } from "@/lib/data/calendars";
+import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 
 const SETTINGS_PATH = "/dashboard/settings";
+
+/**
+ * リスナーが「マイカレンダーを作成」を押したときに実行。
+ * オーナー用のデフォルトカレンダーを1件作成し、そのカレンダーで設定画面へリダイレクトする。
+ */
+export async function createMyCalendarAction(): Promise<void> {
+  const supabase = await createSupabaseRouteHandlerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("未ログインです");
+  const calendar = await getOrCreateDefaultCalendarForUser(user.id, supabase);
+  redirect(`${SETTINGS_PATH}?calendarId=${encodeURIComponent(calendar.id)}`);
+}
 
 /**
  * 表示名を更新する。他ユーザーにはメールを見せず表示名のみ表示するため。
@@ -61,8 +72,7 @@ export async function exportCalendarCsv(
   } = await supabase.auth.getUser();
   if (!user) return { error: "未ログインです" };
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
-  if (calendar.id !== calendarId) return { error: "このカレンダーをエクスポートする権限がありません" };
+  await ensureUserCanEditCalendar(calendarId);
 
   const entries = await getScheduleEntriesInRange(
     calendarId,
@@ -103,8 +113,7 @@ export async function resetCalendarData(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "未ログインです" };
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
-  if (calendar.id !== calendarId) return { ok: false, error: "このカレンダーを初期化する権限がありません" };
+  await ensureUserCanEditCalendar(calendarId);
 
   const { error } = await supabase
     .schema("iriam")

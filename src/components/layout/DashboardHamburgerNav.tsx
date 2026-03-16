@@ -4,9 +4,9 @@ import { useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { DashboardNavLinks } from "@/components/layout/DashboardNavLinks";
 
-type Props = { isOwner: boolean };
+type Props = { isOwner: boolean; ownedCalendarIds: string[] };
 
-export function DashboardHamburgerNav({ isOwner }: Props) {
+export function DashboardHamburgerNav({ isOwner, ownedCalendarIds }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -54,6 +54,7 @@ export function DashboardHamburgerNav({ isOwner }: Props) {
             </div>
             <DashboardNavLinks
               isOwner={isOwner}
+              ownedCalendarIds={ownedCalendarIds}
               variant="drawer"
               onLinkClick={() => setOpen(false)}
             />

@@ -4,7 +4,7 @@ import "dayjs/locale/ja";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import { getCurrentCalendarForUser } from "@/lib/data/calendars";
 import { listEventsForCalendar, type EventRow } from "@/lib/data/events";
 import { getMockEvents } from "@/lib/mock-seed-data";
 import {
@@ -33,13 +33,17 @@ function splitActivePast(events: EventRow[]): { active: EventRow[]; past: EventR
   return { active, past };
 }
 
-export default async function EventsPage() {
+type PageProps = { searchParams?: Promise<{ calendarId?: string }> };
+
+export default async function EventsPage({ searchParams }: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const isDevMock = process.env.NODE_ENV === "development" && !user;
+  const params = searchParams ? await searchParams : undefined;
+  const urlCalendarId = params?.calendarId ?? null;
 
   if (!user && !isDevMock) {
     redirect("/login");
@@ -67,8 +71,12 @@ export default async function EventsPage() {
   }
 
   if (!user) redirect("/login");
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
-  const events = await listEventsForCalendar(calendar.id);
+  const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
+  if (!currentCalendar) redirect("/dashboard/settings");
+  if (!urlCalendarId) {
+    redirect(`/dashboard/events?calendarId=${encodeURIComponent(currentCalendar.id)}`);
+  }
+  const events = await listEventsForCalendar(currentCalendar.id);
   const { active, past } = splitActivePast(events);
 
   return (
@@ -76,8 +84,8 @@ export default async function EventsPage() {
       <EventsListClient
         initialActive={active}
         initialPast={past}
-        calendarId={calendar.id}
-        calendarName={calendar.name}
+        calendarId={currentCalendar.id}
+        calendarName={currentCalendar.name}
         createAction={createEvent}
         deleteAction={deleteEventAction}
       />

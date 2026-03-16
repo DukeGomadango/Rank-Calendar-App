@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultCalendarForUser, hasOwnedCalendar } from "@/lib/data/calendars";
+import {
+  getCurrentCalendarForUser,
+  hasOwnedCalendar,
+  listCalendarsAccessibleToUser,
+} from "@/lib/data/calendars";
 import { listRolesForCalendar, getPermissionsForRole } from "@/lib/data/roles";
 import { listInviteLinksForCalendar } from "@/lib/data/invite-links";
 import { listRedemptionsForCalendar } from "@/lib/data/invite-redemptions";
@@ -37,13 +41,17 @@ import {
 } from "./actions";
 import { CopyInviteUrl } from "./CopyInviteUrl";
 
-export default async function SharingPage() {
+type PageProps = { searchParams?: Promise<{ calendarId?: string }> };
+
+export default async function SharingPage({ searchParams }: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const isDevMock = process.env.NODE_ENV === "development" && !user;
+  const params = searchParams ? await searchParams : undefined;
+  const urlCalendarId = params?.calendarId ?? null;
 
   if (!user && !isDevMock) {
     redirect("/login");
@@ -233,12 +241,22 @@ export default async function SharingPage() {
   }
 
   if (!user) redirect("/login");
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
+  if (!currentCalendar) redirect("/dashboard/settings");
+  if (!currentCalendar.isOwner) {
+    const accessible = await listCalendarsAccessibleToUser(user.id);
+    const firstOwned = accessible.find((c) => c.isOwner);
+    if (firstOwned) redirect(`/dashboard/sharing?calendarId=${encodeURIComponent(firstOwned.id)}`);
+    redirect("/dashboard/settings");
+  }
+  if (!urlCalendarId) {
+    redirect(`/dashboard/sharing?calendarId=${encodeURIComponent(currentCalendar.id)}`);
+  }
   const [roles, inviteLinks, redemptions, shares] = await Promise.all([
-    listRolesForCalendar(calendar.id),
-    listInviteLinksForCalendar(calendar.id),
-    listRedemptionsForCalendar(calendar.id),
-    listSharesForCalendar(calendar.id),
+    listRolesForCalendar(currentCalendar.id),
+    listInviteLinksForCalendar(currentCalendar.id),
+    listRedemptionsForCalendar(currentCalendar.id),
+    listSharesForCalendar(currentCalendar.id),
   ]);
 
   const shareByUserId = new Map(shares.map((s) => [s.user_id, s.role_id]));
@@ -254,7 +272,7 @@ export default async function SharingPage() {
           共有
         </h1>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          {calendar.name ?? "メインカレンダー"}
+          {currentCalendar.name ?? "メインカレンダー"}
           をリスナーに共有するためのロールと招待リンクを管理します。
         </p>
       </header>
@@ -279,6 +297,7 @@ export default async function SharingPage() {
           ロールごとに「何を見せるか」を権限で設定し、招待したユーザーに付与します。
         </p>
         <form action={createRole} className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="calendar_id" value={currentCalendar.id} />
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
               新規ロール名
@@ -314,6 +333,7 @@ export default async function SharingPage() {
                     {role.name}
                   </span>
                   <form action={deleteRole}>
+                    <input type="hidden" name="calendar_id" value={currentCalendar.id} />
                     <input type="hidden" name="role_id" value={role.id} />
                     <button
                       type="submit"
@@ -324,6 +344,7 @@ export default async function SharingPage() {
                   </form>
                 </div>
                 <form action={saveRolePermissions} className="space-y-3">
+                  <input type="hidden" name="calendar_id" value={currentCalendar.id} />
                   <input type="hidden" name="role_id" value={role.id} />
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">基本情報</span>
@@ -366,6 +387,7 @@ export default async function SharingPage() {
           リンクを共有し、踏んだユーザーを「招待済み」に追加します。ロールを選んで発行すると、参加時に自動でそのロールが付与されます。
         </p>
         <form action={createInviteLinkAction} className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="calendar_id" value={currentCalendar.id} />
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
               このリンクで付与するロール
@@ -400,13 +422,14 @@ export default async function SharingPage() {
                 key={link.id}
                 className="flex flex-wrap items-center gap-2 rounded border border-zinc-100 py-2 px-2 dark:border-zinc-800"
               >
-                <CopyInviteUrl calendarId={calendar.id} token={link.token} />
+                <CopyInviteUrl calendarId={currentCalendar.id} token={link.token} />
                 {link.role_id && (
                   <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
                     （{roles.find((r) => r.id === link.role_id)?.name ?? "ロール"}）
                   </span>
                 )}
                 <form action={deleteInviteLink}>
+                  <input type="hidden" name="calendar_id" value={currentCalendar.id} />
                   <input type="hidden" name="invite_link_id" value={link.id} />
                   <button
                     type="submit"
@@ -452,6 +475,7 @@ export default async function SharingPage() {
                     {new Date(r.redeemed_at).toLocaleString("ja")}
                   </span>
                   <form action={assignRoleToUser} className="flex items-center gap-1">
+                    <input type="hidden" name="calendar_id" value={currentCalendar.id} />
                     <input type="hidden" name="user_id" value={r.user_id} />
                     <select
                       name="role_id"

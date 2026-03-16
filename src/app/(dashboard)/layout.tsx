@@ -7,7 +7,7 @@ import { DashboardHamburgerNav } from "@/components/layout/DashboardHamburgerNav
 import { DashboardNavLinks } from "@/components/layout/DashboardNavLinks";
 import { MockRoleSwitcher } from "@/components/mock/MockRoleSwitcher";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { hasOwnedCalendar } from "@/lib/data/calendars";
+import { hasOwnedCalendar, listCalendarsAccessibleToUser } from "@/lib/data/calendars";
 import { toJstDateString } from "@/lib/domain/calendar";
 import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import { MockScheduleProvider } from "@/lib/mock-schedule-context";
@@ -34,8 +34,11 @@ export default async function DashboardLayout({
   let mockRole: "owner" | "listener" = "owner";
   let isOwner = false;
 
+  let ownedCalendarIds: string[] = [];
   if (user) {
     isOwner = await hasOwnedCalendar(user.id);
+    const accessible = await listCalendarsAccessibleToUser(user.id);
+    ownedCalendarIds = accessible.filter((c) => c.isOwner).map((c) => c.id);
   } else if (process.env.NODE_ENV === "development") {
     showMockRoleSwitcher = true;
     const cookieStore = await cookies();
@@ -77,14 +80,14 @@ export default async function DashboardLayout({
 
       <div className="flex flex-1 flex-col">
         {/* 横長（sm〜lg）: ハンバーガーバー＋ドロワー。lg 以上はサイドバー表示のため非表示 */}
-        <DashboardHamburgerNav isOwner={isOwner} />
+        <DashboardHamburgerNav isOwner={isOwner} ownedCalendarIds={ownedCalendarIds} />
         <div className="flex flex-1">
           {/* PC: 左サイドバー（lg 以上のみ。スマホ横向きでは非表示でカレンダー全幅） */}
           <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white/80 px-4 py-6 text-sm shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 lg:flex">
           <div className="mb-6 text-xs font-semibold tracking-wide text-accent-500">
             IRIAM だんごスケジュール
           </div>
-          <DashboardNavLinks isOwner={isOwner} variant="sidebar" />
+          <DashboardNavLinks isOwner={isOwner} ownedCalendarIds={ownedCalendarIds} variant="sidebar" />
         </aside>
 
           <main className="min-w-0 flex-1 px-4 pb-16 pt-4 sm:px-8 sm:pb-6 sm:pt-6 lg:pr-14">
@@ -95,7 +98,7 @@ export default async function DashboardLayout({
 
       {/* モバイル: ボトムナビゲーション（データ表の sticky より前面に） */}
       <nav className="sticky bottom-0 z-30 border-t border-zinc-200 bg-white/90 px-2 py-1.5 text-[11px] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
-        <DashboardNavLinks isOwner={isOwner} variant="bottom" />
+        <DashboardNavLinks isOwner={isOwner} ownedCalendarIds={ownedCalendarIds} variant="bottom" />
       </nav>
     </div>
     </ToastProvider>

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
 import {
   createRole as createRoleData,
   deleteRole as deleteRoleData,
@@ -17,6 +17,12 @@ import type { PermissionKey } from "@/lib/data/permissions";
 
 const SHARING_PATH = "/dashboard/sharing";
 
+function getCalendarIdFromForm(formData: FormData): string {
+  const calendarId = formData.get("calendar_id");
+  if (typeof calendarId !== "string" || !calendarId) throw new Error("calendar_id が必要です");
+  return calendarId;
+}
+
 export async function createRole(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -24,11 +30,12 @@ export async function createRole(formData: FormData): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("未ログイン");
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const calendarId = getCalendarIdFromForm(formData);
+  await ensureUserCanEditCalendar(calendarId);
   const name = (formData.get("name") as string)?.trim();
   if (!name) throw new Error("ロール名を入力してください");
 
-  await createRoleData(calendar.id, name);
+  await createRoleData(calendarId, name);
   revalidatePath(SHARING_PATH);
 }
 
@@ -39,11 +46,12 @@ export async function deleteRole(formData: FormData): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("未ログイン");
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const calendarId = getCalendarIdFromForm(formData);
+  await ensureUserCanEditCalendar(calendarId);
   const roleId = formData.get("role_id") as string;
   if (!roleId) throw new Error("role_id が必要です");
 
-  await deleteRoleData(roleId, calendar.id);
+  await deleteRoleData(roleId, calendarId);
   revalidatePath(SHARING_PATH);
 }
 
@@ -54,6 +62,8 @@ export async function saveRolePermissions(formData: FormData): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("未ログイン");
 
+  const calendarId = getCalendarIdFromForm(formData);
+  await ensureUserCanEditCalendar(calendarId);
   const roleId = formData.get("role_id") as string;
   if (!roleId) throw new Error("role_id が必要です");
 
@@ -82,12 +92,13 @@ export async function createInviteLinkAction(formData: FormData): Promise<void> 
   } = await supabase.auth.getUser();
   if (!user) throw new Error("未ログイン");
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const calendarId = getCalendarIdFromForm(formData);
+  await ensureUserCanEditCalendar(calendarId);
   const roleId = (formData.get("role_id") as string)?.trim() || null;
   if (roleId === "" || roleId === "none") {
-    await createInviteLinkData(calendar.id, user.id, null, null);
+    await createInviteLinkData(calendarId, user.id, null, null);
   } else {
-    await createInviteLinkData(calendar.id, user.id, null, roleId);
+    await createInviteLinkData(calendarId, user.id, null, roleId);
   }
   revalidatePath(SHARING_PATH);
 }
@@ -99,11 +110,12 @@ export async function deleteInviteLink(formData: FormData): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("未ログイン");
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const calendarId = getCalendarIdFromForm(formData);
+  await ensureUserCanEditCalendar(calendarId);
   const id = formData.get("invite_link_id") as string;
   if (!id) throw new Error("invite_link_id が必要です");
 
-  await deleteInviteLinkData(id, calendar.id);
+  await deleteInviteLinkData(id, calendarId);
   revalidatePath(SHARING_PATH);
 }
 
@@ -114,17 +126,18 @@ export async function assignRoleToUser(formData: FormData): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("未ログイン");
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const calendarId = getCalendarIdFromForm(formData);
+  await ensureUserCanEditCalendar(calendarId);
   const targetUserId = formData.get("user_id") as string;
   const roleId = (formData.get("role_id") as string)?.trim();
   if (!targetUserId) throw new Error("user_id が必要です");
   if (!roleId || roleId === "none") {
     const { deleteShare } = await import("@/lib/data/shares");
-    await deleteShare(calendar.id, targetUserId);
+    await deleteShare(calendarId, targetUserId);
     revalidatePath(SHARING_PATH);
     return;
   }
-  await upsertShare(calendar.id, targetUserId, roleId);
+  await upsertShare(calendarId, targetUserId, roleId);
   revalidatePath(SHARING_PATH);
 }
 
@@ -135,12 +148,13 @@ export async function removeShare(formData: FormData): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("未ログイン");
 
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+  const calendarId = getCalendarIdFromForm(formData);
+  await ensureUserCanEditCalendar(calendarId);
   const targetUserId = formData.get("user_id") as string;
   if (!targetUserId) throw new Error("user_id が必要です");
 
   const { deleteShare } = await import("@/lib/data/shares");
-  await deleteShare(calendar.id, targetUserId);
+  await deleteShare(calendarId, targetUserId);
   revalidatePath(SHARING_PATH);
 }
 

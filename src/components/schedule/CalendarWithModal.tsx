@@ -13,6 +13,7 @@ import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClas
 import { getEventColorClasses, getEventColorDotClass } from "@/lib/event-colors";
 import { useViewMode } from "@/lib/view-mode-context";
 import { ScheduleForm } from "./ScheduleForm";
+import { DayDetailModal, type DayDetailRow } from "@/components/data/DayDetailModal";
 
 dayjs.locale("ja");
 
@@ -368,6 +369,34 @@ export function CalendarWithModal({
     [permissions.canViewRank, currentRankCycle, rankCycleHistory, futureCycles, todayStr]
   );
 
+  /** リスナー用詳細モーダルに渡す DayDetailRow。selectedDay とランク周期（現在・履歴・予測）から組み立てる。 */
+  const detailRowForModal: DayDetailRow | null = useMemo(() => {
+    if (!selectedDay || !selectedDate) return null;
+    const entry = selectedDay.entries[0];
+    const cycle = getCycleForDate(selectedDay.date);
+    const currentRank = cycle?.rank ?? null;
+    return {
+      date: selectedDay.date,
+      weekday: WEEKDAYS[dayjs(selectedDay.date).day()],
+      current_rank: currentRank,
+      rank_score_cumulative: null,
+      ...(entry && {
+        id: entry.id,
+        ansuko_baseline: entry.ansuko_baseline,
+        border_plus2: entry.border_plus2,
+        border_plus4: entry.border_plus4,
+        border_plus6: entry.border_plus6,
+        target_plus: entry.target_plus,
+        actual_plus: entry.actual_plus,
+        skip_pass_used: entry.skip_pass_used,
+        memo: entry.memo,
+        event_id: entry.event_id,
+        stream_content: entry.stream_content,
+        stream_content_color: entry.stream_content_color,
+      }),
+    };
+  }, [selectedDay, selectedDate, getCycleForDate]);
+
   /** 週行内でバーの角丸: 左端セルで左丸、右端セルで右丸 */
   const getBarRoundedInRow = useCallback(
     (date: string, rowDates: string[], cycleStart: string, cycleEnd: string): { roundedLeft: boolean; roundedRight: boolean } => {
@@ -488,9 +517,7 @@ export function CalendarWithModal({
                   <button
                     key={day.date}
                     type="button"
-                    onClick={() => {
-                      if (permissions.canEditSchedule) setSelectedDate(day.date);
-                    }}
+                    onClick={() => setSelectedDate(day.date)}
                     onDragOver={(e) => {
                       if (canDrop) e.preventDefault();
                     }}
@@ -722,11 +749,7 @@ export function CalendarWithModal({
             <button
               key={day.date}
               type="button"
-              onClick={() => {
-                if (permissions.canEditSchedule) {
-                  setSelectedDate(day.date);
-                }
-              }}
+              onClick={() => setSelectedDate(day.date)}
               onDragOver={(e) => {
                 if (canDrop) e.preventDefault();
               }}
@@ -1056,6 +1079,16 @@ export function CalendarWithModal({
             />
           </div>
         </div>
+      )}
+
+      {!permissions.canEditSchedule && selectedDate && selectedDay && detailRowForModal && (
+        <DayDetailModal
+          row={detailRowForModal}
+          events={events}
+          permissions={permissions}
+          calendarId={calendarId}
+          onClose={() => setSelectedDate(null)}
+        />
       )}
     </div>
   );

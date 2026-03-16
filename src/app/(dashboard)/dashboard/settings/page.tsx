@@ -1,6 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import {
+  getCurrentCalendarForUser,
+  listCalendarsAccessibleToUser,
+} from "@/lib/data/calendars";
 import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
 import {
   updateCurrentRank,
@@ -8,7 +12,7 @@ import {
   noopUpdateCurrentRank,
   noopUpdateRankResetDate,
 } from "@/app/(dashboard)/dashboard/actions";
-import { updateDisplayNameAction } from "./actions";
+import { updateDisplayNameAction, createMyCalendarAction } from "./actions";
 import { getProfile } from "@/lib/data/profiles";
 import { ViewModeToggle } from "@/components/settings/ViewModeToggle";
 import { AccountSection } from "@/components/settings/AccountSection";
@@ -17,12 +21,17 @@ import { DangerZoneSection } from "@/components/settings/DangerZoneSection";
 import { AppAboutSection } from "@/components/settings/AppAboutSection";
 import { RankSettingsForm } from "@/components/settings/RankSettingsForm";
 import { AccountLinkingSection } from "@/components/settings/AccountLinkingSection";
+import { CalendarSwitcher } from "@/components/settings/CalendarSwitcher";
 
-export default async function SettingsPage() {
+type PageProps = { searchParams?: Promise<{ calendarId?: string }> };
+
+export default async function SettingsPage({ searchParams }: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const params = searchParams ? await searchParams : undefined;
+  const urlCalendarId = params?.calendarId ?? null;
 
   const isDevMock = process.env.NODE_ENV === "development" && !user;
 
@@ -85,9 +94,38 @@ export default async function SettingsPage() {
   }
 
   if (!user) redirect("/login");
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
+
+  const [accessibleCalendars, currentCalendar] = await Promise.all([
+    listCalendarsAccessibleToUser(user.id),
+    getCurrentCalendarForUser(user.id, urlCalendarId),
+  ]);
+
+  if (!currentCalendar) {
+    return (
+      <div className="space-y-4">
+        <header className="space-y-1">
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            設定
+          </h1>
+        </header>
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-600 dark:border-zinc-700 dark:bg-slate-800 dark:text-zinc-300">
+          <p>アクセスできるカレンダーがありません。</p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            招待リンクから参加するか、トップへお戻りください。
+          </p>
+          <Link
+            href="/"
+            className="mt-4 inline-block rounded-xl bg-accent-500 px-4 py-2 text-sm font-medium text-white hover:bg-accent-600"
+          >
+            トップへ
+          </Link>
+        </section>
+      </div>
+    );
+  }
+
   const [rankState, profile] = await Promise.all([
-    getOrCreateCalendarRankState(calendar.id),
+    currentCalendar.isOwner ? getOrCreateCalendarRankState(currentCalendar.id) : null,
     getProfile(user.id),
   ]);
 
@@ -102,9 +140,15 @@ export default async function SettingsPage() {
         </p>
       </header>
 
+      <CalendarSwitcher
+        calendars={accessibleCalendars}
+        currentCalendarId={currentCalendar.id}
+        createMyCalendarAction={createMyCalendarAction}
+      />
+
       <AccountSection
         user={user}
-        calendarName={calendar.name ?? "メインカレンダー"}
+        calendarName={currentCalendar.name ?? "メインカレンダー"}
         displayName={profile?.display_name ?? null}
         avatarUrl={profile?.avatar_url ?? null}
         updateDisplayNameAction={updateDisplayNameAction}
@@ -112,21 +156,23 @@ export default async function SettingsPage() {
 
       <AccountLinkingSection isEnabled />
 
-      <section className="space-y-3 rounded-2xl bg-white p-4 text-xs text-zinc-700 shadow-md dark:bg-slate-800 dark:text-zinc-200">
-        <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
-          ランク設定
-        </h2>
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-          IRIAM の現在ランクと集計周期のリセット日を合わせます。ランクズレやリセット日のずれがあるときにここで修正できます。
-        </p>
-        <RankSettingsForm
-          calendarId={calendar.id}
-          currentRank={rankState.current_rank}
-          rankResetDate={rankState.rank_reset_date}
-          onUpdateCurrentRank={updateCurrentRank}
-          onUpdateRankResetDate={updateRankResetDate}
-        />
-      </section>
+      {currentCalendar.isOwner && rankState && (
+        <section className="space-y-3 rounded-2xl bg-white p-4 text-xs text-zinc-700 shadow-md dark:bg-slate-800 dark:text-zinc-200">
+          <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+            ランク設定
+          </h2>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            IRIAM の現在ランクと集計周期のリセット日を合わせます。ランクズレやリセット日のずれがあるときにここで修正できます。
+          </p>
+          <RankSettingsForm
+            calendarId={currentCalendar.id}
+            currentRank={rankState.current_rank}
+            rankResetDate={rankState.rank_reset_date}
+            onUpdateCurrentRank={updateCurrentRank}
+            onUpdateRankResetDate={updateRankResetDate}
+          />
+        </section>
+      )}
 
       <section className="space-y-3 rounded-2xl bg-white p-4 text-xs text-zinc-700 shadow-md dark:bg-slate-800 dark:text-zinc-200">
         <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
@@ -138,9 +184,13 @@ export default async function SettingsPage() {
         <ViewModeToggle />
       </section>
 
-      <DataManagementSection calendarId={calendar.id} isMock={false} />
+      {currentCalendar.isOwner && (
+        <DataManagementSection calendarId={currentCalendar.id} isMock={false} />
+      )}
       <AppAboutSection />
-      <DangerZoneSection calendarId={calendar.id} isMock={false} />
+      {currentCalendar.isOwner && (
+        <DangerZoneSection calendarId={currentCalendar.id} isMock={false} />
+      )}
     </div>
   );
 }

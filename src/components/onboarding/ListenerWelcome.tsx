@@ -39,7 +39,8 @@ export function ListenerWelcome({ calendarId, calendarName, displayName }: Props
       localStorage.setItem(WELCOME_KEY + calendarId, "1");
     }
     setStep("done");
-    router.replace("/dashboard", { scroll: false });
+    const url = `/dashboard?calendarId=${encodeURIComponent(calendarId)}`;
+    router.replace(url, { scroll: false });
   };
 
   const handleSubmitName = async (e: React.FormEvent) => {

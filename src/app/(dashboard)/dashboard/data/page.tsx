@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import { getCurrentCalendarForUser } from "@/lib/data/calendars";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { getOrCreateCalendarRankState, ensureSkipPassIncrementForLastWeek, getSkipPassSnapshotsBefore, type SkipPassSnapshotRow } from "@/lib/data/calendar-rank-state";
 import { listEventsForCalendar } from "@/lib/data/events";
@@ -25,7 +25,7 @@ import { updateScheduleEntryField, updateSkipPassSnapshot } from "../actions";
 
 dayjs.locale("ja");
 
-type PageProps = { searchParams?: Promise<{ days?: string }> | { days?: string } };
+type PageProps = { searchParams?: Promise<{ days?: string; calendarId?: string }> | { days?: string; calendarId?: string } };
 
 export default async function DataPage(props: PageProps) {
   const supabase = await createSupabaseServerClient();
@@ -40,10 +40,11 @@ export default async function DataPage(props: PageProps) {
   }
 
   const rawSp = props.searchParams;
-  const resolvedSp: { days?: string } =
+  const resolvedSp: { days?: string; calendarId?: string } =
     rawSp && typeof (rawSp as Promise<unknown>).then === "function"
-      ? await (rawSp as Promise<{ days?: string }>)
-      : (rawSp ?? {}) as { days?: string };
+      ? await (rawSp as Promise<{ days?: string; calendarId?: string }>)
+      : (rawSp ?? {}) as { days?: string; calendarId?: string };
+  const urlCalendarId = resolvedSp.calendarId ?? null;
   const daysRange = parseDaysParam(resolvedSp.days);
 
   if (isDevMock) {
@@ -148,8 +149,14 @@ export default async function DataPage(props: PageProps) {
   }
 
   if (!user) redirect("/login");
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
-  const permissions = await getCalendarPermissionsForUser(calendar.id, user.id);
+  const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
+  if (!currentCalendar) redirect("/dashboard/settings");
+  if (!urlCalendarId) {
+    const q = new URLSearchParams({ calendarId: currentCalendar.id });
+    if (resolvedSp.days) q.set("days", resolvedSp.days);
+    redirect(`/dashboard/data?${q.toString()}`);
+  }
+  const permissions = await getCalendarPermissionsForUser(currentCalendar.id, user.id);
 
   if (!permissions.canViewTable) {
     return (
@@ -171,17 +178,17 @@ export default async function DataPage(props: PageProps) {
   const to = today.add(daysRange, "day").format("YYYY-MM-DD");
 
   const [entries, events, rankState] = await Promise.all([
-    getScheduleEntriesInRange(calendar.id, from, to),
-    listEventsForCalendar(calendar.id),
-    getOrCreateCalendarRankState(calendar.id),
+    getScheduleEntriesInRange(currentCalendar.id, from, to),
+    listEventsForCalendar(currentCalendar.id),
+    getOrCreateCalendarRankState(currentCalendar.id),
   ]);
   const entriesByDate = new Map(entries.map((e) => [e.date, e]));
 
-  await ensureSkipPassIncrementForLastWeek(calendar.id);
+  await ensureSkipPassIncrementForLastWeek(currentCalendar.id);
   const cycleStart = rankState.rank_cycle_start_date;
   const cycleEnd = rankState.rank_reset_date;
 
-  const snapshots = await getSkipPassSnapshotsBefore(calendar.id, to);
+  const snapshots = await getSkipPassSnapshotsBefore(currentCalendar.id, to);
   const todayStr = today.format("YYYY-MM-DD");
   const getRemainingAsOf = (dateStr: string): number | null => {
     const s = snapshots.find((x: SkipPassSnapshotRow) => x.as_of_date <= dateStr);
@@ -268,7 +275,7 @@ export default async function DataPage(props: PageProps) {
             データ
           </h1>
           <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            {calendar.name ?? "メインカレンダー"} の今日を中心に前後 {daysRange}
+            {currentCalendar.name ?? "メインカレンダー"} の今日を中心に前後 {daysRange}
             日分のスケジュールを一覧表示します。
           </p>
         </div>
@@ -286,7 +293,7 @@ export default async function DataPage(props: PageProps) {
       <DataTable
         data={rows}
         permissions={permissions}
-        calendarId={calendar.id}
+        calendarId={currentCalendar.id}
         onUpdateField={updateScheduleEntryField}
         events={events}
         onUpdateSkipPassSnapshot={updateSkipPassSnapshot}

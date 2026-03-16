@@ -4,7 +4,7 @@ import "dayjs/locale/ja";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import { getCurrentCalendarForUser } from "@/lib/data/calendars";
 import {
   getScheduleEntriesInRange,
   type ScheduleEntryRow,
@@ -60,7 +60,9 @@ function parseForecastRank(forecastLabel: string | null): string | null {
   return after;
 }
 
-type PageProps = { searchParams?: Promise<{ month?: string; week?: string }> | { month?: string; week?: string } };
+type PageProps = {
+  searchParams?: Promise<{ month?: string; week?: string; calendarId?: string }> | { month?: string; week?: string; calendarId?: string };
+};
 
 export default async function CalendarPage(props: PageProps) {
   const supabase = await createSupabaseServerClient();
@@ -75,10 +77,11 @@ export default async function CalendarPage(props: PageProps) {
   }
 
   const rawSp = props.searchParams;
-  const resolvedSp: { month?: string; week?: string } =
+  const resolvedSp: { month?: string; week?: string; calendarId?: string } =
     rawSp && typeof (rawSp as Promise<unknown>).then === "function"
-      ? await (rawSp as Promise<{ month?: string; week?: string }>)
-      : (rawSp ?? {}) as { month?: string; week?: string };
+      ? await (rawSp as Promise<{ month?: string; week?: string; calendarId?: string }>)
+      : (rawSp ?? {}) as { month?: string; week?: string; calendarId?: string };
+  const urlCalendarId = resolvedSp.calendarId ?? null;
   let displayMonth = parseMonthParam(resolvedSp.month);
   const currentWeekStart = parseWeekParam(displayMonth, resolvedSp.week);
   if (resolvedSp.week && /^\d{4}-\d{2}-\d{2}$/.test(resolvedSp.week) && dayjs(resolvedSp.week, "YYYY-MM-DD", true).isValid()) {
@@ -171,8 +174,15 @@ export default async function CalendarPage(props: PageProps) {
   }
 
   if (!user) redirect("/login");
-  const calendar = await getOrCreateDefaultCalendarForUser(user.id);
-  const permissions = await getCalendarPermissionsForUser(calendar.id, user.id);
+  const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
+  if (!currentCalendar) redirect("/dashboard/settings");
+  if (!urlCalendarId) {
+    const q = new URLSearchParams({ calendarId: currentCalendar.id });
+    if (resolvedSp.month) q.set("month", resolvedSp.month);
+    if (resolvedSp.week) q.set("week", resolvedSp.week);
+    redirect(`/dashboard/calendar?${q.toString()}`);
+  }
+  const permissions = await getCalendarPermissionsForUser(currentCalendar.id, user.id);
 
   if (!permissions.canViewCalendar) {
     return (
@@ -189,7 +199,7 @@ export default async function CalendarPage(props: PageProps) {
     );
   }
 
-  const events = await listEventsForCalendar(calendar.id);
+  const events = await listEventsForCalendar(currentCalendar.id);
 
   const today = dayjs();
   const monthStart = displayMonth.startOf("month");
@@ -199,13 +209,13 @@ export default async function CalendarPage(props: PageProps) {
   const toDate = monthEnd.endOf("week").format("YYYY-MM-DD");
 
   const [entries, rankState, rankCycleHistory] = await Promise.all([
-    getScheduleEntriesInRange(calendar.id, fromDate, toDate),
-    getOrCreateCalendarRankState(calendar.id),
-    getRankCycleHistory(calendar.id, fromDate, toDate),
+    getScheduleEntriesInRange(currentCalendar.id, fromDate, toDate),
+    getOrCreateCalendarRankState(currentCalendar.id),
+    getRankCycleHistory(currentCalendar.id, fromDate, toDate),
   ]);
 
-  await ensureSkipPassIncrementForLastWeek(calendar.id);
-  const rankStateLatest = await getOrCreateCalendarRankState(calendar.id);
+  await ensureSkipPassIncrementForLastWeek(currentCalendar.id);
+  const rankStateLatest = await getOrCreateCalendarRankState(currentCalendar.id);
 
   const todayJst = today.format("YYYY-MM-DD");
   let forecastLabel: string | null = null;
@@ -213,7 +223,7 @@ export default async function CalendarPage(props: PageProps) {
     const cycleStart = rankState.rank_cycle_start_date;
     const cycleEnd = rankState.rank_reset_date;
     const cycleEntries = await getScheduleEntriesInRange(
-      calendar.id,
+      currentCalendar.id,
       cycleStart,
       cycleEnd
     );
@@ -371,11 +381,11 @@ export default async function CalendarPage(props: PageProps) {
         </section>
       )}
       <CalendarWithModal
-        calendarName={calendar.name ?? "メインカレンダー"}
+        calendarName={currentCalendar.name ?? "メインカレンダー"}
         monthLabel={currentMonthLabel}
         currentMonthParam={currentMonthParam}
         currentWeekStart={currentWeekStart}
-        calendarId={calendar.id}
+        calendarId={currentCalendar.id}
         permissions={permissions}
         days={days}
         moveEntry={moveScheduleEntry}
