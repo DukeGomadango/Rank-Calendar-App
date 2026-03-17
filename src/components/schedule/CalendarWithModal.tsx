@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
 import Link from "next/link";
+import { TimeInput } from "@mantine/dates";
 
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { EventRow } from "@/lib/data/events";
@@ -564,6 +565,12 @@ export function CalendarWithModal({
     const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
     const { pending } = useFormStatus();
     const loading = pending || isSubmitting;
+    const [startTime, setStartTime] = useState(
+      initialSchedule?.start_time ? initialSchedule.start_time.slice(0, 5) : ""
+    );
+    const [endTime, setEndTime] = useState(
+      initialSchedule?.end_time ? initialSchedule.end_time.slice(0, 5) : ""
+    );
 
     const getError = (name: string) => fieldErrors[name]?.[0];
     const inputErrorClass =
@@ -606,6 +613,8 @@ export function CalendarWithModal({
       >
         <input type="hidden" name="calendar_id" value={calendarId} />
         <input type="hidden" name="date" value={date} />
+        <input type="hidden" name="start_time" value={startTime} />
+        <input type="hidden" name="end_time" value={endTime} />
         {initialSchedule && <input type="hidden" name="id" value={initialSchedule.id} />}
         {Object.keys(fieldErrors).length > 0 && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
@@ -645,19 +654,40 @@ export function CalendarWithModal({
           </label>
           <div className="flex items-center gap-1 text-[10px] text-zinc-600 dark:text-zinc-400">
             <span>時間</span>
-            <input
-              type="time"
-              name="start_time"
-              className={`${inputBaseClass} h-6 w-20`}
-              defaultValue={initialSchedule?.start_time ? initialSchedule.start_time.slice(0, 5) : ""}
-            />
-            <span>〜</span>
-            <input
-              type="time"
-              name="end_time"
-              className={`${inputBaseClass} h-6 w-20`}
-              defaultValue={initialSchedule?.end_time ? initialSchedule.end_time.slice(0, 5) : ""}
-            />
+            {/* モバイル向け: ネイティブ time input（小画面で表示） */}
+            <div className="flex items-center gap-1 md:hidden">
+              <input
+                type="time"
+                className={`${inputBaseClass} h-6 w-20`}
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
+              <span>〜</span>
+              <input
+                type="time"
+                className={`${inputBaseClass} h-6 w-20`}
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+            </div>
+            {/* PC向け: Mantine の TimeInput（中画面以上で表示） */}
+            <div className="hidden items-center gap-1 md:flex">
+              <TimeInput
+                className="w-24"
+                value={startTime}
+                onChange={(event) => setStartTime(event.currentTarget.value)}
+                withSeconds={false}
+                aria-label="開始時刻"
+              />
+              <span>〜</span>
+              <TimeInput
+                className="w-24"
+                value={endTime}
+                onChange={(event) => setEndTime(event.currentTarget.value)}
+                withSeconds={false}
+                aria-label="終了時刻"
+              />
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1479,60 +1509,102 @@ export function CalendarWithModal({
                   </p>
                 ) : (
                   <ul className="space-y-1">
-                    {selectedSchedules.map((s) => (
-                      <li
-                        key={s.id}
-                        onClick={() => setSelectedScheduleId(s.id)}
-                        className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11px] text-zinc-800 dark:text-zinc-100 cursor-pointer ${
-                          selectedScheduleId === s.id
-                            ? "bg-accent-50 border border-accent-200 dark:bg-accent-950/40 dark:border-accent-700"
-                            : "bg-zinc-50 dark:bg-zinc-800/80"
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="flex items-center gap-1">
-                            <span className="inline-flex items-center rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
-                              {s.kind === "personal"
-                                ? "個人"
-                                : s.kind === "stream"
-                                  ? "配信"
-                                  : s.kind === "secret"
-                                    ? "秘密"
-                                    : "その他"}
-                            </span>
-                            <span className="truncate">
-                              {s.is_all_day
-                                ? "終日"
-                                : `${s.start_time?.slice(0, 5) ?? "--:--"}〜${s.end_time?.slice(0, 5) ?? "--:--"}`}
-                            </span>
-                          </p>
-                          <p className="truncate text-[11px] font-medium">
-                            {s.title}
-                          </p>
-                          {s.memo && (
-                            <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                              {s.memo}
-                            </p>
-                          )}
-                        </div>
-                        {permissions.isOwner && deleteScheduleAction && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteScheduleAction(s.id);
-                              if (selectedScheduleId === s.id) {
-                                setSelectedScheduleId(null);
-                              }
-                            }}
-                            className="shrink-0 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                            aria-label="予定を削除"
+                    {selectedSchedules.map((s, index) => {
+                      const isSelected = selectedScheduleId === s.id;
+                      const isFirst = index === 0;
+                      const isLast = index === selectedSchedules.length - 1;
+                      const startLabel = s.is_all_day
+                        ? "終日"
+                        : s.start_time
+                          ? s.start_time.slice(0, 5)
+                          : "--:--";
+                      return (
+                        <li
+                          key={s.id}
+                          onClick={() => setSelectedScheduleId(s.id)}
+                          className="flex gap-2 text-[11px] text-zinc-800 dark:text-zinc-100 cursor-pointer"
+                        >
+                          {/* 左側: 時刻 + タイムライン */}
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 text-right text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400 pr-1">
+                              {startLabel}
+                            </div>
+                            <div className="relative flex-1">
+                              <div
+                                className={`absolute left-1/2 -translate-x-1/2 w-px bg-zinc-200 dark:bg-zinc-700 ${
+                                  isFirst ? "top-2" : "top-0"
+                                } ${isLast ? "bottom-2" : "bottom-0"}`}
+                              />
+                              <div className="relative mt-1 flex items-center justify-center">
+                                <span
+                                  className={`h-2 w-2 rounded-full border ${
+                                    isSelected
+                                      ? "bg-accent-500 border-accent-500"
+                                      : "bg-white border-zinc-300 dark:bg-zinc-900 dark:border-zinc-600"
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 右側: 内容カード */}
+                          <div
+                            className={`flex min-w-0 flex-1 items-center justify-between rounded-md px-2 py-1 ${
+                              isSelected
+                                ? "bg-accent-50 border border-accent-200 dark:bg-accent-950/40 dark:border-accent-700"
+                                : "bg-zinc-50 border border-transparent dark:bg-zinc-800/80"
+                            }`}
                           >
-                            🗑
-                          </button>
-                        )}
-                      </li>
-                    ))}
+                            <div className="min-w-0 flex-1">
+                              <p className="mb-0.5 flex items-center gap-1">
+                                <span className="inline-flex items-center rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
+                                  {s.kind === "personal"
+                                    ? "個人"
+                                    : s.kind === "stream"
+                                      ? "配信"
+                                      : s.kind === "secret"
+                                        ? "秘密"
+                                        : "その他"}
+                                </span>
+                                {!s.is_all_day && (
+                                  <span className="text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
+                                    {s.start_time?.slice(0, 5) ?? "--:--"}
+                                    {s.end_time && `〜${s.end_time.slice(0, 5)}`}
+                                  </span>
+                                )}
+                                {s.is_all_day && (
+                                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">終日</span>
+                                )}
+                              </p>
+                              <p className="truncate text-[11px] font-medium">
+                                {s.title}
+                              </p>
+                              {s.memo && (
+                                <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                                  {s.memo}
+                                </p>
+                              )}
+                            </div>
+                            {permissions.isOwner && deleteScheduleAction && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteScheduleAction(s.id);
+                                  if (selectedScheduleId === s.id) {
+                                    setSelectedScheduleId(null);
+                                  }
+                                }}
+                                className="shrink-0 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                                aria-label="予定を削除"
+                              >
+                                🗑
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
