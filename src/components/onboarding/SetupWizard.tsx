@@ -68,6 +68,8 @@ export function SetupWizard({
       } else {
         setError(result.error ?? "保存に失敗しました");
       }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存に失敗しました");
     } finally {
       setPending(false);
     }
@@ -186,8 +188,9 @@ export function SetupWizard({
 
       {step === 4 && (
         <form
-          action={async (fd) => {
-            await run(async () => saveOnboardingStep4(fd), 5);
+          onSubmit={async (e) => {
+            e.preventDefault();
+            await run(async () => saveOnboardingStep4(new FormData(e.currentTarget)), 5);
           }}
           className="space-y-4"
         >
@@ -216,8 +219,9 @@ export function SetupWizard({
 
       {step === 5 && (
         <form
-          action={async (fd) => {
-            await run(async () => saveOnboardingStep5(fd), 6);
+          onSubmit={async (e) => {
+            e.preventDefault();
+            await run(async () => saveOnboardingStep5(new FormData(e.currentTarget)), 6);
           }}
           className="space-y-4"
         >
