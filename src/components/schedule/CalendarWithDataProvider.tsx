@@ -10,6 +10,10 @@ import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
+import type {
+  SaveScheduleEntryResult,
+  SaveCalendarScheduleResult,
+} from "@/app/(dashboard)/dashboard/actions";
 import { CalendarWithModal } from "./CalendarWithModal";
 
 type DayData = {
@@ -27,6 +31,14 @@ type Props = {
   initialMonth: string; // YYYY-MM
   initialWeekStart: string; // YYYY-MM-DD
   permissions: CalendarPermissionFlags;
+  /** 日別ランクスケジュール保存用 Server Action（カレンダーモーダルから呼び出す） */
+  saveEntryAction?: (formData: FormData) => Promise<SaveScheduleEntryResult>;
+  /** 日別ランクスケジュール移動用 Server Action（ドラッグ&ドロップ用） */
+  moveEntryAction?: (calendarId: string, fromDate: string, toDate: string) => Promise<void>;
+  /** 時間付き予定保存用 Server Action */
+  saveScheduleAction?: (formData: FormData) => Promise<SaveCalendarScheduleResult>;
+  /** 時間付き予定削除用 Server Action */
+  deleteScheduleAction?: (scheduleId: string) => Promise<void>;
 };
 
 export function CalendarWithDataProvider({
@@ -35,6 +47,10 @@ export function CalendarWithDataProvider({
   initialMonth,
   initialWeekStart,
   permissions,
+  saveEntryAction,
+  moveEntryAction,
+  saveScheduleAction,
+  deleteScheduleAction,
 }: Props) {
   const [view, setView] = useState<"month" | "week">("month");
   const [displayMonth, setDisplayMonth] = useState(dayjs(`${initialMonth}-15`, "YYYY-MM-DD"));
@@ -240,8 +256,14 @@ export function CalendarWithDataProvider({
           setDisplayWeekStart(weekStart);
           setDisplayMonth(dayjs(weekStart, "YYYY-MM-DD").startOf("month"));
         }}
-        moveEntry={async () => {}}
-        saveAction={() => {}}
+        moveEntry={async (id, from, to) => {
+          if (!moveEntryAction) return;
+          await moveEntryAction(id, from, to);
+        }}
+        saveAction={async (formData) => {
+          if (!saveEntryAction) return;
+          await saveEntryAction(formData);
+        }}
         events={events}
         currentRankCycle={currentRankCycle}
         rankCycleHistory={rankCycleHistory}
@@ -250,8 +272,8 @@ export function CalendarWithDataProvider({
         todayJst={todayJst}
         skipPassRemaining={rankStateLatest?.skip_pass_remaining ?? 0}
         schedules={schedules}
-        saveScheduleAction={undefined}
-        deleteScheduleAction={undefined}
+        saveScheduleAction={saveScheduleAction}
+        deleteScheduleAction={deleteScheduleAction}
       />
     </>
   );

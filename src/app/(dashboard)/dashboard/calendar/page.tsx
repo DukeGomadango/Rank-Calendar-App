@@ -14,7 +14,14 @@ import {
   getMockPermissions,
   type CalendarPermissionFlags,
 } from "@/lib/auth/permission";
-import { noopMoveEntry, noopSaveEntry } from "../actions";
+import {
+  moveScheduleEntry,
+  saveScheduleEntry,
+  saveCalendarSchedule,
+  deleteCalendarSchedule,
+  noopMoveEntry,
+  noopSaveEntry,
+} from "../actions";
 import { CalendarMockWrapper } from "@/components/schedule/CalendarMockWrapper";
 import { CalendarWithDataProvider } from "@/components/schedule/CalendarWithDataProvider";
 
@@ -211,6 +218,10 @@ export default async function CalendarPage(props: PageProps) {
         initialMonth={currentMonthParam}
         initialWeekStart={currentWeekStart}
         permissions={permissions}
+        saveEntryAction={saveScheduleEntry}
+        moveEntryAction={moveScheduleEntry}
+        saveScheduleAction={saveCalendarSchedule}
+        deleteScheduleAction={deleteCalendarSchedule}
       />
     </div>
   );
