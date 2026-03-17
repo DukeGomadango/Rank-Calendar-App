@@ -1350,7 +1350,7 @@ export function CalendarWithModal({
 
       {permissions.canEditSchedule && selectedDate && selectedDay && (
         <div className={`fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/40 px-0 md:px-4 py-0 md:py-8 transition-opacity duration-200 ${sheetEntered ? "opacity-100" : "opacity-0"} md:opacity-100`}>
-          <div className={`w-full max-h-[85vh] md:max-h-none max-w-md rounded-t-2xl md:rounded-2xl border border-zinc-200 border-b-0 md:border-b bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900 overflow-y-auto transition-transform duration-200 ease-out ${sheetEntered ? "translate-y-0" : "translate-y-full md:translate-y-0"}`}>
+          <div className={`w-full max-h-[85vh] md:max-h-none max-w-3xl rounded-t-2xl md:rounded-2xl border border-zinc-200 border-b-0 md:border-b bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900 overflow-y-auto transition-transform duration-200 ease-out ${sheetEntered ? "translate-y-0" : "translate-y-full md:translate-y-0"}`}>
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
@@ -1369,83 +1369,90 @@ export function CalendarWithModal({
               </button>
             </div>
 
-            <ScheduleForm
-              calendarId={calendarId}
-              defaultDate={selectedDate}
-              action={handleSave}
-              events={events}
-              defaultTargetPlus={selectedDay?.entries[0]?.target_plus}
-              defaultActualPlus={selectedDay?.entries[0]?.actual_plus}
-              defaultAnsukoBaseline={selectedDay?.entries[0]?.ansuko_baseline}
-              defaultBorderPlus2={selectedDay?.entries[0]?.border_plus2}
-              defaultBorderPlus4={selectedDay?.entries[0]?.border_plus4}
-              defaultBorderPlus6={selectedDay?.entries[0]?.border_plus6}
-              defaultEventId={effectiveDefaultEventId}
-              defaultMemo={selectedDay?.entries[0]?.memo}
-              defaultSkipPassUsed={selectedDay?.entries[0]?.skip_pass_used}
-              skipPassRemaining={skipPassRemaining}
-              defaultStreamContent={selectedDay?.entries[0]?.stream_content}
-              defaultStreamContentColor={selectedDay?.entries[0]?.stream_content_color}
-            />
-            <div className="mt-4 space-y-2">
-              <div className="flex items-baseline justify-between">
-                <p className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-50">
-                  この日の予定
-                </p>
-                {selectedSchedules.length > 0 && (
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {selectedSchedules.length}件
-                  </span>
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              {/* 左: ランク用（日別スコア）フォーム */}
+              <div className="space-y-3">
+                <ScheduleForm
+                  calendarId={calendarId}
+                  defaultDate={selectedDate}
+                  action={handleSave}
+                  events={events}
+                  defaultTargetPlus={selectedDay?.entries[0]?.target_plus}
+                  defaultActualPlus={selectedDay?.entries[0]?.actual_plus}
+                  defaultAnsukoBaseline={selectedDay?.entries[0]?.ansuko_baseline}
+                  defaultBorderPlus2={selectedDay?.entries[0]?.border_plus2}
+                  defaultBorderPlus4={selectedDay?.entries[0]?.border_plus4}
+                  defaultBorderPlus6={selectedDay?.entries[0]?.border_plus6}
+                  defaultEventId={effectiveDefaultEventId}
+                  defaultMemo={selectedDay?.entries[0]?.memo}
+                  defaultSkipPassUsed={selectedDay?.entries[0]?.skip_pass_used}
+                  skipPassRemaining={skipPassRemaining}
+                  defaultStreamContent={selectedDay?.entries[0]?.stream_content}
+                  defaultStreamContentColor={selectedDay?.entries[0]?.stream_content_color}
+                />
+              </div>
+
+              {/* 右: この日の予定リスト ＋ 追加フォーム */}
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between">
+                  <p className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-50">
+                    この日の予定
+                  </p>
+                  {selectedSchedules.length > 0 && (
+                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                      {selectedSchedules.length}件
+                    </span>
+                  )}
+                </div>
+                {selectedSchedules.length === 0 ? (
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    まだ予定がありません。下のフォームから追加できます。
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {selectedSchedules.map((s) => (
+                      <li
+                        key={s.id}
+                        className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1 text-[11px] text-zinc-800 dark:bg-zinc-800/80 dark:text-zinc-100"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1">
+                            <span className="inline-flex items-center rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
+                              {s.kind === "personal" ? "個人" : s.kind === "stream" ? "配信" : "その他"}
+                            </span>
+                            <span className="truncate">
+                              {s.is_all_day
+                                ? "終日"
+                                : `${s.start_time?.slice(0, 5) ?? "--:--"}〜${s.end_time?.slice(0, 5) ?? "--:--"}`}
+                            </span>
+                          </p>
+                          <p className="truncate text-[11px] font-medium">
+                            {s.title}
+                          </p>
+                          {s.memo && (
+                            <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                              {s.memo}
+                            </p>
+                          )}
+                        </div>
+                        {permissions.isOwner && deleteScheduleAction && (
+                          <button
+                            type="button"
+                            onClick={() => deleteScheduleAction(s.id)}
+                            className="shrink-0 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                            aria-label="予定を削除"
+                          >
+                            🗑
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {saveScheduleAction && (
+                  <DayScheduleForm calendarId={calendarId} date={selectedDate} />
                 )}
               </div>
-              {selectedSchedules.length === 0 ? (
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  まだ予定がありません。下のフォームから追加できます。
-                </p>
-              ) : (
-                <ul className="space-y-1">
-                  {selectedSchedules.map((s) => (
-                    <li
-                      key={s.id}
-                      className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1 text-[11px] text-zinc-800 dark:bg-zinc-800/80 dark:text-zinc-100"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-1">
-                          <span className="inline-flex items-center rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
-                            {s.kind === "personal" ? "個人" : s.kind === "stream" ? "配信" : "その他"}
-                          </span>
-                          <span className="truncate">
-                            {s.is_all_day
-                              ? "終日"
-                              : `${s.start_time?.slice(0, 5) ?? "--:--"}〜${s.end_time?.slice(0, 5) ?? "--:--"}`}
-                          </span>
-                        </p>
-                        <p className="truncate text-[11px] font-medium">
-                          {s.title}
-                        </p>
-                        {s.memo && (
-                          <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                            {s.memo}
-                          </p>
-                        )}
-                      </div>
-                      {permissions.isOwner && deleteScheduleAction && (
-                        <button
-                          type="button"
-                          onClick={() => deleteScheduleAction(s.id)}
-                          className="shrink-0 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                          aria-label="予定を削除"
-                        >
-                          🗑
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {saveScheduleAction && (
-                <DayScheduleForm calendarId={calendarId} date={selectedDate} />
-              )}
             </div>
           </div>
         </div>
