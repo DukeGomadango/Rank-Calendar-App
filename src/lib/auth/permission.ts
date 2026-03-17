@@ -14,6 +14,10 @@ export type CalendarPermissionFlags = {
   canViewTargetActual: boolean;
   canViewRank: boolean;
   canViewEvents: boolean;
+  /** 時間付きスケジュール（calendar_schedules）の閲覧権限 */
+  canViewScheduleStream: boolean;
+  canViewSchedulePersonal: boolean;
+  canViewScheduleSecret: boolean;
 };
 
 const ALL_FLAGS_FOR_OWNER: CalendarPermissionFlags = {
@@ -26,6 +30,9 @@ const ALL_FLAGS_FOR_OWNER: CalendarPermissionFlags = {
   canViewTargetActual: true,
   canViewRank: true,
   canViewEvents: true,
+  canViewScheduleStream: true,
+  canViewSchedulePersonal: true,
+  canViewScheduleSecret: true,
 };
 
 function flagsFromPermissions(perms: PermissionKey[], isOwner: boolean): CalendarPermissionFlags {
@@ -40,6 +47,9 @@ function flagsFromPermissions(perms: PermissionKey[], isOwner: boolean): Calenda
     canViewTargetActual: has("view_target_actual"),
     canViewRank: has("view_rank"),
     canViewEvents: has("view_events"),
+    canViewScheduleStream: has("view_schedule_stream"),
+    canViewSchedulePersonal: has("view_schedule_personal"),
+    canViewScheduleSecret: has("view_schedule_secret"),
   };
 }
 
@@ -84,6 +94,9 @@ export async function getCalendarPermissionsForUser(
       canViewTargetActual: false,
       canViewRank: false,
       canViewEvents: false,
+      canViewScheduleStream: false,
+      canViewSchedulePersonal: false,
+      canViewScheduleSecret: false,
     };
   }
 
@@ -120,6 +133,9 @@ export async function getCalendarPermissionsForUser(
       canViewTargetActual: false,
       canViewRank: false,
       canViewEvents: false,
+      canViewScheduleStream: false,
+      canViewSchedulePersonal: false,
+      canViewScheduleSecret: false,
     };
   }
 

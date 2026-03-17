@@ -260,11 +260,29 @@ export function CalendarWithModal({
 
   const schedulesByDate = useMemo(() => {
     const map = new Map<string, CalendarScheduleRow[]>();
+
+    const canSee = (s: CalendarScheduleRow): boolean => {
+      if (permissions.isOwner) return true;
+      switch (s.kind) {
+        case "stream":
+          return permissions.canViewScheduleStream;
+        case "personal":
+          return permissions.canViewSchedulePersonal;
+        case "secret":
+          return permissions.canViewScheduleSecret;
+        default:
+          // kind 未設定の場合は「配信 or 通常個人」扱いとして、どちらかの権限があれば表示
+          return permissions.canViewScheduleStream || permissions.canViewSchedulePersonal;
+      }
+    };
+
     for (const s of schedules) {
+      if (!canSee(s)) continue;
       const list = map.get(s.date) ?? [];
       list.push(s);
       map.set(s.date, list);
     }
+
     // 各日の中で、終日→開始時刻順の順に並べる
     for (const [key, list] of map) {
       list.sort((a, b) => {
@@ -277,7 +295,7 @@ export function CalendarWithModal({
       map.set(key, list);
     }
     return map;
-  }, [schedules]);
+  }, [permissions, schedules]);
 
   const selectedSchedules = selectedDate
     ? schedulesByDate.get(selectedDate) ?? []
@@ -652,6 +670,7 @@ export function CalendarWithModal({
             >
               <option value="stream">配信</option>
               <option value="personal">個人</option>
+              <option value="secret">個人（センシティブ）</option>
             </select>
           </div>
           <div className="flex flex-wrap items-center gap-1">
@@ -1473,7 +1492,13 @@ export function CalendarWithModal({
                         <div className="min-w-0 flex-1">
                           <p className="flex items-center gap-1">
                             <span className="inline-flex items-center rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
-                              {s.kind === "personal" ? "個人" : s.kind === "stream" ? "配信" : "その他"}
+                              {s.kind === "personal"
+                                ? "個人"
+                                : s.kind === "stream"
+                                  ? "配信"
+                                  : s.kind === "secret"
+                                    ? "個人（センシティブ）"
+                                    : "その他"}
                             </span>
                             <span className="truncate">
                               {s.is_all_day
