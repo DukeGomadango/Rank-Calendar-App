@@ -755,7 +755,7 @@ export function CalendarWithModal({
             disabled={loading}
             className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-1 focus:ring-offset-zinc-50 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-offset-zinc-900"
           >
-            {loading ? "追加中..." : "予定を追加"}
+            {loading ? "保存中..." : initialSchedule ? "予定を更新" : "予定を保存"}
           </button>
         </div>
       </form>
@@ -1564,7 +1564,8 @@ export function CalendarWithModal({
                                   className={`h-2 w-2 rounded-full border ${
                                     isSelected
                                       ? "bg-accent-500 border-accent-500"
-                                      : "bg-white border-zinc-300 dark:bg-zinc-900 dark:border-zinc-600"
+                                      : getEventColorDotClass(s.color_id ?? null) +
+                                        " border-zinc-300 dark:border-zinc-600"
                                   }`}
                                 />
                               </div>
