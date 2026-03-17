@@ -13,6 +13,7 @@ import {
   ensureSkipPassIncrementForLastWeek,
 } from "@/lib/data/calendar-rank-state";
 import { compareJstDate } from "@/lib/domain/calendar";
+import { MAX_BORDER_VALUE } from "@/lib/border-constants";
 import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
 import {
   saveScheduleEntrySchema,
@@ -195,7 +196,7 @@ export async function updateScheduleEntryField(
     if (typeof v === "number") return Number.isNaN(v) ? null : v;
     if (v === "" || v === null || v === undefined) return null;
     const n = Number(v);
-    return Number.isNaN(n) ? null : n;
+    return Number.isNaN(n) ? null : Math.floor(n);
   };
   const bool = (v: string | number | boolean): boolean =>
     v === true || v === "on" || v === "true" || v === 1;
@@ -210,10 +211,31 @@ export async function updateScheduleEntryField(
   > = {};
   if (field === "target_plus") patch.target_plus = num(value);
   else if (field === "actual_plus") patch.actual_plus = num(value);
-  else if (field === "ansuko_baseline") patch.ansuko_baseline = num(value);
-  else if (field === "border_plus2") patch.border_plus2 = num(value);
-  else if (field === "border_plus4") patch.border_plus4 = num(value);
-  else if (field === "border_plus6") patch.border_plus6 = num(value);
+  else if (field === "ansuko_baseline") {
+    const n = num(value);
+    if (n !== null && (n < 0 || n > MAX_BORDER_VALUE)) {
+      throw new Error("ansuko_baseline out of range");
+    }
+    patch.ansuko_baseline = n;
+  } else if (field === "border_plus2") {
+    const n = num(value);
+    if (n !== null && (n < 0 || n > MAX_BORDER_VALUE)) {
+      throw new Error("border_plus2 out of range");
+    }
+    patch.border_plus2 = n;
+  } else if (field === "border_plus4") {
+    const n = num(value);
+    if (n !== null && (n < 0 || n > MAX_BORDER_VALUE)) {
+      throw new Error("border_plus4 out of range");
+    }
+    patch.border_plus4 = n;
+  } else if (field === "border_plus6") {
+    const n = num(value);
+    if (n !== null && (n < 0 || n > MAX_BORDER_VALUE)) {
+      throw new Error("border_plus6 out of range");
+    }
+    patch.border_plus6 = n;
+  }
   else if (field === "skip_pass_used") patch.skip_pass_used = bool(value);
   else if (field === "memo")
     patch.memo =

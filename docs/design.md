@@ -74,10 +74,11 @@
 | id | uuid | 主キー |
 | calendar_id | uuid | カレンダー |
 | date | date / text | YYYY-MM-DD（JST 想定） |
-| target_plus | number? | 目標+ |
-| actual_plus | number? | 実績+ |
+| target_plus | integer? | 目標+（0〜9,999 程度を想定） |
+| actual_plus | integer? | 実績+（0〜9,999 程度を想定） |
 | skip_pass_used | boolean | スキップパス使用日か |
-| border_plus2, border_plus4, border_plus6 | number? | ボーダー値 |
+| ansuko_baseline | integer? | アンスコ基準値（0〜9,999万まで対応） |
+| border_plus2, border_plus4, border_plus6 | integer? | ボーダー値（0〜9,999万まで対応） |
 | event_id | uuid? | 紐づくイベント |
 | memo | text? | メモ |
 

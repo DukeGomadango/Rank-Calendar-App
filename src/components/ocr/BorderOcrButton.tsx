@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import { MAX_BORDER_VALUE } from "@/lib/border-constants";
+
 type Props = {
   /** +2, +4, +6 ボーダー入力への参照 */
   border2Ref: React.RefObject<HTMLInputElement | null>;
@@ -109,7 +111,7 @@ export function BorderOcrButton({
         if (matches.length === 0) return null;
 
         const BORDER_MIN = 10_000;
-        const BORDER_MAX = 999_999;
+        const BORDER_MAX = MAX_BORDER_VALUE;
         const candidates = Array.from(
           new Set(
             matches
@@ -178,7 +180,7 @@ export function BorderOcrButton({
         .filter((n) => Number.isFinite(n) && n > 0);
 
       const BORDER_MIN = 10_000;
-      const BORDER_MAX = 999_999;
+      const BORDER_MAX = MAX_BORDER_VALUE;
       const borderCandidates = Array.from(new Set(allNumbers))
         .filter((n) => n >= BORDER_MIN && n <= BORDER_MAX)
         .sort((a, b) => a - b);

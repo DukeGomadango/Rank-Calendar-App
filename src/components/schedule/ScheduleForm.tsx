@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { BorderOcrButton } from "@/components/ocr/BorderOcrButton";
 import { EVENT_PALETTE } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
+import { MAX_BORDER_VALUE } from "@/lib/border-constants";
 
 export type ScheduleEntryAction = (
   formData: FormData
@@ -224,6 +225,7 @@ export function ScheduleForm({
               type="number"
               name="ansuko_baseline"
               min={0}
+              max={MAX_BORDER_VALUE}
               defaultValue={defaultAnsukoBaseline ?? ""}
               aria-invalid={!!getError("ansuko_baseline")}
               className={getError("ansuko_baseline") ? `${inputBaseClass} ${inputErrorClass}` : inputBaseClass}
@@ -243,6 +245,7 @@ export function ScheduleForm({
               type="number"
               name="border_plus2"
               min={0}
+              max={MAX_BORDER_VALUE}
               ref={border2Ref}
               defaultValue={defaultBorderPlus2 ?? ""}
               aria-invalid={!!getError("border_plus2")}
@@ -263,6 +266,7 @@ export function ScheduleForm({
               type="number"
               name="border_plus4"
               min={0}
+              max={MAX_BORDER_VALUE}
               ref={border4Ref}
               defaultValue={defaultBorderPlus4 ?? ""}
               aria-invalid={!!getError("border_plus4")}
@@ -283,6 +287,7 @@ export function ScheduleForm({
               type="number"
               name="border_plus6"
               min={0}
+              max={MAX_BORDER_VALUE}
               ref={border6Ref}
               defaultValue={defaultBorderPlus6 ?? ""}
               aria-invalid={!!getError("border_plus6")}
