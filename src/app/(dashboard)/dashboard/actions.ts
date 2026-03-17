@@ -19,6 +19,7 @@ import {
   saveScheduleEntrySchema,
   type SaveScheduleEntryResult,
 } from "@/lib/validations/schedule";
+import { upsertScheduleForCalendar, deleteScheduleById } from "@/lib/data/schedules";
 
 export async function saveScheduleEntry(
   formData: FormData
@@ -95,6 +96,99 @@ export async function saveScheduleEntry(
   revalidatePath("/dashboard/calendar");
   revalidatePath("/dashboard/data");
   return { ok: true };
+}
+
+export type SaveCalendarScheduleResult =
+  | { ok: true }
+  | { ok: false; errors: Record<string, string[]> };
+
+/**
+ * 時間付きの予定（calendar_schedules）を1件保存する。
+ * id が含まれていれば更新、含まれていなければ新規作成として扱う。
+ */
+export async function saveCalendarSchedule(
+  formData: FormData
+): Promise<SaveCalendarScheduleResult> {
+  "use server";
+
+  const raw = Object.fromEntries(
+    Array.from(formData.entries()).map(([k, v]) => [k, v instanceof File ? v.name : v])
+  );
+
+  const errors: Record<string, string[]> = {};
+
+  const calendarId = String(raw.calendar_id ?? "");
+  const date = String(raw.date ?? "");
+  const title = String(raw.title ?? "").trim();
+  const isAllDay = String(raw.is_all_day ?? "") === "on";
+  const startTimeRaw = raw.start_time != null ? String(raw.start_time) : "";
+  const endTimeRaw = raw.end_time != null ? String(raw.end_time) : "";
+  const kind = (raw.kind != null ? String(raw.kind).trim() : "") || null;
+  const colorId = (raw.color_id != null ? String(raw.color_id).trim() : "") || null;
+  const memo =
+    raw.memo == null
+      ? null
+      : (() => {
+          const s = String(raw.memo).trim();
+          return s === "" ? null : s;
+        })();
+
+  if (!calendarId || !/^[0-9a-f-]{36}$/i.test(calendarId)) {
+    errors.calendar_id = ["カレンダーIDが不正です"];
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    errors.date = ["日付は YYYY-MM-DD 形式で入力してください"];
+  }
+  if (!title) {
+    errors.title = ["タイトルを入力してください"];
+  }
+  if (!isAllDay) {
+    const timeRegex = /^\d{2}:\d{2}$/;
+    if (!timeRegex.test(startTimeRaw)) {
+      errors.start_time = ["開始時刻を HH:MM 形式で入力してください"];
+    }
+    if (!timeRegex.test(endTimeRaw)) {
+      errors.end_time = ["終了時刻を HH:MM 形式で入力してください"];
+    }
+    if (timeRegex.test(startTimeRaw) && timeRegex.test(endTimeRaw)) {
+      if (startTimeRaw > endTimeRaw) {
+        errors.end_time = ["終了時刻は開始時刻以降にしてください"];
+      }
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false, errors };
+  }
+
+  await ensureUserCanEditCalendar(calendarId);
+
+  const startTime = isAllDay ? null : (startTimeRaw ? `${startTimeRaw}:00` : null);
+  const endTime = isAllDay ? null : (endTimeRaw ? `${endTimeRaw}:00` : null);
+
+  await upsertScheduleForCalendar(calendarId, {
+    date,
+    is_all_day: isAllDay,
+    start_time: startTime,
+    end_time: endTime,
+    title,
+    kind,
+    visibility: null,
+    color_id: colorId,
+    memo,
+  });
+
+  revalidatePath("/dashboard/calendar");
+  return { ok: true };
+}
+
+export async function deleteCalendarSchedule(
+  scheduleId: string
+): Promise<void> {
+  "use server";
+  if (!scheduleId) return;
+  await deleteScheduleById(scheduleId);
+  revalidatePath("/dashboard/calendar");
 }
 
 /**

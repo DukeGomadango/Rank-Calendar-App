@@ -9,9 +9,10 @@ import Link from "next/link";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { EventRow } from "@/lib/data/events";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
+import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import { useToast } from "@/lib/toast-context";
 import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
-import { getEventColorClasses, getEventColorDotClass } from "@/lib/event-colors";
+import { EVENT_PALETTE, getEventColorClasses, getEventColorDotClass } from "@/lib/event-colors";
 import { toJstDateString } from "@/lib/domain/calendar";
 import { useViewMode } from "@/lib/view-mode-context";
 import { ScheduleForm } from "./ScheduleForm";
@@ -150,6 +151,16 @@ type Props = {
   todayJst?: string | null;
   /** スキパ残り枚数。編集モーダルの「スキップパスを使用する(残りn枚)」表示用。 */
   skipPassRemaining?: number;
+  /** 時間付きの予定（新テーブル calendar_schedules 由来） */
+  schedules?: CalendarScheduleRow[];
+  /** 時間付き予定の保存用 Server Action */
+  saveScheduleAction?: (formData: FormData) => Promise<
+    | { ok: true }
+    | { ok: false; errors: Record<string, string[]> }
+    | void
+  >;
+  /** 時間付き予定の削除用 Server Action */
+  deleteScheduleAction?: (scheduleId: string) => Promise<void>;
 };
 
 /** 日付が周期範囲内か判定 */
@@ -200,6 +211,9 @@ export function CalendarWithModal({
   futureCycles = [],
   todayJst,
   skipPassRemaining,
+  schedules = [],
+  saveScheduleAction,
+  deleteScheduleAction,
 }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -242,6 +256,31 @@ export function CalendarWithModal({
   const selectedDay = selectedDate
     ? localDays.find((d) => d.date === selectedDate) ?? null
     : null;
+
+  const schedulesByDate = useMemo(() => {
+    const map = new Map<string, CalendarScheduleRow[]>();
+    for (const s of schedules) {
+      const list = map.get(s.date) ?? [];
+      list.push(s);
+      map.set(s.date, list);
+    }
+    // 各日の中で、終日→開始時刻順の順に並べる
+    for (const [key, list] of map) {
+      list.sort((a, b) => {
+        if (a.is_all_day && !b.is_all_day) return -1;
+        if (!a.is_all_day && b.is_all_day) return 1;
+        const as = a.start_time ?? "";
+        const bs = b.start_time ?? "";
+        return as.localeCompare(bs);
+      });
+      map.set(key, list);
+    }
+    return map;
+  }, [schedules]);
+
+  const selectedSchedules = selectedDate
+    ? schedulesByDate.get(selectedDate) ?? []
+    : [];
 
   /** 参加イベントの初期値。スケジュールに event_id が無くても、その日をまたぐイベントが1件だけならそれを選ぶ */
   const effectiveDefaultEventId =
@@ -479,6 +518,178 @@ export function CalendarWithModal({
       }),
     };
   }, [selectedDay, selectedDate, getCycleForDate]);
+
+  type DayScheduleActionResult =
+    | { ok: true }
+    | { ok: false; errors: Record<string, string[]> };
+
+  function DayScheduleForm({
+    calendarId,
+    date,
+  }: {
+    calendarId: string;
+    date: string;
+  }) {
+    const idPrefix = useId();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+    const { pending } = useFormStatus();
+    const loading = pending || isSubmitting;
+
+    const getError = (name: string) => fieldErrors[name]?.[0];
+    const inputErrorClass =
+      "border-amber-500 focus:border-amber-500 focus:ring-amber-300 dark:border-amber-500";
+    const inputBaseClass =
+      "rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-300 dark:border-slate-700 dark:bg-slate-900 dark:text-zinc-50";
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (!saveScheduleAction) return;
+      if (isSubmitting) return;
+      setFieldErrors({});
+      setIsSubmitting(true);
+      try {
+        const result = (await saveScheduleAction(
+          new FormData(e.currentTarget)
+        )) as DayScheduleActionResult | void;
+        if (result && "ok" in result && !result.ok) {
+          setFieldErrors(result.errors);
+        } else if (result && "ok" in result && result.ok) {
+          (e.target as HTMLFormElement).reset();
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    const scrollFocusedIntoView = (e: React.FocusEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT") {
+        el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    };
+
+    return (
+      <form
+        onSubmit={handleSubmit}
+        onFocusCapture={scrollFocusedIntoView}
+        className="space-y-2 rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-3 text-[11px] dark:border-slate-600 dark:bg-slate-900/60"
+      >
+        <input type="hidden" name="calendar_id" value={calendarId} />
+        <input type="hidden" name="date" value={date} />
+        {Object.keys(fieldErrors).length > 0 && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            <p className="font-medium">予定の入力内容を確認してください</p>
+          </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`${idPrefix}-title`} className="flex flex-col gap-1">
+            <span className="text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+              タイトル
+            </span>
+            <input
+              id={`${idPrefix}-title`}
+              name="title"
+              type="text"
+              placeholder="歌枠・雑談・予定名など"
+              aria-invalid={!!getError("title")}
+              className={getError("title") ? `${inputBaseClass} ${inputErrorClass}` : inputBaseClass}
+            />
+            {getError("title") && (
+              <span className="text-[10px] text-amber-600 dark:text-amber-400" role="alert">
+                {getError("title")}
+              </span>
+            )}
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-1">
+            <input
+              type="checkbox"
+              name="is_all_day"
+              className="h-3 w-3 rounded border-zinc-300 text-accent-500 focus:ring-accent-400 dark:border-zinc-600"
+            />
+            <span className="text-[10px] text-zinc-600 dark:text-zinc-300">終日</span>
+          </label>
+          <div className="flex items-center gap-1 text-[10px] text-zinc-600 dark:text-zinc-400">
+            <span>時間</span>
+            <input
+              type="time"
+              name="start_time"
+              className={`${inputBaseClass} h-6 w-20`}
+            />
+            <span>〜</span>
+            <input
+              type="time"
+              name="end_time"
+              className={`${inputBaseClass} h-6 w-20`}
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-zinc-600 dark:text-zinc-400">種別</span>
+            <select
+              name="kind"
+              className={`${inputBaseClass} h-7`}
+              defaultValue="stream"
+            >
+              <option value="stream">配信</option>
+              <option value="personal">個人</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[10px] text-zinc-600 dark:text-zinc-400">色</span>
+            <div className="flex flex-wrap gap-1">
+              {EVENT_PALETTE.map((c) => (
+                <label key={c.id} className="flex cursor-pointer items-center gap-0.5">
+                  <input
+                    type="radio"
+                    name="color_id"
+                    value={c.id}
+                    defaultChecked={c.id === "rose"}
+                    className="sr-only peer"
+                  />
+                  <span
+                    className={`block h-4 w-4 rounded border-2 border-transparent peer-checked:border-zinc-800 peer-checked:ring-1 peer-checked:ring-zinc-600 dark:peer-checked:border-zinc-200 ${c.swatch}`}
+                    title={c.label}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`${idPrefix}-memo`} className="flex flex-col gap-1">
+            <span className="text-[10px] text-zinc-600 dark:text-zinc-400">
+              メモ（任意）
+            </span>
+            <textarea
+              id={`${idPrefix}-memo`}
+              name="memo"
+              rows={2}
+              className={inputBaseClass}
+              placeholder="配信の詳細や準備メモなど"
+            />
+            {getError("memo") && (
+              <span className="text-[10px] text-amber-600 dark:text-amber-400" role="alert">
+                {getError("memo")}
+              </span>
+            )}
+          </label>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-1 focus:ring-offset-zinc-50 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-offset-zinc-900"
+          >
+            {loading ? "追加中..." : "予定を追加"}
+          </button>
+        </div>
+      </form>
+    );
+  }
 
   /** 週行内でバーの角丸: 左端セルで左丸、右端セルで右丸 */
   const getBarRoundedInRow = useCallback(
@@ -772,7 +983,22 @@ export function CalendarWithModal({
     </section>
   );
 
-  const renderWeekGrid = () => (
+  const renderWeekGrid = () => {
+    const WEEK_START_HOUR = 5;
+    const WEEK_END_HOUR = 27; // 翌3時
+    const TOTAL_HOURS = WEEK_END_HOUR - WEEK_START_HOUR;
+    const SLOT_MINUTES = 30;
+    const TOTAL_SLOTS = (TOTAL_HOURS * 60) / SLOT_MINUTES;
+
+    const getTimePosition = (time: string | null) => {
+      if (!time) return 0;
+      const [h, m] = time.split(":").map((v) => Number.parseInt(v, 10));
+      const minutesFromStart = (h - WEEK_START_HOUR) * 60 + m;
+      const clamped = Math.max(0, Math.min(TOTAL_HOURS * 60, minutesFromStart));
+      return (clamped / (TOTAL_HOURS * 60)) * 100;
+    };
+
+    return (
     <section className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
       <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
         {WEEKDAYS.map((label, idx) => {
@@ -794,7 +1020,30 @@ export function CalendarWithModal({
         })}
       </div>
 
-      <div className="mt-1 grid min-h-0 flex-1 grid-cols-7 grid-rows-[1fr] gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+      <div className="mt-1 grid min-h-0 flex-1 grid-cols-[48px_minmax(0,1fr)] gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800 overflow-x-auto">
+        {/* 左側の時間目盛り */}
+        <div className="relative row-span-2 bg-zinc-50 px-1 py-1 text-[10px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          <div className="relative h-full">
+            {Array.from({ length: TOTAL_HOURS + 1 }).map((_, idx) => {
+              const hour = WEEK_START_HOUR + idx;
+              const labelHour = hour % 24;
+              const top = (idx / TOTAL_HOURS) * 100;
+              return (
+                <div
+                  key={hour}
+                  className="absolute left-0 flex w-full items-center gap-1"
+                  style={{ top: `${top}%` }}
+                >
+                  <span className="shrink-0 text-[10px] tabular-nums">
+                    {labelHour.toString().padStart(2, "0")}:00
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* 右側: 7日分のグリッド */}
+        <div className="relative flex min-h-0 flex-1 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
         {weekDays.map((day) => {
           const dateObj = dayjs(day.date);
           const entry = day.entries[0];
@@ -823,12 +1072,11 @@ export function CalendarWithModal({
             textColor = "text-zinc-500 dark:text-zinc-400";
           }
 
+          const daySchedules = schedulesByDate.get(day.date) ?? [];
+
           const isSkip = entry?.skip_pass_used ?? false;
           const canDrop =
             permissions.isOwner && (!entry || !entry.skip_pass_used);
-          const showEventIcon = permissions.canViewEvents && entry?.event_id;
-          const showMemoIcon = permissions.canViewMemo && entry?.memo?.trim();
-          const eventsOnDay = permissions.canViewEvents ? getEventsOnDate(events, day.date) : [];
 
           return (
             <button
@@ -844,7 +1092,7 @@ export function CalendarWithModal({
                 if (!fromDate || fromDate === day.date) return;
                 handleMoveEntry(fromDate, day.date);
               }}
-              className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-[120px] flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
+              className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-[240px] flex-1 flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
             >
               {cycle && permissions.canViewRank && (() => {
                 const showBracket = !isSkip;
@@ -895,113 +1143,61 @@ export function CalendarWithModal({
                 )}
               </div>
 
-              {day.holidayName && !isSkip && (
-                <p className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-900/40 dark:text-red-200">
-                  <span className="shrink-0 text-[9px]">祝</span>
-                  <span className="min-w-0 truncate">{day.holidayName}</span>
-                </p>
-              )}
-
-              {eventsOnDay.length > 0 && (
-                <div className="mt-1 flex flex-col gap-px -mx-1.5 shrink-0">
-{eventsOnDay.map((ev) => {
-                        const isStart = ev.start_date != null && ev.start_date === day.date;
-                        const isEnd = ev.end_date != null && ev.end_date === day.date;
-                        const { border, bg, text } = getEventColorClasses(ev.color ?? null);
-                        return (
-                          <div
-                            key={ev.id}
-                            className={`${bg} py-0.5 text-[10px] font-medium line-clamp-1 ${text} ${isStart ? "rounded-l border-l-4 pl-2 " + border : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
-                            title={ev.name}
-                          >
-                            {isStart ? ev.name : "\u00A0"}
-                          </div>
-                        );
-                      })}
-                </div>
-              )}
-
-              {!isSkip && entry?.stream_content?.trim() && (() => {
-                const streamStyle = getEventColorClasses(entry.stream_content_color ?? null);
-                return (
-                  <div
-                    className={`mt-1 shrink-0 line-clamp-1 py-0.5 pl-2 text-[10px] font-medium rounded-r ${streamStyle.leftBar} ${streamStyle.bg} ${streamStyle.text}`}
-                    title={entry.stream_content}
-                  >
-                    {entry.stream_content.trim()}
-                  </div>
-                );
-              })()}
-
-              {isSkip ? (
-                <div className="mt-4 flex flex-1 items-center justify-center min-h-0">
-                  <span className="text-[11px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
-                    スキパ
-                  </span>
-                </div>
-              ) : entry ? (
-                (() => {
-                  const disp = getTargetActualDisplay(entry.target_plus, entry.actual_plus, day.date > todayStr);
-                  return (
-                <div className="mt-2 flex flex-1 flex-col gap-0.5 text-[10px] text-zinc-700 dark:text-zinc-200">
-                  {permissions.canViewTargetActual && (
-                    <>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">スコア目標：</span>
-                        <span className={disp.targetClass}>{disp.targetLabel}</span>
-                      </p>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">スコア実績：</span>
-                        <span className={disp.actualClass}>{disp.actualLabel}</span>
-                      </p>
-                    </>
-                  )}
-                  {permissions.canViewTargetActual === false && (
-                    <p className="text-[10px] text-zinc-500">非公開</p>
-                  )}
-                  {viewMode === "detailed" && permissions.canViewBorders && (
-                    <p className="flex justify-between gap-1">
-                      <span className="shrink-0 text-zinc-500 dark:text-zinc-400">アンスコ：</span>
-                      <span>{entry.ansuko_baseline ?? "—"}</span>
-                    </p>
-                  )}
-                  {permissions.canViewMemo && (
-                    <p className="flex justify-between gap-1">
-                      <span className="shrink-0 text-zinc-500 dark:text-zinc-400">メモ：</span>
-                      <span className="min-w-0 truncate text-right" title={entry.memo ?? undefined}>
-                        {entry.memo?.trim() || "—"}
+              {/* ここでは時間グリッドのみ表示し、ランクやメモ詳細は上段やモーダルでカバーする */}
+              {/* 終日帯 */}
+              {daySchedules.some((s) => s.is_all_day) && (
+                <div className="mb-1 flex flex-wrap items-center gap-1">
+                  {daySchedules
+                    .filter((s) => s.is_all_day)
+                    .map((s) => (
+                      <span
+                        key={s.id}
+                        className="inline-flex max-w-full items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100"
+                        title={s.title}
+                      >
+                        <span className="shrink-0 text-[9px]">
+                          {s.kind === "personal" ? "個人" : s.kind === "stream" ? "配信" : "その他"}
+                        </span>
+                        <span className="min-w-0 truncate">{s.title}</span>
                       </span>
-                    </p>
-                  )}
-                  {viewMode === "detailed" && permissions.canViewBorders && (
-                    <>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋２：</span>
-                        <span>{entry.border_plus2 ?? "—"}</span>
-                      </p>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋４：</span>
-                        <span>{entry.border_plus4 ?? "—"}</span>
-                      </p>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋６：</span>
-                        <span>{entry.border_plus6 ?? "—"}</span>
-                      </p>
-                    </>
-                  )}
+                    ))}
                 </div>
-                  );
-                })()
-              ) : (
-                <p className="mt-4 text-[10px] text-zinc-400 dark:text-zinc-600">
-                  この週のこの日はまだ登録がありません。
-                </p>
               )}
-              {isCycleEnd && permissions.canViewRank && !cycle.isPredicted && cycle.periodType === "past" && cycle.cycleTotal != null && (
-                <p className="mt-1 text-[9px] text-zinc-400 dark:text-zinc-500" title="周期の最終合計">
-                  🏁 +{cycle.cycleTotal}
-                </p>
-              )}
+              {/* 時間グリッド */}
+              <div className="relative mt-1 flex-1">
+                <div className="absolute inset-0">
+                  {Array.from({ length: TOTAL_SLOTS + 1 }).map((_, idx) => {
+                    const top = (idx / TOTAL_SLOTS) * 100;
+                    return (
+                      <div
+                        key={idx}
+                        className="absolute left-0 right-0 border-t border-dashed border-zinc-100 dark:border-zinc-800"
+                        style={{ top: `${top}%` }}
+                      />
+                    );
+                  })}
+                  {daySchedules
+                    .filter((s) => !s.is_all_day)
+                    .map((s) => {
+                      const top = getTimePosition(s.start_time);
+                      const bottom = getTimePosition(s.end_time ?? s.start_time);
+                      const height = Math.max(4, bottom - top);
+                      const style = getEventColorClasses(s.color_id ?? null);
+                      return (
+                        <div
+                          key={s.id}
+                          className={`absolute left-0 right-0 overflow-hidden rounded-md border text-[10px] ${style.bg} ${style.text} ${style.border}`}
+                          style={{ top: `${top}%`, height: `${height}%` }}
+                          title={s.title}
+                        >
+                          <div className="line-clamp-2 px-1 py-0.5">
+                            {s.title}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
               </div>
             </button>
           );
@@ -1009,6 +1205,7 @@ export function CalendarWithModal({
       </div>
     </section>
   );
+  }
 
   return (
     <div className="space-y-4">
@@ -1175,6 +1372,66 @@ export function CalendarWithModal({
               defaultStreamContent={selectedDay?.entries[0]?.stream_content}
               defaultStreamContentColor={selectedDay?.entries[0]?.stream_content_color}
             />
+            <div className="mt-4 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <p className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-50">
+                  この日の予定
+                </p>
+                {selectedSchedules.length > 0 && (
+                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                    {selectedSchedules.length}件
+                  </span>
+                )}
+              </div>
+              {selectedSchedules.length === 0 ? (
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  まだ予定がありません。下のフォームから追加できます。
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {selectedSchedules.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1 text-[11px] text-zinc-800 dark:bg-zinc-800/80 dark:text-zinc-100"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-center gap-1">
+                          <span className="inline-flex items-center rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
+                            {s.kind === "personal" ? "個人" : s.kind === "stream" ? "配信" : "その他"}
+                          </span>
+                          <span className="truncate">
+                            {s.is_all_day
+                              ? "終日"
+                              : `${s.start_time?.slice(0, 5) ?? "--:--"}〜${s.end_time?.slice(0, 5) ?? "--:--"}`}
+                          </span>
+                        </p>
+                        <p className="truncate text-[11px] font-medium">
+                          {s.title}
+                        </p>
+                        {s.memo && (
+                          <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                            {s.memo}
+                          </p>
+                        )}
+                      </div>
+                      {permissions.isOwner && deleteScheduleAction && (
+                        <button
+                          type="button"
+                          onClick={() => deleteScheduleAction(s.id)}
+                          className="shrink-0 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                          aria-label="予定を削除"
+                        >
+                          🗑
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {saveScheduleAction && (
+                <DayScheduleForm calendarId={calendarId} date={selectedDate} />
+              )}
+            </div>
           </div>
         </div>
       )}

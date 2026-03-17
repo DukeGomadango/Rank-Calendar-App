@@ -15,6 +15,10 @@ import {
   ensureSkipPassIncrementForLastWeek,
 } from "@/lib/data/calendar-rank-state";
 import { listEventsForCalendar } from "@/lib/data/events";
+import {
+  getSchedulesInRange,
+  type CalendarScheduleRow,
+} from "@/lib/data/schedules";
 import { judgeCycleRank, getNextRank, getPreviousRank, RANK_ORDER, type RankLabel } from "@/lib/domain/rank";
 import { addDays, getCycleEndDateIncludingSkips, getJstWeekStart, toJstDateString } from "@/lib/domain/calendar";
 import { getMockEvents } from "@/lib/mock-seed-data";
@@ -28,6 +32,8 @@ import {
   moveScheduleEntry,
   noopMoveEntry,
   noopSaveEntry,
+  saveCalendarSchedule,
+  deleteCalendarSchedule,
 } from "../actions";
 import { CalendarMockWrapper } from "@/components/schedule/CalendarMockWrapper";
 import { CalendarWithModal } from "@/components/schedule/CalendarWithModal";
@@ -235,10 +241,11 @@ export default async function CalendarPage(props: PageProps) {
   const fromDate = monthStart.startOf("week").format("YYYY-MM-DD");
   const toDate = monthEnd.endOf("week").format("YYYY-MM-DD");
 
-  const [entries, rankState, rankCycleHistory] = await Promise.all([
+  const [entries, rankState, rankCycleHistory, schedules] = await Promise.all([
     getScheduleEntriesInRange(currentCalendar.id, fromDate, toDate),
     getOrCreateCalendarRankState(currentCalendar.id),
     getRankCycleHistory(currentCalendar.id, fromDate, toDate),
+    getSchedulesInRange(currentCalendar.id, fromDate, toDate),
   ]);
 
   await ensureSkipPassIncrementForLastWeek(currentCalendar.id);
@@ -419,6 +426,8 @@ export default async function CalendarPage(props: PageProps) {
         days={days}
         moveEntry={moveScheduleEntry}
         saveAction={saveScheduleEntry}
+        saveScheduleAction={saveCalendarSchedule}
+        deleteScheduleAction={deleteCalendarSchedule}
         events={events}
         currentRankCycle={
           permissions.canViewRank
@@ -434,6 +443,7 @@ export default async function CalendarPage(props: PageProps) {
         futureCycles={futureCycles}
         todayJst={todayJst}
         skipPassRemaining={rankStateLatest.skip_pass_remaining ?? 0}
+        schedules={schedules}
       />
     </div>
   );

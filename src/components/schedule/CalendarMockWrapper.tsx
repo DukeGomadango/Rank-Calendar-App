@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { EventRow } from "@/lib/data/events";
+import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useMockSchedule } from "@/lib/mock-schedule-context";
 import { CalendarWithModal } from "./CalendarWithModal";
@@ -32,6 +33,7 @@ type Props = {
   forecastLabel?: string | null;
   futureCycles?: { start: string; end: string; rank: string }[];
   todayJst?: string | null;
+  schedules?: CalendarScheduleRow[];
 };
 
 function mockEntryToRow(partial: Record<string, unknown>, date: string): ScheduleEntryRow {
@@ -68,5 +70,6 @@ export function CalendarMockWrapper(props: Props) {
     });
   }, [props.days, ctx?.entriesByDate]);
 
+  // モックではスケジュールテーブルはまだ使用しないため、schedules はそのまま props から渡す。
   return <CalendarWithModal {...props} days={mergedDays} />;
 }
