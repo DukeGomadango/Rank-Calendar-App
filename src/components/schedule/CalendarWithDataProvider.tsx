@@ -10,10 +10,8 @@ import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
-import type {
-  SaveScheduleEntryResult,
-  SaveCalendarScheduleResult,
-} from "@/app/(dashboard)/dashboard/actions";
+import type { SaveScheduleEntryResult } from "@/lib/validations/schedule";
+import type { SaveCalendarScheduleResult } from "@/app/(dashboard)/dashboard/actions";
 import { CalendarWithModal } from "./CalendarWithModal";
 
 type DayData = {
