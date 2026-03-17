@@ -1,4 +1,5 @@
-/// <reference path="../../../../types/holiday-jp.d.ts" />
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference path='../../../../types/holiday-jp.d.ts' />
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
 import { redirect } from "next/navigation";

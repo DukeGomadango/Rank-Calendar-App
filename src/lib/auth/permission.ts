@@ -194,6 +194,9 @@ export async function getMockPermissions(): Promise<CalendarPermissionFlags> {
       canViewTargetActual: true,
       canViewRank: true,
       canViewEvents: true,
+      canViewScheduleStream: true,
+      canViewSchedulePersonal: true,
+      canViewScheduleSecret: false,
     };
   }
   return ALL_FLAGS_FOR_OWNER;
