@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
 import Link from "next/link";
+import { MantineProvider } from "@mantine/core";
 import { TimeInput } from "@mantine/dates";
 
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
@@ -672,21 +673,25 @@ export function CalendarWithModal({
             </div>
             {/* PC向け: Mantine の TimeInput（中画面以上で表示） */}
             <div className="hidden items-center gap-1 md:flex">
-              <TimeInput
-                className="w-24"
-                value={startTime}
-                onChange={(event) => setStartTime(event.currentTarget.value)}
-                withSeconds={false}
-                aria-label="開始時刻"
-              />
+              <MantineProvider>
+                <TimeInput
+                  className="w-24"
+                  value={startTime}
+                  onChange={(event) => setStartTime(event.currentTarget.value)}
+                  withSeconds={false}
+                  aria-label="開始時刻"
+                />
+              </MantineProvider>
               <span>〜</span>
-              <TimeInput
-                className="w-24"
-                value={endTime}
-                onChange={(event) => setEndTime(event.currentTarget.value)}
-                withSeconds={false}
-                aria-label="終了時刻"
-              />
+              <MantineProvider>
+                <TimeInput
+                  className="w-24"
+                  value={endTime}
+                  onChange={(event) => setEndTime(event.currentTarget.value)}
+                  withSeconds={false}
+                  aria-label="終了時刻"
+                />
+              </MantineProvider>
             </div>
           </div>
         </div>
