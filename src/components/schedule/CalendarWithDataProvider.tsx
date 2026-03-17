@@ -109,7 +109,7 @@ export function CalendarWithDataProvider({
     if (!rankState || !permissions.canViewRank) {
       return {
         currentRankCycle: null as { start: string; end: string; rank: string | null } | null,
-        futureCycles: [] as { start: string; end: string; rank: string | null }[],
+        futureCycles: [] as { start: string; end: string; rank: string }[],
         forecastLabel: null as string | null,
         rankStateLatest: rankState,
       };
@@ -166,7 +166,7 @@ export function CalendarWithDataProvider({
         ? `${rankState.current_rank} → ${forecastRankForNextCycle}`
         : null;
 
-    const futureCycles: { start: string; end: string; rank: string | null }[] = [];
+    const futureCycles: { start: string; end: string; rank: string }[] = [];
     if (forecastRankForNextCycle != null) {
       let periodStart = addDays(rankState.rank_reset_date, 1);
       let rankForThisPeriod: RankLabel | null = forecastRankForNextCycle;
@@ -189,7 +189,11 @@ export function CalendarWithDataProvider({
           }
           c = addDays(c, 1);
         }
-        futureCycles.push({ start: periodStart, end: periodEnd, rank: rankForThisPeriod });
+        futureCycles.push({
+          start: periodStart,
+          end: periodEnd,
+          rank: rankForThisPeriod as string,
+        });
         const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
         if (canRankUp) {
           rankForThisPeriod = getNextRank(rankForThisPeriod as RankLabel);
