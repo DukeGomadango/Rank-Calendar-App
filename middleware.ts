@@ -26,6 +26,8 @@ const PUBLIC_PATHS = new Set<string>([
   "/privacy",
   "/terms",
   "/auth/callback",
+  "/sitemap.xml",
+  "/robots.txt",
 ]);
 
 export async function middleware(req: NextRequest) {
