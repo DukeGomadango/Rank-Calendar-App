@@ -284,6 +284,7 @@ export function CalendarWithModal({
     : [];
 
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [modalTab, setModalTab] = useState<"rank" | "schedule">("rank");
 
   const selectedSchedule =
     selectedScheduleId && selectedDate
@@ -1365,7 +1366,7 @@ export function CalendarWithModal({
 
       {permissions.canEditSchedule && selectedDate && selectedDay && (
         <div className={`fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/40 px-0 md:px-4 py-0 md:py-8 transition-opacity duration-200 ${sheetEntered ? "opacity-100" : "opacity-0"} md:opacity-100`}>
-          <div className={`w-full max-h-[85vh] md:max-h-none max-w-3xl rounded-t-2xl md:rounded-2xl border border-zinc-200 border-b-0 md:border-b bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900 overflow-y-auto transition-transform duration-200 ease-out ${sheetEntered ? "translate-y-0" : "translate-y-full md:translate-y-0"}`}>
+          <div className={`w-full max-h-[85vh] md:max-h-none max-w-md md:max-w-2xl rounded-t-2xl md:rounded-2xl border border-zinc-200 border-b-0 md:border-b bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900 overflow-y-auto transition-transform duration-200 ease-out ${sheetEntered ? "translate-y-0" : "translate-y-full md:translate-y-0"}`}>
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
@@ -1384,8 +1385,34 @@ export function CalendarWithModal({
               </button>
             </div>
 
-            <div className="mt-3 grid gap-4 md:grid-cols-2">
-              {/* 左: ランク用（日別スコア）フォーム */}
+            {/* ランク / 予定 タブ */}
+            <div className="mb-3 inline-flex rounded-full bg-zinc-100 p-1 text-[11px] text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300">
+              <button
+                type="button"
+                onClick={() => setModalTab("rank")}
+                className={`rounded-full px-3 py-1 ${
+                  modalTab === "rank"
+                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                }`}
+              >
+                ランク
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab("schedule")}
+                className={`rounded-full px-3 py-1 ${
+                  modalTab === "schedule"
+                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                }`}
+              >
+                予定
+              </button>
+            </div>
+
+            {/* タブ内容 */}
+            {modalTab === "rank" && (
               <div className="space-y-3">
                 <ScheduleForm
                   calendarId={calendarId}
@@ -1406,12 +1433,20 @@ export function CalendarWithModal({
                   defaultStreamContentColor={selectedDay?.entries[0]?.stream_content_color}
                 />
               </div>
+            )}
 
-              {/* 右: この日の予定リスト ＋ 追加フォーム */}
-              <div className="space-y-2">
+            {modalTab === "schedule" && (
+              <div className="space-y-3">
+                {saveScheduleAction && (
+                  <DayScheduleForm
+                    calendarId={calendarId}
+                    date={selectedDate}
+                    initialSchedule={selectedSchedule}
+                  />
+                )}
                 <div className="flex items-baseline justify-between">
                   <p className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-50">
-                    この日の予定
+                    この日の予定一覧
                   </p>
                   {selectedSchedules.length > 0 && (
                     <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
@@ -1421,7 +1456,7 @@ export function CalendarWithModal({
                 </div>
                 {selectedSchedules.length === 0 ? (
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    まだ予定がありません。下のフォームから追加できます。
+                    まだ予定がありません。上のフォームから追加できます。
                   </p>
                 ) : (
                   <ul className="space-y-1">
@@ -1475,15 +1510,8 @@ export function CalendarWithModal({
                     ))}
                   </ul>
                 )}
-                {saveScheduleAction && (
-                  <DayScheduleForm
-                    calendarId={calendarId}
-                    date={selectedDate}
-                    initialSchedule={selectedSchedule}
-                  />
-                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
