@@ -34,7 +34,7 @@ export function useCalendarRange(calendarId: string | null, baseMonth: string | 
       ? `/api/calendar-range?calendarId=${encodeURIComponent(calendarId!)}&from=${from}&to=${to}`
       : null;
 
-  const { data, error, isLoading } = useSWR<CalendarRangeResponse>(key, fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<CalendarRangeResponse>(key, fetcher, {
     revalidateOnFocus: false,
     keepPreviousData: true,
   });
@@ -43,6 +43,7 @@ export function useCalendarRange(calendarId: string | null, baseMonth: string | 
     data,
     isLoading,
     isError: !!error,
+    mutate,
   };
 }
 

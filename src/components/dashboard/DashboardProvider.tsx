@@ -30,6 +30,7 @@ type DashboardContextValue = {
   permissions: CalendarPermissionFlags;
   baseMonth: string;
   setBaseMonth: (month: string) => void;
+   refreshRange: () => void;
   rangeData:
     | {
         entries: ScheduleEntryRow[];
@@ -75,7 +76,7 @@ export function DashboardProvider({
 }: Props) {
   const [baseMonth, setBaseMonth] = useState(dayjs().format("YYYY-MM"));
 
-  const { data, isLoading } = useCalendarRange(calendarId, baseMonth);
+  const { data, isLoading, mutate } = useCalendarRange(calendarId, baseMonth);
   const todayJst = useMemo(() => toJstDateString(new Date()), []);
 
   const { rangeData, futureCycles, forecastLabel } = useMemo(() => {
@@ -222,12 +223,17 @@ export function DashboardProvider({
     return { rangeData, futureCycles, forecastLabel };
   }, [data, permissions.canViewRank, baseMonth, todayJst]);
 
+  const refreshRange = () => {
+    void mutate();
+  };
+
   const value: DashboardContextValue = {
     calendarId,
     calendarName,
     permissions,
     baseMonth,
     setBaseMonth,
+    refreshRange,
     rangeData,
     futureCycles,
     forecastLabel,

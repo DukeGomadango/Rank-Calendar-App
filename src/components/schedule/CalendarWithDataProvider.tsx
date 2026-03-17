@@ -61,6 +61,7 @@ export function CalendarWithDataProvider({
     todayJst,
     baseMonth,
     setBaseMonth,
+    refreshRange,
   } = useDashboardCalendar();
 
   const today = dayjs(todayJst);
@@ -161,10 +162,12 @@ export function CalendarWithDataProvider({
         moveEntry={async (id, from, to) => {
           if (!moveEntryAction) return;
           await moveEntryAction(id, from, to);
+          refreshRange();
         }}
         saveAction={async (formData) => {
           if (!saveEntryAction) return;
           await saveEntryAction(formData);
+          refreshRange();
         }}
         events={events}
         currentRankCycle={currentRankCycle}
@@ -174,7 +177,17 @@ export function CalendarWithDataProvider({
         todayJst={todayJst}
         skipPassRemaining={rankState?.skip_pass_remaining ?? 0}
         schedules={schedules}
-        saveScheduleAction={saveScheduleAction}
+        saveScheduleAction={
+          saveScheduleAction
+            ? async (formData) => {
+                const result = await saveScheduleAction(formData);
+                if (result && "ok" in result && result.ok) {
+                  refreshRange();
+                }
+                return result;
+              }
+            : undefined
+        }
         deleteScheduleAction={deleteScheduleAction}
       />
     </>
