@@ -183,7 +183,6 @@ export async function saveCalendarSchedule(
     memo,
   });
 
-  revalidatePath("/dashboard/calendar");
   return { ok: true };
 }
 
