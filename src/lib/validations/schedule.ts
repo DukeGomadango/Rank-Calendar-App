@@ -32,7 +32,7 @@ const optionalBorderValue = z.preprocess(
       .min(0, "値は0以上で入力してください")
       .max(
         MAX_BORDER_VALUE,
-        "ボーダー・アンスコ基準値は9,999万（99,990,000）まで入力できます"
+        "登録可能なボーダーの上限は9,999万です"
       ),
     z.null(),
   ])
