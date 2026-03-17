@@ -283,6 +283,13 @@ export function CalendarWithModal({
     ? schedulesByDate.get(selectedDate) ?? []
     : [];
 
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+
+  const selectedSchedule =
+    selectedScheduleId && selectedDate
+      ? (schedulesByDate.get(selectedDate) ?? []).find((s) => s.id === selectedScheduleId) ?? null
+      : null;
+
   /** 参加イベントの初期値。スケジュールに event_id が無くても、その日をまたぐイベントが1件だけならそれを選ぶ */
   const effectiveDefaultEventId =
     selectedDay?.entries[0]?.event_id ??
@@ -527,9 +534,11 @@ export function CalendarWithModal({
   function DayScheduleForm({
     calendarId,
     date,
+    initialSchedule,
   }: {
     calendarId: string;
     date: string;
+    initialSchedule?: CalendarScheduleRow | null;
   }) {
     const idPrefix = useId();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -578,6 +587,7 @@ export function CalendarWithModal({
       >
         <input type="hidden" name="calendar_id" value={calendarId} />
         <input type="hidden" name="date" value={date} />
+        {initialSchedule && <input type="hidden" name="id" value={initialSchedule.id} />}
         {Object.keys(fieldErrors).length > 0 && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             <p className="font-medium">予定の入力内容を確認してください</p>
@@ -593,6 +603,7 @@ export function CalendarWithModal({
               name="title"
               type="text"
               placeholder="歌枠・雑談・予定名など"
+              defaultValue={initialSchedule?.title ?? ""}
               aria-invalid={!!getError("title")}
               className={getError("title") ? `${inputBaseClass} ${inputErrorClass}` : inputBaseClass}
             />
@@ -608,6 +619,7 @@ export function CalendarWithModal({
             <input
               type="checkbox"
               name="is_all_day"
+              defaultChecked={initialSchedule?.is_all_day ?? false}
               className="h-3 w-3 rounded border-zinc-300 text-accent-500 focus:ring-accent-400 dark:border-zinc-600"
             />
             <span className="text-[10px] text-zinc-600 dark:text-zinc-300">終日</span>
@@ -618,12 +630,14 @@ export function CalendarWithModal({
               type="time"
               name="start_time"
               className={`${inputBaseClass} h-6 w-20`}
+              defaultValue={initialSchedule?.start_time ? initialSchedule.start_time.slice(0, 5) : ""}
             />
             <span>〜</span>
             <input
               type="time"
               name="end_time"
               className={`${inputBaseClass} h-6 w-20`}
+              defaultValue={initialSchedule?.end_time ? initialSchedule.end_time.slice(0, 5) : ""}
             />
           </div>
         </div>
@@ -633,7 +647,7 @@ export function CalendarWithModal({
             <select
               name="kind"
               className={`${inputBaseClass} h-7`}
-              defaultValue="stream"
+              defaultValue={initialSchedule?.kind ?? "stream"}
             >
               <option value="stream">配信</option>
               <option value="personal">個人</option>
@@ -648,7 +662,7 @@ export function CalendarWithModal({
                     type="radio"
                     name="color_id"
                     value={c.id}
-                    defaultChecked={c.id === "rose"}
+                    defaultChecked={(initialSchedule?.color_id ?? "rose") === c.id}
                     className="sr-only peer"
                   />
                   <span
@@ -670,6 +684,7 @@ export function CalendarWithModal({
               name="memo"
               rows={2}
               className={inputBaseClass}
+              defaultValue={initialSchedule?.memo ?? ""}
               placeholder="配信の詳細や準備メモなど"
             />
             {getError("memo") && (
@@ -1413,7 +1428,12 @@ export function CalendarWithModal({
                     {selectedSchedules.map((s) => (
                       <li
                         key={s.id}
-                        className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1 text-[11px] text-zinc-800 dark:bg-zinc-800/80 dark:text-zinc-100"
+                        onClick={() => setSelectedScheduleId(s.id)}
+                        className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11px] text-zinc-800 dark:text-zinc-100 cursor-pointer ${
+                          selectedScheduleId === s.id
+                            ? "bg-accent-50 border border-accent-200 dark:bg-accent-950/40 dark:border-accent-700"
+                            : "bg-zinc-50 dark:bg-zinc-800/80"
+                        }`}
                       >
                         <div className="min-w-0 flex-1">
                           <p className="flex items-center gap-1">
@@ -1438,7 +1458,13 @@ export function CalendarWithModal({
                         {permissions.isOwner && deleteScheduleAction && (
                           <button
                             type="button"
-                            onClick={() => deleteScheduleAction(s.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteScheduleAction(s.id);
+                              if (selectedScheduleId === s.id) {
+                                setSelectedScheduleId(null);
+                              }
+                            }}
                             className="shrink-0 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                             aria-label="予定を削除"
                           >
@@ -1450,7 +1476,11 @@ export function CalendarWithModal({
                   </ul>
                 )}
                 {saveScheduleAction && (
-                  <DayScheduleForm calendarId={calendarId} date={selectedDate} />
+                  <DayScheduleForm
+                    calendarId={calendarId}
+                    date={selectedDate}
+                    initialSchedule={selectedSchedule}
+                  />
                 )}
               </div>
             </div>

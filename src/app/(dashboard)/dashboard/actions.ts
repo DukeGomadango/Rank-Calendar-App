@@ -117,6 +117,7 @@ export async function saveCalendarSchedule(
 
   const errors: Record<string, string[]> = {};
 
+  const idRaw = raw.id != null ? String(raw.id) : "";
   const calendarId = String(raw.calendar_id ?? "");
   const date = String(raw.date ?? "");
   const title = String(raw.title ?? "").trim();
@@ -135,6 +136,9 @@ export async function saveCalendarSchedule(
 
   if (!calendarId || !/^[0-9a-f-]{36}$/i.test(calendarId)) {
     errors.calendar_id = ["カレンダーIDが不正です"];
+  }
+  if (idRaw && !/^[0-9a-f-]{36}$/i.test(idRaw)) {
+    errors.id = ["予定IDが不正です"];
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     errors.date = ["日付は YYYY-MM-DD 形式で入力してください"];
@@ -167,6 +171,7 @@ export async function saveCalendarSchedule(
   const endTime = isAllDay ? null : (endTimeRaw ? `${endTimeRaw}:00` : null);
 
   await upsertScheduleForCalendar(calendarId, {
+    id: idRaw || undefined,
     date,
     is_all_day: isAllDay,
     start_time: startTime,
