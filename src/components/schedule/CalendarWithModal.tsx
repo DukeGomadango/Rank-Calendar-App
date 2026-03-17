@@ -878,6 +878,11 @@ export function CalendarWithModal({
                 const eventsOnDay = permissions.canViewEvents ? getEventsOnDate(events, day.date) : [];
                 const showBordersInCell = permissions.canViewBorders && viewMode === "detailed";
 
+                const daySchedules = schedulesByDate.get(day.date) ?? [];
+                const streamSchedules = daySchedules.filter((s) => s.kind === "stream");
+                const streamToDisplay = streamSchedules.slice(0, 2);
+                const remainingStreamCount = streamSchedules.length - streamToDisplay.length;
+
                 return (
                   <button
                     key={day.date}
@@ -986,17 +991,33 @@ export function CalendarWithModal({
                             })}
                           </div>
                         )}
-                        {!isSkip && entry?.stream_content?.trim() && (() => {
-                          const streamStyle = getEventColorClasses(entry.stream_content_color ?? null);
-                          return (
-                            <div
-                              className={`mt-0.5 shrink-0 line-clamp-1 py-px pl-1 text-[9px] font-medium rounded-r ${streamStyle.leftBar} ${streamStyle.bg} ${streamStyle.text}`}
-                              title={entry.stream_content}
-                            >
-                              {entry.stream_content.trim()}
-                            </div>
-                          );
-                        })()}
+                        {!isSkip && streamToDisplay.length > 0 && (
+                          <div className="mt-0.5 flex flex-col gap-px -mx-1.5 shrink-0">
+                            {streamToDisplay.map((s) => {
+                              const labelTime = s.is_all_day
+                                ? "終日"
+                                : s.start_time
+                                  ? s.start_time.slice(0, 5)
+                                  : "--:--";
+                              const color = getEventColorClasses(s.color_id ?? null);
+                              return (
+                                <div
+                                  key={s.id}
+                                  className={`flex items-center gap-1 rounded-r py-px pl-1 text-[9px] font-medium line-clamp-1 ${color.leftBar} ${color.bg} ${color.text}`}
+                                  title={s.title}
+                                >
+                                  <span className="shrink-0 tabular-nums">{labelTime}</span>
+                                  <span className="min-w-0 truncate">{s.title}</span>
+                                </div>
+                              );
+                            })}
+                            {remainingStreamCount > 0 && (
+                              <div className="pl-1 text-[8px] text-zinc-500 dark:text-zinc-400">
+                                +{remainingStreamCount}件
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {!hasEntry && !isSkip && permissions.canEditSchedule && (
                           <p className="mt-1 flex-1 text-[9px] text-zinc-400 dark:text-zinc-500 line-clamp-2">
                             ここに予定を追加
@@ -1483,8 +1504,6 @@ export function CalendarWithModal({
                   defaultMemo={selectedDay?.entries[0]?.memo}
                   defaultSkipPassUsed={selectedDay?.entries[0]?.skip_pass_used}
                   skipPassRemaining={skipPassRemaining}
-                  defaultStreamContent={selectedDay?.entries[0]?.stream_content}
-                  defaultStreamContentColor={selectedDay?.entries[0]?.stream_content_color}
                 />
               </div>
             )}

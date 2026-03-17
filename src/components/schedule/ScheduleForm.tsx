@@ -29,8 +29,6 @@ type ScheduleFormProps = {
   defaultSkipPassUsed?: boolean;
   /** スキパ残り枚数。渡すとラベルに「(残りn枚)」を表示。データタブと連携用。 */
   skipPassRemaining?: number;
-  defaultStreamContent?: string | null;
-  defaultStreamContentColor?: string | null;
 };
 
 function SubmitButton({ isSubmitting }: { isSubmitting?: boolean }) {
@@ -70,8 +68,6 @@ export function ScheduleForm({
   defaultMemo,
   defaultSkipPassUsed = false,
   skipPassRemaining,
-  defaultStreamContent,
-  defaultStreamContentColor,
 }: ScheduleFormProps) {
   const idPrefix = useId();
   const border2Ref = useRef<HTMLInputElement | null>(null);
@@ -158,53 +154,6 @@ export function ScheduleForm({
             {skipPassRemaining != null && ` (残り${skipPassRemaining}枚)`}
           </span>
         </label>
-      </div>
-
-      {/* 配信内容（歌枠・雑談等）＋ 左線の色 */}
-      <div className="space-y-2 rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-3 dark:border-slate-600 dark:bg-slate-900/50">
-        <GroupLabel>配信内容</GroupLabel>
-        <div className="flex flex-col gap-1">
-          <input
-            type="text"
-            name="stream_content"
-            defaultValue={defaultStreamContent ?? ""}
-            placeholder="歌枠・雑談・パネルあけなど"
-            aria-invalid={!!getError("stream_content")}
-            className={`w-full ${getError("stream_content") ? `${inputBaseClass} ${inputErrorClass}` : inputBaseClass}`}
-          />
-          {getError("stream_content") && (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400" role="alert">
-              {getError("stream_content")}
-            </span>
-          )}
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] text-zinc-500 dark:text-zinc-400">左線の色</span>
-          <div className="flex flex-wrap gap-1">
-            {EVENT_PALETTE.map((c) => (
-              <label key={c.id} className="flex cursor-pointer items-center gap-0.5">
-                <input
-                  type="radio"
-                  name="stream_content_color"
-                  value={c.id}
-                  defaultChecked={(defaultStreamContentColor ?? "") === c.id || (!defaultStreamContentColor && c.id === "rose")}
-                  className="sr-only peer"
-                />
-                <span
-                  className={`block h-5 w-5 rounded border-2 border-transparent peer-checked:border-zinc-800 peer-checked:ring-1 peer-checked:ring-zinc-600 dark:peer-checked:border-zinc-200 ${c.swatch}`}
-                  title={c.label}
-                />
-              </label>
-            ))}
-          </div>
-          </div>
-          {getError("stream_content_color") && (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400" role="alert">
-              {getError("stream_content_color")}
-            </span>
-          )}
-        </div>
       </div>
 
       {/* 【アンスコ・ボーダー】＋ OCR（最上部で目立たせる） */}
