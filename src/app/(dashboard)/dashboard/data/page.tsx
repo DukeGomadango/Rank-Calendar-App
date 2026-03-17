@@ -9,8 +9,8 @@ import { getCurrentCalendarForUser } from "@/lib/data/calendars";
 import { getScheduleEntriesInRange } from "@/lib/data/schedule-entries";
 import { getOrCreateCalendarRankState, ensureSkipPassIncrementForLastWeek, getSkipPassSnapshotsBefore, getRankCycleHistory, type SkipPassSnapshotRow } from "@/lib/data/calendar-rank-state";
 import { listEventsForCalendar } from "@/lib/data/events";
-import { calculateCycleCumulativeByDate, judgeCycleRank, getNextRank, getPreviousRank } from "@/lib/domain/rank";
-import { compareJstDate, getJstWeekStart, addDays, toJstDateString } from "@/lib/domain/calendar";
+import { calculateCycleCumulativeByDate, judgeCycleRank, getNextRank, getPreviousRank, type RankLabel } from "@/lib/domain/rank";
+import { compareJstDate, getJstWeekStart, addDays, toJstDateString, getCycleEndDateIncludingSkips } from "@/lib/domain/calendar";
 import { getPredictedSkipPassRemaining, type EntryForPrediction } from "@/lib/domain/skip-pass-prediction";
 import { getMockSeedEntries } from "@/lib/mock-seed-data";
 import {
@@ -239,46 +239,62 @@ export default async function DataPage(props: PageProps) {
     rank: rankState.current_rank,
   });
 
-  // 未来サイクル（1サイクル分だけ、calendar/page.tsx と同じルールで予測）
-  let forecastNextRank: string | null = null;
+  // 未来サイクル（表示範囲 to まで、カレンダーと同一ルールで連鎖予測）
   if (permissions.canViewRank && rankState.current_rank != null) {
-    const cycleStartForForecast = rankState.rank_cycle_start_date;
-    const cycleEndForForecast = rankState.rank_reset_date;
-    const entriesByDateCycle = new Map(entries.map((e) => [e.date, e]));
-    const todayJst = todayStr;
-    let projectedTotal = 0;
-    let cursorForecast = cycleStartForForecast;
-    while (cursorForecast <= cycleEndForForecast) {
-      const entry = entriesByDateCycle.get(cursorForecast);
-      if (cursorForecast <= todayJst) {
-        const plus =
-          entry?.skip_pass_used || entry?.actual_plus == null
-            ? 0
-            : Math.max(0, entry.actual_plus);
-        if (!entry?.skip_pass_used) projectedTotal += plus;
-      } else {
-        const target = entry?.target_plus ?? 0;
-        projectedTotal += Math.max(0, target);
+    const entriesByDateForForecast = new Map(entries.map((e) => [e.date, e]));
+    let periodStart = addDays(rankState.rank_reset_date, 1);
+    let rankForThisPeriod: string | null = (() => {
+      const cycleStartForForecast = rankState.rank_cycle_start_date;
+      const cycleEndForForecast = rankState.rank_reset_date;
+      let projectedTotal = 0;
+      let cursorForecast = cycleStartForForecast;
+      while (cursorForecast <= cycleEndForForecast) {
+        const entry = entriesByDateForForecast.get(cursorForecast);
+        if (cursorForecast <= todayStr) {
+          const plus =
+            entry?.skip_pass_used || entry?.actual_plus == null
+              ? 0
+              : Math.max(0, entry.actual_plus);
+          if (!entry?.skip_pass_used) projectedTotal += plus;
+        } else {
+          const target = entry?.target_plus ?? 0;
+          projectedTotal += Math.max(0, target);
+        }
+        cursorForecast = addDays(cursorForecast, 1);
       }
-      cursorForecast = addDays(cursorForecast, 1);
-    }
-    const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
-    if (canRankUp) {
-      forecastNextRank = getNextRank(rankState.current_rank);
-    } else if (isKeep) {
-      forecastNextRank = rankState.current_rank;
-    } else {
-      forecastNextRank =
-        getPreviousRank(rankState.current_rank) ?? rankState.current_rank;
-    }
-    if (forecastNextRank != null) {
-      const nextCycleStart = addDays(rankState.rank_reset_date, 1);
-      const nextCycleEnd = addDays(nextCycleStart, 6);
-      rankCycles.push({
-        start: nextCycleStart,
-        end: nextCycleEnd,
-        rank: forecastNextRank,
-      });
+      const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
+      if (canRankUp) return getNextRank(rankState.current_rank);
+      if (isKeep) return rankState.current_rank;
+      return getPreviousRank(rankState.current_rank) ?? rankState.current_rank;
+    })();
+    while (periodStart <= to && rankForThisPeriod != null) {
+      const periodEnd = getCycleEndDateIncludingSkips(periodStart, entriesByDateForForecast);
+      let projectedTotal = 0;
+      let c = periodStart;
+      while (c <= periodEnd) {
+        const entry = entriesByDateForForecast.get(c);
+        if (c <= todayStr) {
+          const plus =
+            entry?.skip_pass_used || entry?.actual_plus == null
+              ? 0
+              : Math.max(0, entry.actual_plus);
+          if (!entry?.skip_pass_used) projectedTotal += plus;
+        } else {
+          const target = entry?.target_plus ?? 0;
+          projectedTotal += Math.max(0, target);
+        }
+        c = addDays(c, 1);
+      }
+      rankCycles.push({ start: periodStart, end: periodEnd, rank: rankForThisPeriod });
+      const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
+      if (canRankUp) {
+        rankForThisPeriod = getNextRank(rankForThisPeriod as RankLabel);
+      } else if (isKeep) {
+        rankForThisPeriod = rankForThisPeriod;
+      } else {
+        rankForThisPeriod = getPreviousRank(rankForThisPeriod as RankLabel) ?? rankForThisPeriod;
+      }
+      periodStart = addDays(periodEnd, 1);
     }
   }
 
