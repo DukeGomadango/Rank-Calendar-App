@@ -54,12 +54,6 @@ export default async function DashboardShellLayout({
     redirect("/dashboard/settings");
   }
 
-  if (!urlCalendarId) {
-    const q = new URLSearchParams({ calendarId: currentCalendar.id });
-    if (fromInvite) q.set("fromInvite", "1");
-    redirect(`/dashboard?${q.toString()}`);
-  }
-
   if (isOwner && !fromInvite) {
     const profile = await getProfile(user.id);
     if (!profile?.setup_wizard_done) {
