@@ -25,5 +25,5 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   view_events: "参加イベントを表示",
   view_schedule_stream: "配信スケジュールを表示",
   view_schedule_personal: "個人スケジュールを表示",
-  view_schedule_secret: "センシティブな個人スケジュールを表示",
+  view_schedule_secret: "秘密のスケジュールを表示",
 };

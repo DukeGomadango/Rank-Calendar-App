@@ -23,14 +23,12 @@ const PERM_GROUP_BASIC: PermissionKey[] = [
   "view_target_actual",
   "view_rank",
   "view_events",
-  // スケジュール（配信 / 通常の個人予定）
-  "view_schedule_stream",
-  "view_schedule_personal",
 ];
 const PERM_GROUP_SENSITIVE: PermissionKey[] = [
   "view_borders",
   "view_memo",
-  // センシティブな個人スケジュール
+  // スケジュール（個人 / 秘密）
+  "view_schedule_personal",
   "view_schedule_secret",
 ];
 import {

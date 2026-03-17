@@ -670,7 +670,7 @@ export function CalendarWithModal({
             >
               <option value="stream">配信</option>
               <option value="personal">個人</option>
-              <option value="secret">個人（センシティブ）</option>
+              <option value="secret">秘密</option>
             </select>
           </div>
           <div className="flex flex-wrap items-center gap-1">
@@ -1497,7 +1497,7 @@ export function CalendarWithModal({
                                 : s.kind === "stream"
                                   ? "配信"
                                   : s.kind === "secret"
-                                    ? "個人（センシティブ）"
+                                    ? "秘密"
                                     : "その他"}
                             </span>
                             <span className="truncate">
