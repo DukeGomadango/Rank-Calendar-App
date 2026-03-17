@@ -138,6 +138,10 @@ type Props = {
   calendarId: string;
   days: DayData[];
   permissions: CalendarPermissionFlags;
+  /** 親側で月変更を扱いたい場合のコールバック（指定があれば router.push は使わない） */
+  onChangeMonth?: (month: string) => void;
+  /** 親側で週変更を扱いたい場合のコールバック */
+  onChangeWeek?: (month: string, weekStart: string) => void;
   moveEntry: (calendarId: string, fromDate: string, toDate: string) => Promise<void>;
   saveAction: (formData: FormData) => void;
   /** イベント一覧（start_date/end_date があればその日にブロック表示。color で帯の色を指定） */
@@ -205,6 +209,8 @@ export function CalendarWithModal({
   calendarId,
   days,
   permissions,
+  onChangeMonth,
+  onChangeWeek,
   moveEntry,
   saveAction,
   events,
@@ -420,18 +426,26 @@ export function CalendarWithModal({
 
   const goToMonth = useCallback(
     (month: string) => {
+      if (onChangeMonth) {
+        onChangeMonth(month);
+        return;
+      }
       setIsNavigating(true);
       router.push(`/dashboard/calendar?month=${month}`);
     },
-    [router]
+    [onChangeMonth, router]
   );
 
   const goToWeek = useCallback(
     (month: string, weekStart: string) => {
+      if (onChangeWeek) {
+        onChangeWeek(month, weekStart);
+        return;
+      }
       setIsNavigating(true);
       router.push(`/dashboard/calendar?month=${month}&week=${weekStart}`);
     },
-    [router]
+    [onChangeWeek, router]
   );
 
   const weekDays = useMemo(() => {
