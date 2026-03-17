@@ -1075,243 +1075,199 @@ export function CalendarWithModal({
     </section>
   );
 
-  const renderWeekGrid = () => (
-    <section className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
-      <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
-        {WEEKDAYS.map((label, idx) => {
-          const isSun = idx === 0;
-          const isSat = idx === 6;
-          const base =
-            "py-1 text-center font-medium tracking-tight bg-zinc-50 dark:bg-zinc-900";
-          const weekend =
-            isSun || isSat
-              ? isSun
-                ? "text-red-500"
-                : "text-blue-500"
-              : "text-zinc-600 dark:text-zinc-300";
-          return (
-            <div key={label} className={`${base} ${weekend}`}>
-              {label}
-            </div>
-          );
-        })}
-      </div>
+  const renderWeekGrid = () => {
+    const WEEK_START_HOUR = 5;
+    const WEEK_END_HOUR = 27; // 翌3時まで
+    const totalMinutes = (WEEK_END_HOUR - WEEK_START_HOUR) * 60;
 
-      <div className="mt-1 grid min-h-0 flex-1 grid-cols-7 grid-rows-[1fr] gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
-        {weekDays.map((day) => {
-          const dateObj = dayjs(day.date);
-          const entry = day.entries[0];
-          const cycle = getCycleForDate(day.date);
-          const weekRowDates = weekDays.map((d) => d.date);
-          const rounded = cycle
-            ? getBarRoundedInRow(day.date, weekRowDates, cycle.start, cycle.end)
-            : null;
-          const bg =
-            cycle
-              ? getPeriodCellClass(cycle.periodType, day.isToday)
-              : day.isToday
-                ? "bg-accent-50 dark:bg-accent-950/40"
-                : "bg-white dark:bg-zinc-900";
-          const isCycleEnd = cycle && day.date === cycle.end;
+    const parseTimeToMinutes = (time: string | null): number | null => {
+      if (!time) return null;
+      const [h, m] = time.split(":").map((v) => Number(v));
+      if (Number.isNaN(h) || Number.isNaN(m)) return null;
+      return (h - WEEK_START_HOUR) * 60 + m;
+    };
 
-          let textColor = "text-zinc-800 dark:text-zinc-100";
-          if (!day.isCurrentMonth) {
-            textColor = "text-zinc-400 dark:text-zinc-500";
-          } else if (day.holidayName || day.weekday === 0) {
-            textColor = "text-red-500";
-          } else if (day.weekday === 6) {
-            textColor = "text-blue-500";
-          }
-          if (cycle?.periodType === "past") {
-            textColor = "text-zinc-500 dark:text-zinc-400";
-          }
+    const hours: number[] = [];
+    for (let h = WEEK_START_HOUR; h <= WEEK_END_HOUR; h += 2) {
+      hours.push(h);
+    }
 
-          const isSkip = entry?.skip_pass_used ?? false;
-          const canDrop =
-            permissions.isOwner && (!entry || !entry.skip_pass_used);
-          const showEventIcon = permissions.canViewEvents && entry?.event_id;
-          const showMemoIcon = permissions.canViewMemo && entry?.memo?.trim();
-          const eventsOnDay = permissions.canViewEvents ? getEventsOnDate(events, day.date) : [];
+    const weekDates = weekDays.map((d) => d.date);
 
-          return (
-            <button
-              key={day.date}
-              type="button"
-              onClick={() => setSelectedDate(day.date)}
-              onDragOver={(e) => {
-                if (canDrop) e.preventDefault();
-              }}
-              onDrop={(e) => {
-                if (!canDrop || !permissions.isOwner) return;
-                const fromDate = e.dataTransfer.getData("text/plain");
-                if (!fromDate || fromDate === day.date) return;
-                handleMoveEntry(fromDate, day.date);
-              }}
-              className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-[120px] flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
-            >
-              {cycle && permissions.canViewRank && (() => {
-                const showBracket = !isSkip;
-                const isPhaseStart = day.date === cycle.start;
-                const isPhaseEnd = day.date === cycle.end;
-                const vertStrong = !!((rounded?.roundedLeft && isPhaseStart) || (rounded?.roundedRight && isPhaseEnd));
-                const vertClass = getRankBarVerticalBorderClass(cycle.rank, vertStrong);
+    return (
+      <section className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+        {/* 上段: 曜日ヘッダー */}
+        <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+          {weekDays.map((day, idx) => {
+            const isSun = idx === 0;
+            const isSat = idx === 6;
+            const base =
+              "py-1 text-center font-medium tracking-tight bg-zinc-50 dark:bg-zinc-900";
+            const weekend =
+              isSun || isSat
+                ? isSun
+                  ? "text-red-500"
+                  : "text-blue-500"
+                : "text-zinc-600 dark:text-zinc-300";
+            const dateObj = dayjs(day.date);
+            return (
+              <div key={day.date} className={`${base} ${weekend}`}>
+                <div>{WEEKDAYS[idx]}</div>
+                <div className="text-[10px]">{dateObj.format("M/D")}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 下段: ランク帯 + 時間グリッド */}
+        <div className="mt-1 flex min-h-0 flex-1 flex-col gap-2">
+          {/* ランク帯（簡略版） */}
+          {permissions.canViewRank && currentRankCycle && (
+            <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              {weekDays.map((day) => {
+                const cycle = getCycleForDate(day.date);
+                const weekRowDates = weekDates;
+                const rounded = cycle
+                  ? getBarRoundedInRow(day.date, weekRowDates, cycle.start, cycle.end)
+                  : null;
+                const bg =
+                  cycle
+                    ? getPeriodCellClass(cycle.periodType, day.isToday)
+                    : day.isToday
+                      ? "bg-accent-50 dark:bg-accent-950/40"
+                      : "bg-white dark:bg-zinc-900";
                 return (
                   <div
-                    className={`flex items-center gap-0.5 overflow-visible ${showBracket && rounded?.roundedLeft ? "rounded-tl-sm border-l-2 " + vertClass : ""} ${showBracket && rounded?.roundedRight ? "rounded-tr-sm border-r-2 " + vertClass : ""}`}
-                    title={formatCycleBandLabel(cycle.rank, cycle.start, cycle.end) + (cycle.isPredicted ? "（予測）" : "")}
+                    key={day.date}
+                    className={`${bg} relative flex items-center justify-center border border-zinc-200/80 px-1 py-0.5 text-[10px] dark:border-zinc-800/80`}
                   >
-                    {cycle.isPredicted ? (
-                      <div className={`min-w-0 flex-1 h-0 border-t-2 md:border-t-4 ${getRankBarDashedLineColorClass(cycle.rank)}`} />
-                    ) : (
-                      <div className={`h-0.5 md:h-1 min-w-0 flex-1 ${getRankBarLineClass(cycle.rank)}`} />
-                    )}
-                    <span className={`shrink-0 text-[7px] md:text-[9px] font-medium ${getRankBarTextClass(cycle.rank)}`}>
-                      {cycle.rank ?? "—"}
-                    </span>
+                    {cycle && (() => {
+                      const showBracket = true;
+                      const isPhaseStart = day.date === cycle.start;
+                      const isPhaseEnd = day.date === cycle.end;
+                      const vertStrong = !!((rounded?.roundedLeft && isPhaseStart) || (rounded?.roundedRight && isPhaseEnd));
+                      const vertClass = getRankBarVerticalBorderClass(cycle.rank, vertStrong);
+                      return (
+                        <div
+                          className={`flex w-full items-center gap-0.5 ${showBracket && rounded?.roundedLeft ? "rounded-l border-l-2 " + vertClass : ""} ${showBracket && rounded?.roundedRight ? "rounded-r border-r-2 " + vertClass : ""}`}
+                          title={formatCycleBandLabel(cycle.rank, cycle.start, cycle.end) + (cycle.isPredicted ? "（予測）" : "")}
+                        >
+                          {cycle.isPredicted ? (
+                            <div className={`h-0.5 flex-1 border-t-2 ${getRankBarDashedLineColorClass(cycle.rank)}`} />
+                          ) : (
+                            <div className={`h-0.5 flex-1 ${getRankBarLineClass(cycle.rank)}`} />
+                          )}
+                          <span className={`shrink-0 text-[9px] font-medium ${getRankBarTextClass(cycle.rank)}`}>
+                            {cycle.rank ?? "—"}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
-              })()}
-              <div className="flex flex-1 flex-col p-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <span className={`text-[12px] font-semibold ${textColor}`}>
-                    {dateObj.format("D日")}
-                  </span>
-                  {showEventIcon && (
-                    <span className="text-[11px]" title="イベント">
-                      🎉
-                    </span>
-                  )}
-                  {showMemoIcon && (
-                    <span className="text-[11px]" title="メモ">
-                      📝
-                    </span>
-                  )}
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    ({WEEKDAYS[day.weekday]})
-                  </span>
+              })}
+            </div>
+          )}
+
+          {/* 時間グリッド本体 */}
+          <div className="flex min-h-0 flex-1 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
+            {/* 時刻軸 */}
+            <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+              {hours.map((h) => (
+                <div key={h} className="h-12 px-1 text-right leading-none">
+                  {`${((h + 24) % 24).toString().padStart(2, "0")}:00`}
                 </div>
-                {day.isToday && (
-                  <span className="rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-medium text-white shrink-0">
-                    今日
-                  </span>
-                )}
-              </div>
+              ))}
+            </div>
 
-              {day.holidayName && !isSkip && (
-                <p className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-900/40 dark:text-red-200">
-                  <span className="shrink-0 text-[9px]">祝</span>
-                  <span className="min-w-0 truncate">{day.holidayName}</span>
-                </p>
-              )}
+            {/* 日別カラム */}
+            <div className="flex min-w-0 flex-1">
+              {weekDays.map((day) => {
+                const daySchedulesRaw = schedulesByDate.get(day.date) ?? [];
+                const daySchedules = daySchedulesRaw.filter((s) => !s.is_all_day);
+                const allDaySchedules = daySchedulesRaw.filter((s) => s.is_all_day);
+                const bg = day.isToday
+                  ? "bg-accent-50/40 dark:bg-accent-950/30"
+                  : "bg-white dark:bg-zinc-950/40";
 
-              {eventsOnDay.length > 0 && (
-                <div className="mt-1 flex flex-col gap-px -mx-1.5 shrink-0">
-                {eventsOnDay.map((ev) => {
-                        const isStart = ev.start_date != null && ev.start_date === day.date;
-                        const isEnd = ev.end_date != null && ev.end_date === day.date;
-                        const { border, bg, text } = getEventColorClasses(ev.color ?? null);
+                return (
+                  <div key={day.date} className="relative flex min-w-[180px] flex-1 flex-col border-r border-zinc-200 last:border-r-0 dark:border-zinc-800">
+                    {/* 終日帯 */}
+                    {allDaySchedules.length > 0 && (
+                      <div className="flex flex-wrap gap-1 border-b border-zinc-200 bg-zinc-50 px-1.5 py-1 text-[10px] dark:border-zinc-800 dark:bg-zinc-900">
+                        {allDaySchedules.map((s) => {
+                          const color = getEventColorClasses(s.color_id ?? null);
+                          return (
+                            <span
+                              key={s.id}
+                              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${color.bg} ${color.text}`}
+                              title={s.title}
+                            >
+                              <span className="text-[9px]">終日</span>
+                              <span className="max-w-[120px] truncate">{s.title}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* 時間スロット */}
+                    <div
+                      className={`${bg} relative flex-1`}
+                      onClick={() => setSelectedDate(day.date)}
+                    >
+                      {/* ガイドライン */}
+                      {hours.map((h, idx) => (
+                        <div
+                          key={h}
+                          className={`pointer-events-none absolute left-0 right-0 border-t border-dashed border-zinc-200 dark:border-zinc-800 ${idx === 0 ? "border-t-0" : ""}`}
+                          style={{ top: `${(idx / (hours.length - 1)) * 100}%` }}
+                        />
+                      ))}
+
+                      {/* 予定ブロック */}
+                      {daySchedules.map((s) => {
+                        const startMinutes = parseTimeToMinutes(s.start_time);
+                        const endMinutes = parseTimeToMinutes(s.end_time) ?? startMinutes;
+                        if (startMinutes == null) return null;
+                        const top = Math.max(0, (startMinutes / totalMinutes) * 100);
+                        const heightMinutes = Math.max(30, (endMinutes ?? startMinutes) - startMinutes || 30);
+                        const height = Math.min(100 - top, (heightMinutes / totalMinutes) * 100);
+                        const color = getEventColorClasses(s.color_id ?? null);
+                        const labelTime = s.start_time ? s.start_time.slice(0, 5) : "--:--";
                         return (
                           <div
-                            key={ev.id}
-                            className={`${bg} py-0.5 text-[10px] font-medium line-clamp-1 ${text} ${isStart ? "rounded-l border-l-4 pl-2 " + border : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
-                            title={ev.name}
+                            key={s.id}
+                            className={`absolute left-1 right-1 overflow-hidden rounded-md border text-[10px] shadow-sm ${color.bg} ${color.text} ${color.leftBar}`}
+                            style={{
+                              top: `${top}%`,
+                              height: `${height}%`,
+                            }}
+                            title={s.title}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDate(day.date);
+                              setSelectedScheduleId(s.id);
+                              setModalTab("schedule");
+                            }}
                           >
-                            {isStart ? ev.name : "\u00A0"}
+                            <div className="flex items-center gap-1 px-1 py-0.5">
+                              <span className="shrink-0 tabular-nums">{labelTime}</span>
+                              <span className="min-w-0 truncate">{s.title}</span>
+                            </div>
                           </div>
                         );
                       })}
-                </div>
-              )}
-
-              {!isSkip && entry?.stream_content?.trim() && (() => {
-                const streamStyle = getEventColorClasses(entry.stream_content_color ?? null);
-                return (
-                  <div
-                    className={`mt-1 shrink-0 line-clamp-1 py-0.5 pl-2 text-[10px] font-medium rounded-r ${streamStyle.leftBar} ${streamStyle.bg} ${streamStyle.text}`}
-                    title={entry.stream_content}
-                  >
-                    {entry.stream_content.trim()}
+                    </div>
                   </div>
                 );
-              })()}
-
-              {isSkip ? (
-                <div className="mt-4 flex flex-1 items-center justify-center min-h-0">
-                  <span className="text-[11px] font-medium text-teal-600/80 dark:text-teal-400/80" title="スキパ使用日">
-                    スキパ
-                  </span>
-                </div>
-              ) : entry ? (
-                (() => {
-                  const disp = getTargetActualDisplay(entry.target_plus, entry.actual_plus, day.date > todayStr);
-                  return (
-                <div className="mt-2 flex flex-1 flex-col gap-0.5 text-[10px] text-zinc-700 dark:text-zinc-200">
-                  {permissions.canViewTargetActual && (
-                    <>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">スコア目標：</span>
-                        <span className={disp.targetClass}>{disp.targetLabel}</span>
-                      </p>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">スコア実績：</span>
-                        <span className={disp.actualClass}>{disp.actualLabel}</span>
-                      </p>
-                    </>
-                  )}
-                  {permissions.canViewTargetActual === false && (
-                    <p className="text-[10px] text-zinc-500">非公開</p>
-                  )}
-                  {viewMode === "detailed" && permissions.canViewBorders && (
-                    <p className="flex justify-between gap-1">
-                      <span className="shrink-0 text-zinc-500 dark:text-zinc-400">アンスコ：</span>
-                      <span>{entry.ansuko_baseline ?? "—"}</span>
-                    </p>
-                  )}
-                  {permissions.canViewMemo && (
-                    <p className="flex justify-between gap-1">
-                      <span className="shrink-0 text-zinc-500 dark:text-zinc-400">メモ：</span>
-                      <span className="min-w-0 truncate text-right" title={entry.memo ?? undefined}>
-                        {entry.memo?.trim() || "—"}
-                      </span>
-                    </p>
-                  )}
-                  {viewMode === "detailed" && permissions.canViewBorders && (
-                    <>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋２：</span>
-                        <span>{entry.border_plus2 ?? "—"}</span>
-                      </p>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋４：</span>
-                        <span>{entry.border_plus4 ?? "—"}</span>
-                      </p>
-                      <p className="flex justify-between gap-1">
-                        <span className="shrink-0 text-zinc-500 dark:text-zinc-400">＋６：</span>
-                        <span>{entry.border_plus6 ?? "—"}</span>
-                      </p>
-                    </>
-                  )}
-                </div>
-                  );
-                })()
-              ) : (
-                <p className="mt-4 text-[10px] text-zinc-400 dark:text-zinc-600">
-                  この週のこの日はまだ登録がありません。
-                </p>
-              )}
-              {isCycleEnd && permissions.canViewRank && !cycle.isPredicted && cycle.periodType === "past" && cycle.cycleTotal != null && (
-                <p className="mt-1 text-[9px] text-zinc-400 dark:text-zinc-500" title="周期の最終合計">
-                  🏁 +{cycle.cycleTotal}
-                </p>
-              )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  };
 
   return (
     <div className="space-y-4">
