@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [{ source: "/sitemap.xml", destination: "/sitemap" }];
+  },
 };
 
 const useSentry =
