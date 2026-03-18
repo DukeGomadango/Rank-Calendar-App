@@ -69,10 +69,18 @@ function LoginForm() {
 
   const handleOAuthLogin = async (provider: "google" | "discord") => {
     setMessage(null);
+
+    const isSwitchMode = searchParams.get("switch") === "1";
+    const queryParams =
+      provider === "google" && isSwitchMode
+        ? { prompt: "select_account" }
+        : undefined;
+
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo,
+        queryParams,
       },
     });
   };

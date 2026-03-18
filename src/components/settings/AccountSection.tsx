@@ -167,7 +167,7 @@ export function AccountSection({
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={handleSwitchAccount}
