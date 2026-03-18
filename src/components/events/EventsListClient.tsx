@@ -6,6 +6,8 @@ import type { EventRow, EventType } from "@/lib/data/events";
 import { EVENT_PALETTE } from "@/lib/event-colors";
 import { useToast } from "@/lib/toast-context";
 import { EventCalendarOcrImporter } from "@/components/ocr/EventCalendarOcrImporter";
+import { EnsureCalendarIdInUrl } from "@/components/dashboard/EnsureCalendarIdInUrl";
+import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { EventFormClient } from "./EventFormClient";
 import { EventCard } from "./EventCard";
 
@@ -30,6 +32,7 @@ export function EventsListClient({
 }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { permissions } = useDashboardCalendar();
   const [active, setActive] = useState<EventRow[]>(initialActive);
   const [past, setPast] = useState<EventRow[]>(initialPast);
   const [listError, setListError] = useState<string | null>(null);
@@ -94,8 +97,25 @@ export function EventsListClient({
     setEditing(event);
   };
 
+  if (!permissions.canViewEvents) {
+    return (
+      <div className="space-y-4">
+        <EnsureCalendarIdInUrl />
+        <header className="space-y-1">
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            イベント
+          </h1>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            このカレンダーのイベントを閲覧する権限がありません。オーナーに権限の付与を依頼してください。
+          </p>
+        </header>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      <EnsureCalendarIdInUrl />
       <header className="space-y-1">
         <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">イベント</h1>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
@@ -113,11 +133,28 @@ export function EventsListClient({
       )}
 
       <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">イベントを追加</h2>
-        <EventFormClient calendarId={calendarId} createAction={createAction} onSubmit={handleCreate} />
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          イベントを追加
+        </h2>
+        {permissions.canEditSchedule ? (
+          <EventFormClient
+            calendarId={calendarId}
+            createAction={createAction}
+            onSubmit={handleCreate}
+          />
+        ) : (
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            イベントの追加・編集はオーナーのみが行えます。
+          </p>
+        )}
       </section>
 
-      <EventCalendarOcrImporter calendarId={calendarId} createAction={createAction} />
+      {permissions.canEditSchedule && (
+        <EventCalendarOcrImporter
+          calendarId={calendarId}
+          createAction={createAction}
+        />
+      )}
 
       <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">イベント一覧</h2>
@@ -154,7 +191,7 @@ export function EventsListClient({
                     <EventCard
                       event={event}
                       calendarId={calendarId}
-                      deleteAction={deleteAction}
+                      deleteAction={permissions.canEditSchedule ? deleteAction : async () => {}}
                       onDeleteRequest={handleDeleteRequest}
                       onEditRequest={handleEditRequest}
                       isPast

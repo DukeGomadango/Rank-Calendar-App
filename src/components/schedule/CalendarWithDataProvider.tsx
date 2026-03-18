@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 
-import { toJstDateString } from "@/lib/domain/calendar";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { EventRow } from "@/lib/data/events";
@@ -49,7 +48,6 @@ export function CalendarWithDataProvider({
   saveScheduleAction,
   deleteScheduleAction,
 }: Props) {
-  const [view, setView] = useState<"month" | "week">("month");
   const [displayMonth, setDisplayMonth] = useState(dayjs(`${initialMonth}-15`, "YYYY-MM-DD"));
   const [displayWeekStart, setDisplayWeekStart] = useState(initialWeekStart);
 
@@ -63,6 +61,17 @@ export function CalendarWithDataProvider({
     setBaseMonth,
     refreshRange,
   } = useDashboardCalendar();
+
+  // URL 由来の initialMonth/initialWeekStart が更新されたときに、表示状態と Provider の baseMonth を同期する。
+  // （タブ遷移・戻る/進む・プリフェッチ後の遷移でも「見ていた月」が崩れないようにする）
+  useEffect(() => {
+    const nextMonth = initialMonth;
+    const nextWeekStart = initialWeekStart;
+
+    setDisplayMonth(dayjs(`${nextMonth}-15`, "YYYY-MM-DD"));
+    setDisplayWeekStart(nextWeekStart);
+    setBaseMonth(nextMonth);
+  }, [initialMonth, initialWeekStart, setBaseMonth]);
 
   const today = dayjs(todayJst);
 
@@ -148,12 +157,10 @@ export function CalendarWithDataProvider({
         days={days}
         permissions={permissions}
         onChangeMonth={(month) => {
-          setView("month");
           setDisplayMonth(dayjs(`${month}-15`, "YYYY-MM-DD"));
           setBaseMonth(month);
         }}
         onChangeWeek={(_, weekStart) => {
-          setView("week");
           setDisplayWeekStart(weekStart);
           const m = dayjs(weekStart, "YYYY-MM-DD").startOf("month");
           setDisplayMonth(m);

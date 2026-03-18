@@ -77,9 +77,6 @@ export default async function EventsPage({ searchParams }: PageProps) {
   if (!user) redirect("/login");
   const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
   if (!currentCalendar) redirect("/dashboard/settings");
-  if (!urlCalendarId) {
-    redirect(`/dashboard/events?calendarId=${encodeURIComponent(currentCalendar.id)}`);
-  }
   const events = await listEventsForCalendar(currentCalendar.id);
   const { active, past } = splitActivePast(events);
 

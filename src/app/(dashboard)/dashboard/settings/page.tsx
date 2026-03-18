@@ -23,6 +23,7 @@ import { LeaveCalendarSection } from "@/components/settings/LeaveCalendarSection
 import { RankSettingsForm } from "@/components/settings/RankSettingsForm";
 import { AccountLinkingSection } from "@/components/settings/AccountLinkingSection";
 import { CalendarSwitcher } from "@/components/settings/CalendarSwitcher";
+import { SettingsPageClient } from "./SettingsPageClient";
 
 type PageProps = { searchParams?: Promise<{ calendarId?: string }> };
 
@@ -47,6 +48,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
     return (
       <div className="space-y-4">
+        <SettingsPageClient />
         <section className="rounded-2xl bg-amber-50/90 p-3 text-[11px] text-amber-800 shadow-sm dark:bg-orange-500/20 dark:text-orange-400">
           <p>開発用モック表示です。データは保存されません。</p>
         </section>
@@ -132,6 +134,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-4">
+      <SettingsPageClient />
       <header className="space-y-1">
         <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
           設定

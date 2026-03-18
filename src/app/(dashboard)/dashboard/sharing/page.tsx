@@ -15,6 +15,7 @@ import {
   PERMISSION_LABELS,
   type PermissionKey,
 } from "@/lib/data/permissions";
+import { SharingPageClient } from "./SharingPageClient";
 
 /** 権限のグループ（基本情報 / センシティブ情報） */
 const PERM_GROUP_BASIC: PermissionKey[] = [
@@ -94,6 +95,7 @@ export default async function SharingPage({ searchParams }: PageProps) {
 
     return (
       <div className="space-y-6">
+        <SharingPageClient />
         <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
           <p>開発用モック表示です。データは保存されません。ロール・招待リンク・招待済みユーザーの見た目を確認できます。</p>
         </section>
@@ -256,9 +258,6 @@ export default async function SharingPage({ searchParams }: PageProps) {
     if (firstOwned) redirect(`/dashboard/sharing?calendarId=${encodeURIComponent(firstOwned.id)}`);
     redirect("/dashboard/settings");
   }
-  if (!urlCalendarId) {
-    redirect(`/dashboard/sharing?calendarId=${encodeURIComponent(currentCalendar.id)}`);
-  }
   const [roles, inviteLinks, redemptions, shares] = await Promise.all([
     listRolesForCalendar(currentCalendar.id),
     listInviteLinksForCalendar(currentCalendar.id),
@@ -274,6 +273,7 @@ export default async function SharingPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
+      <SharingPageClient />
       <header className="space-y-1">
         <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
           共有

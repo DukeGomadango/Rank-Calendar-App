@@ -38,10 +38,15 @@ type Props = {
   onLinkClick?: () => void;
 };
 
-function buildHref(path: string, calendarId: string | null): string {
-  if (!calendarId) return path;
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}calendarId=${encodeURIComponent(calendarId)}`;
+function buildHref(
+  path: string,
+  searchParams: URLSearchParams,
+  calendarId: string | null,
+): string {
+  const next = new URLSearchParams(searchParams.toString());
+  if (calendarId) next.set("calendarId", calendarId);
+  const query = next.toString();
+  return query ? `${path}?${query}` : path;
 }
 
 export function DashboardNavLinks({
@@ -52,6 +57,7 @@ export function DashboardNavLinks({
 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const sp = new URLSearchParams(searchParams?.toString() ?? "");
   const calendarId = searchParams.get("calendarId");
 
   const showSharing =
@@ -83,7 +89,7 @@ export function DashboardNavLinks({
           return (
             <li key={href} className="flex-1">
               <Link
-                href={buildHref(href, calendarId)}
+                href={buildHref(href, sp, calendarId)}
                 onClick={onLinkClick}
                 className={`flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:focus-visible:ring-accent-500 ${
                   active
@@ -118,7 +124,7 @@ export function DashboardNavLinks({
         return (
           <Link
             key={href}
-            href={buildHref(href, calendarId)}
+            href={buildHref(href, sp, calendarId)}
             onClick={onLinkClick}
             className={`${linkBase} ${padding} ${
               active ? linkActive : linkInactive

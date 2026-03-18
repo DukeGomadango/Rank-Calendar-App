@@ -23,6 +23,8 @@ import {
   type RankLabel,
 } from "@/lib/domain/rank";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
+import type { CalendarScheduleRow } from "@/lib/data/schedules";
+import type { EventRow } from "@/lib/data/events";
 
 type DashboardContextValue = {
   calendarId: string;
@@ -30,12 +32,12 @@ type DashboardContextValue = {
   permissions: CalendarPermissionFlags;
   baseMonth: string;
   setBaseMonth: (month: string) => void;
-   refreshRange: () => void;
+  refreshRange: () => void;
   rangeData:
     | {
         entries: ScheduleEntryRow[];
-        schedules: any[];
-        events: any[];
+        schedules: CalendarScheduleRow[];
+        events: EventRow[];
         rankState:
           | {
               rank_cycle_start_date: string;
@@ -105,8 +107,8 @@ export function DashboardProvider({
       cycle_total?: number | null;
     }[];
 
-    const schedules = (data.schedules ?? []) as any[];
-    const events = (data.events ?? []) as any[];
+    const schedules = (data.schedules ?? []) as CalendarScheduleRow[];
+    const events = (data.events ?? []) as EventRow[];
 
     const rangeData = {
       entries,
