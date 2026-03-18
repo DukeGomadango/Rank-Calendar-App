@@ -99,6 +99,13 @@ export function AccountSection({
     }
   }
 
+  async function handleSwitchAccount() {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.push("/login?switch=1");
+    router.refresh();
+  }
+
   async function handleLogout() {
     const supabase = createSupabaseBrowserClient();
     await supabase.auth.signOut();
@@ -160,13 +167,22 @@ export function AccountSection({
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="shrink-0 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-            >
-              ログアウト
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleSwitchAccount}
+                className="shrink-0 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              >
+                アカウントを切り替える
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="shrink-0 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              >
+                ログアウト
+              </button>
+            </div>
           </div>
           {updateDisplayNameAction != null && (
             <form

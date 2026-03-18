@@ -135,9 +135,16 @@ function LoginForm() {
             </h1>
           </div>
         </div>
-        <p className="mb-6 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-          Google・Discord・メールリンクでログインできます。
-        </p>
+        {searchParams.get("switch") === "1" ? (
+          <p className="mb-6 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+            設定画面から「アカウントを切り替える」が選択されました。<br />
+            別のアカウントでログインし直してください。
+          </p>
+        ) : (
+          <p className="mb-6 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+            Google・Discord・メールリンクでログインできます。
+          </p>
+        )}
 
         <div className="space-y-3 text-sm">
           <button
