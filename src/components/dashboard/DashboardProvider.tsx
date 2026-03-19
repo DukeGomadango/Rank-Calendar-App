@@ -36,6 +36,7 @@ type DashboardContextValue = {
   calendarId: string;
   calendarName: string;
   permissions: CalendarPermissionFlags;
+  fromInvite: boolean;
   baseMonth: string;
   setBaseMonth: (month: string) => void;
   refreshRange: () => void;
@@ -81,6 +82,7 @@ export function DashboardProvider({
   calendarId,
   calendarName,
   permissions,
+  fromInvite = false,
   children,
 }: Props) {
   const pathname = usePathname();
@@ -263,6 +265,7 @@ export function DashboardProvider({
     calendarId,
     calendarName,
     permissions,
+    fromInvite,
     baseMonth,
     setBaseMonth,
     refreshRange,
