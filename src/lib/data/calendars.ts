@@ -155,6 +155,47 @@ export async function getCurrentCalendarForUser(
   return accessible[0];
 }
 
+export type ResolvedCalendarContext = {
+  accessibleCalendars: AccessibleCalendarRow[];
+  currentCalendar: AccessibleCalendarRow | null;
+};
+
+export async function resolveCalendarContextForUser(
+  userId: string,
+  urlCalendarId: string | null
+): Promise<ResolvedCalendarContext> {
+  const accessibleCalendars = await listCalendarsAccessibleToUser(userId);
+  if (accessibleCalendars.length === 0) {
+    return { accessibleCalendars, currentCalendar: null };
+  }
+
+  if (urlCalendarId) {
+    const selected = accessibleCalendars.find((c) => c.id === urlCalendarId);
+    if (selected) {
+      return { accessibleCalendars, currentCalendar: selected };
+    }
+  }
+
+  const owned = accessibleCalendars.find((c) => c.isOwner);
+  if (!owned) {
+    return {
+      accessibleCalendars,
+      currentCalendar: accessibleCalendars[0] ?? null,
+    };
+  }
+
+  const defaultCal = await getOrCreateDefaultCalendarForUser(userId);
+  const currentCalendar =
+    accessibleCalendars.find((c) => c.id === defaultCal.id) ??
+    ({
+      id: defaultCal.id,
+      name: defaultCal.name,
+      isOwner: true,
+    } as AccessibleCalendarRow);
+
+  return { accessibleCalendars, currentCalendar };
+}
+
 /**
  * 指定IDのカレンダーを1件取得。RLS によりオーナーまたは共有先のみ取得可。
  */

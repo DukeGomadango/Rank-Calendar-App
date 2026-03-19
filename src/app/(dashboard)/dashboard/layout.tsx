@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentCalendarForUser,
-  hasOwnedCalendar,
 } from "@/lib/data/calendars";
 import { getProfile } from "@/lib/data/profiles";
 import { getCalendarPermissionsForUser } from "@/lib/auth/permission";
@@ -44,8 +43,6 @@ export default async function DashboardShellLayout({
     urlCalendarId,
   );
 
-  const isOwner = await hasOwnedCalendar(user.id);
-
   if (!currentCalendar && !fromInvite) {
     redirect("/dashboard/onboarding");
   }
@@ -54,7 +51,7 @@ export default async function DashboardShellLayout({
     redirect("/dashboard/settings");
   }
 
-  if (isOwner && !fromInvite) {
+  if (currentCalendar.isOwner && !fromInvite) {
     const profile = await getProfile(user.id);
     if (!profile?.setup_wizard_done) {
       redirect("/dashboard/onboarding");
@@ -65,6 +62,13 @@ export default async function DashboardShellLayout({
     currentCalendar.id,
     user.id,
   );
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[perf] dashboard_shell_layout", {
+      calendarId: currentCalendar.id,
+      isOwner: currentCalendar.isOwner,
+    });
+  }
 
   return (
     <DashboardProvider

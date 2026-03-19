@@ -2,16 +2,14 @@ import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  getCurrentCalendarForUser,
   hasOwnedCalendar,
-  listCalendarsAccessibleToUser,
+  resolveCalendarContextForUser,
 } from "@/lib/data/calendars";
-import { listRolesForCalendar, getPermissionsForRole } from "@/lib/data/roles";
+import { listRolesForCalendar, getPermissionsForRoles } from "@/lib/data/roles";
 import { listInviteLinksForCalendar } from "@/lib/data/invite-links";
 import { listRedemptionsForCalendar } from "@/lib/data/invite-redemptions";
 import { listSharesWithProfilesForCalendar } from "@/lib/data/shares";
 import {
-  PERMISSION_KEYS,
   PERMISSION_LABELS,
   type PermissionKey,
 } from "@/lib/data/permissions";
@@ -256,11 +254,13 @@ export default async function SharingPage({ searchParams }: PageProps) {
   }
 
   if (!user) redirect("/login");
-  const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
+  const { currentCalendar, accessibleCalendars } = await resolveCalendarContextForUser(
+    user.id,
+    urlCalendarId
+  );
   if (!currentCalendar) redirect("/dashboard/settings");
   if (!currentCalendar.isOwner) {
-    const accessible = await listCalendarsAccessibleToUser(user.id);
-    const firstOwned = accessible.find((c) => c.isOwner);
+    const firstOwned = accessibleCalendars.find((c) => c.isOwner);
     if (firstOwned) redirect(`/dashboard/sharing?calendarId=${encodeURIComponent(firstOwned.id)}`);
     redirect("/dashboard/settings");
   }
@@ -296,10 +296,16 @@ export default async function SharingPage({ searchParams }: PageProps) {
     const bt = b.redeemed_at ?? b.shared_at ?? "";
     return bt.localeCompare(at);
   });
-  const rolePermissions = await Promise.all(
-    roles.map(async (r) => ({ roleId: r.id, perms: await getPermissionsForRole(r.id) }))
-  );
-  const permsByRoleId = new Map(rolePermissions.map((p) => [p.roleId, p.perms]));
+  const permsByRoleId = await getPermissionsForRoles(roles.map((role) => role.id));
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[perf] sharing_page", {
+      calendarId: currentCalendar.id,
+      roleCount: roles.length,
+      inviteLinkCount: inviteLinks.length,
+      memberCount: members.length,
+    });
+  }
 
   return (
     <div className="space-y-6">

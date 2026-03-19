@@ -7,7 +7,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { EventRow } from "@/lib/data/events";
@@ -91,6 +91,9 @@ export function DataTable({
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [detailRow, setDetailRow] = useState<Row | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
   const { viewMode } = useViewMode();
   const hideBordersInSimple = !permissions.isOwner && viewMode === "simple";
   const canEdit = permissions.canEditSchedule;
@@ -100,7 +103,7 @@ export function DataTable({
     setRows(data);
   }, [data]);
 
-  const handleOptimisticUpdate = (
+  const handleOptimisticUpdate = useCallback((
     date: string,
     field: keyof Row,
     value: string | number | boolean,
@@ -129,9 +132,9 @@ export function DataTable({
         setUpdatingKey(null);
         setUpdateError(err?.message ?? "更新に失敗しました");
       });
-  };
+  }, [calendarId, onUpdateField, refreshRange, showToast]);
 
-  const handleOptimisticSkipPass = (
+  const handleOptimisticSkipPass = useCallback((
     date: string,
     value: number,
     previousValue: number | null | undefined
@@ -164,28 +167,34 @@ export function DataTable({
         setUpdatingKey(null);
         setUpdateError(err?.message ?? "更新に失敗しました");
       });
-  };
+  }, [calendarId, onUpdateSkipPassSnapshot, refreshRange, showToast]);
 
-  const rankColumns: ColumnDef<Row>[] = permissions.canViewRank
-    ? [
-        {
-          accessorKey: "current_rank",
-          header: "ランク",
-          cell: ({ row }) => row.original.current_rank ?? "—",
-        },
-        {
-          accessorKey: "rank_score_cumulative",
-          header: "ランクスコア",
-          cell: ({ row }) => {
-            const v = row.original.rank_score_cumulative;
-            return v != null ? String(v) : "—";
-          },
-        },
-      ]
-    : [];
+  const rankColumns: ColumnDef<Row>[] = useMemo(
+    () =>
+      permissions.canViewRank
+        ? [
+            {
+              accessorKey: "current_rank",
+              header: "ランク",
+              cell: ({ row }) => row.original.current_rank ?? "—",
+            },
+            {
+              accessorKey: "rank_score_cumulative",
+              header: "ランクスコア",
+              cell: ({ row }) => {
+                const v = row.original.rank_score_cumulative;
+                return v != null ? String(v) : "—";
+              },
+            },
+          ]
+        : [],
+    [permissions.canViewRank]
+  );
 
-  const targetActualColumns: ColumnDef<Row>[] = permissions.canViewTargetActual
-    ? [
+  const targetActualColumns: ColumnDef<Row>[] = useMemo(
+    () =>
+      permissions.canViewTargetActual
+        ? [
         {
           accessorKey: "target_plus",
           header: "目標+",
@@ -279,11 +288,15 @@ export function DataTable({
           },
         },
       ]
-    : [];
+        : [],
+    [canEdit, handleOptimisticUpdate, permissions.canViewTargetActual, updatingKey]
+  );
 
   const showBorders = permissions.canViewBorders && !hideBordersInSimple;
-  const borderColumns: ColumnDef<Row>[] = showBorders
-    ? [
+  const borderColumns: ColumnDef<Row>[] = useMemo(
+    () =>
+      showBorders
+        ? [
         {
           accessorKey: "ansuko_baseline",
           header: "アンスコ",
@@ -441,10 +454,14 @@ export function DataTable({
           },
         },
       ]
-    : [];
+        : [],
+    [canEdit, handleOptimisticUpdate, showBorders, updatingKey]
+  );
 
-  const memoColumn: ColumnDef<Row>[] = permissions.canViewMemo
-    ? [
+  const memoColumn: ColumnDef<Row>[] = useMemo(
+    () =>
+      permissions.canViewMemo
+        ? [
         {
           accessorKey: "memo",
           header: "メモ",
@@ -474,104 +491,166 @@ export function DataTable({
           },
         },
       ]
-    : [];
+        : [],
+    [canEdit, handleOptimisticUpdate, permissions.canViewMemo, updatingKey]
+  );
 
-  const columns: ColumnDef<Row>[] = [
-    {
-      accessorKey: "date",
-      header: "日付",
-      cell: ({ row }) => (
-        <button
-          type="button"
-          onClick={() => setDetailRow(row.original)}
-          className="flex items-center gap-1 text-left hover:opacity-80"
-        >
-          <span>{dayjs(row.original.date).format("YYYY-MM-DD")}</span>
-          <span className="text-zinc-400 dark:text-zinc-500" aria-hidden>
-            ›
-          </span>
-        </button>
-      ),
-    },
-    {
-      accessorKey: "weekday",
-      header: "曜",
-      cell: ({ row }) => {
-        const w = row.original.weekday;
-        if (w === "日")
-          return <span className="text-red-500 dark:text-red-400">{w}</span>;
-        if (w === "土")
-          return <span className="text-blue-600 dark:text-blue-400">{w}</span>;
-        return w;
+  const columns: ColumnDef<Row>[] = useMemo(
+    () => [
+      {
+        accessorKey: "date",
+        header: "日付",
+        cell: ({ row }) => (
+          <button
+            type="button"
+            onClick={() => setDetailRow(row.original)}
+            className="flex items-center gap-1 text-left hover:opacity-80"
+          >
+            <span>{dayjs(row.original.date).format("YYYY-MM-DD")}</span>
+            <span className="text-zinc-400 dark:text-zinc-500" aria-hidden>
+              ›
+            </span>
+          </button>
+        ),
       },
-    },
-    ...rankColumns,
-    ...targetActualColumns,
-    ...borderColumns,
-    {
-      accessorKey: "skip_pass_used",
-      header: "スキップ",
-      cell: ({ row, getValue }) => {
-        const checked = !!getValue<boolean>();
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "skip_pass_used");
-        if (canEdit) {
-          return (
-            <label className="inline-flex items-center gap-1">
+      {
+        accessorKey: "weekday",
+        header: "曜",
+        cell: ({ row }) => {
+          const w = row.original.weekday;
+          if (w === "日")
+            return <span className="text-red-500 dark:text-red-400">{w}</span>;
+          if (w === "土")
+            return <span className="text-blue-600 dark:text-blue-400">{w}</span>;
+          return w;
+        },
+      },
+      ...rankColumns,
+      ...targetActualColumns,
+      ...borderColumns,
+      {
+        accessorKey: "skip_pass_used",
+        header: "スキップ",
+        cell: ({ row, getValue }) => {
+          const checked = !!getValue<boolean>();
+          const date = row.original.date;
+          const cellKey = updatingKeyFor(date, "skip_pass_used");
+          if (canEdit) {
+            return (
+              <label className="inline-flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    handleOptimisticUpdate(date, "skip_pass_used", next, checked);
+                  }}
+                  className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
+                  disabled={updatingKey === cellKey}
+                />
+                {checked ? "使用" : ""}
+              </label>
+            );
+          }
+          return checked ? "使用" : "";
+        },
+      },
+      {
+        id: "skip_pass_remaining",
+        header: "スキパ枚数",
+        cell: ({ row }: { row: { original: Row } }) => {
+          const asOf = row.original.skip_pass_remaining_as_of;
+          const date = row.original.date;
+          const cellKey = updatingKeyFor(date, "skip_pass_remaining");
+          if (canEdit && onUpdateSkipPassSnapshot) {
+            return (
               <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => {
-                  const next = e.target.checked;
-                  handleOptimisticUpdate(date, "skip_pass_used", next, checked);
+                key={`${date}-${asOf ?? ""}`}
+                type="number"
+                min={0}
+                max={10}
+                defaultValue={asOf ?? ""}
+                onBlur={(e) => {
+                  const v = Number(e.target.value);
+                  if (!Number.isNaN(v) && v >= 0 && v <= 10) {
+                    handleOptimisticSkipPass(date, v, asOf);
+                  }
                 }}
-                className="rounded border-zinc-300 text-accent-500 focus:ring-accent-400"
+                className={`${inputClass} w-12`}
                 disabled={updatingKey === cellKey}
               />
-              {checked ? "使用" : ""}
-            </label>
-          );
-        }
-        return checked ? "使用" : "";
+            );
+          }
+          return asOf != null ? String(asOf) : "—";
+        },
       },
-    },
-    {
-      id: "skip_pass_remaining",
-      header: "スキパ枚数",
-      cell: ({ row }: { row: { original: Row } }) => {
-        const asOf = row.original.skip_pass_remaining_as_of;
-        const date = row.original.date;
-        const cellKey = updatingKeyFor(date, "skip_pass_remaining");
-        if (canEdit && onUpdateSkipPassSnapshot) {
-          return (
-            <input
-              key={`${date}-${asOf ?? ""}`}
-              type="number"
-              min={0}
-              max={10}
-              defaultValue={asOf ?? ""}
-              onBlur={(e) => {
-                const v = Number(e.target.value);
-                if (!Number.isNaN(v) && v >= 0 && v <= 10) {
-                  handleOptimisticSkipPass(date, v, asOf);
-                }
-              }}
-              className={`${inputClass} w-12`}
-              disabled={updatingKey === cellKey}
-            />
-          );
-        }
-        return asOf != null ? String(asOf) : "—";
-      },
-    },
-    ...memoColumn,
-  ];
+      ...memoColumn,
+    ],
+    [
+      borderColumns,
+      canEdit,
+      handleOptimisticSkipPass,
+      handleOptimisticUpdate,
+      memoColumn,
+      onUpdateSkipPassSnapshot,
+      rankColumns,
+      targetActualColumns,
+      updatingKey,
+    ]
+  );
 
   const table = useReactTable({
     data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+  const tableRows = table.getRowModel().rows;
+
+  const ROW_HEIGHT = 38;
+  const OVERSCAN_ROWS = 8;
+  const shouldVirtualize = tableRows.length > 60;
+  const startIndex = shouldVirtualize
+    ? Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN_ROWS)
+    : 0;
+  const visibleCount = shouldVirtualize
+    ? Math.ceil((viewportHeight || 480) / ROW_HEIGHT) + OVERSCAN_ROWS * 2
+    : tableRows.length;
+  const endIndex = shouldVirtualize
+    ? Math.min(tableRows.length, startIndex + visibleCount)
+    : tableRows.length;
+  const visibleRows = shouldVirtualize
+    ? tableRows.slice(startIndex, endIndex)
+    : tableRows;
+  const topSpacerHeight = shouldVirtualize ? startIndex * ROW_HEIGHT : 0;
+  const bottomSpacerHeight = shouldVirtualize
+    ? Math.max(0, (tableRows.length - endIndex) * ROW_HEIGHT)
+    : 0;
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[perf] data_table_render", {
+        rowCount: rows.length,
+        columnCount: columns.length,
+        virtualized: shouldVirtualize,
+      });
+    }
+  }, [columns.length, rows.length, shouldVirtualize]);
+
+  useEffect(() => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+    if (typeof ResizeObserver === "undefined") return;
+
+    const updateHeight = () => {
+      setViewportHeight(container.clientHeight);
+    };
+    updateHeight();
+    const resizeObserver = new ResizeObserver(updateHeight);
+    resizeObserver.observe(container);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   return (
     <>
@@ -583,7 +662,11 @@ export function DataTable({
           {updateError}
         </div>
       )}
-      <div className="isolate min-w-0 overflow-x-auto overflow-y-hidden rounded-xl border border-zinc-200 bg-white/80 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80">
+      <div
+        ref={tableContainerRef}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        className="isolate min-w-0 overflow-x-auto overflow-y-auto rounded-xl border border-zinc-200 bg-white/80 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80"
+      >
         <table className="min-w-full border-separate border-spacing-0 whitespace-nowrap">
         <thead className="bg-zinc-50 text-[11px] text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -615,7 +698,12 @@ export function DataTable({
           ))}
         </thead>
         <tbody className="divide-y divide-zinc-100 text-[11px] text-zinc-700 dark:divide-zinc-800 dark:text-zinc-200">
-          {table.getRowModel().rows.map((row) => {
+          {topSpacerHeight > 0 && (
+            <tr aria-hidden>
+              <td colSpan={columns.length} style={{ height: `${topSpacerHeight}px` }} />
+            </tr>
+          )}
+          {visibleRows.map((row) => {
             const isToday = row.original.date === todayStr;
             const isSkip = !!row.original.skip_pass_used;
             const rowClass = [
@@ -657,7 +745,12 @@ export function DataTable({
               </tr>
             );
           })}
-          {table.getRowModel().rows.length === 0 && (
+          {bottomSpacerHeight > 0 && (
+            <tr aria-hidden>
+              <td colSpan={columns.length} style={{ height: `${bottomSpacerHeight}px` }} />
+            </tr>
+          )}
+          {tableRows.length === 0 && (
             <tr>
               <td
                 colSpan={columns.length}

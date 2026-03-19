@@ -12,7 +12,11 @@ import { usePathname } from "next/navigation";
 import type { KeyedMutator } from "swr";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
-import { useCalendarRange, type CalendarRangeResponse } from "@/lib/hooks/useCalendarRange";
+import {
+  useCalendarRange,
+  type CalendarRangeMode,
+  type CalendarRangeResponse,
+} from "@/lib/hooks/useCalendarRange";
 import {
   addDays,
   getCycleEndDateIncludingSkips,
@@ -82,13 +86,28 @@ export function DashboardProvider({
   const pathname = usePathname();
   const [baseMonth, setBaseMonth] = useState(dayjs().format("YYYY-MM"));
 
+  const needsRangeData =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/calendar") ||
+    pathname.startsWith("/dashboard/data");
+
   // 編集頻度が高い`/dashboard/data`ではeventsを同梱しない（レスポンス肥大を回避）。
-  const includeEvents = pathname.startsWith("/dashboard/calendar");
+  const includeEvents =
+    needsRangeData &&
+    (pathname.startsWith("/dashboard/calendar") || pathname === "/dashboard");
+  const includeSchedules = needsRangeData && pathname.startsWith("/dashboard/calendar");
+  const rangeMode: CalendarRangeMode = pathname.startsWith("/dashboard/calendar")
+    ? "calendar"
+    : pathname.startsWith("/dashboard/data")
+      ? "data"
+      : "home";
 
   const { data, isLoading, mutate } = useCalendarRange(
-    calendarId,
-    baseMonth,
-    includeEvents
+    needsRangeData ? calendarId : null,
+    needsRangeData ? baseMonth : null,
+    rangeMode,
+    includeEvents,
+    includeSchedules
   );
   const todayJst = useMemo(() => toJstDateString(new Date()), []);
 

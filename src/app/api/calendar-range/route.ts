@@ -15,18 +15,28 @@ import {
 } from "@/lib/data/events";
 
 export async function GET(req: NextRequest) {
+  const startedAt = Date.now();
   const url = new URL(req.url);
   const calendarId = url.searchParams.get("calendarId");
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+  const mode = url.searchParams.get("mode");
   const includeEventsParam = url.searchParams.get("includeEvents");
+  const includeSchedulesParam = url.searchParams.get("includeSchedules");
   const includeEvents =
     includeEventsParam == null
       ? true
       : includeEventsParam !== "0" && includeEventsParam !== "false";
+  const includeSchedules =
+    includeSchedulesParam == null
+      ? true
+      : includeSchedulesParam !== "0" && includeSchedulesParam !== "false";
 
   if (!calendarId || !from || !to) {
     return NextResponse.json({ error: "missing params" }, { status: 400 });
+  }
+  if (mode !== "home" && mode !== "calendar" && mode !== "data") {
+    return NextResponse.json({ error: "invalid mode" }, { status: 400 });
   }
 
   const supabase = await createSupabaseServerClient();
@@ -60,7 +70,9 @@ export async function GET(req: NextRequest) {
     : Promise.resolve(null);
 
   const rankCycleHistoryPromise = permissions.canViewRank
-    ? getRankCycleHistory(calendarId, from, to)
+    ? mode === "calendar" || mode === "data"
+      ? getRankCycleHistory(calendarId, from, to)
+      : Promise.resolve([])
     : Promise.resolve([]);
 
   const eventsPromise: Promise<EventRow[]> =
@@ -72,9 +84,22 @@ export async function GET(req: NextRequest) {
     entriesPromise,
     rankStatePromise,
     rankCycleHistoryPromise,
-    getSchedulesInRange(calendarId, from, to),
+    includeSchedules ? getSchedulesInRange(calendarId, from, to) : Promise.resolve([]),
     eventsPromise,
   ]);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[perf] api_calendar_range", {
+      calendarId,
+      mode,
+      includeEvents,
+      includeSchedules,
+      entries: entries.length,
+      schedules: schedules.length,
+      events: events.length,
+      elapsedMs: Date.now() - startedAt,
+    });
+  }
 
   return NextResponse.json({
     entries,

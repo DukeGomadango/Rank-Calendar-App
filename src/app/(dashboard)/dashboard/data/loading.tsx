@@ -1,6 +1,9 @@
 export default function DataPageLoading() {
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-zinc-200/80 bg-white/70 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400">
+        データを読み込み中…
+      </div>
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
           <div className="h-6 w-24 animate-pulse rounded-md bg-accent-200/80 dark:bg-accent-800/60" />

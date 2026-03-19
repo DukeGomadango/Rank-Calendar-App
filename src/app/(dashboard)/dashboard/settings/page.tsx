@@ -2,8 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  getCurrentCalendarForUser,
-  listCalendarsAccessibleToUser,
+  resolveCalendarContextForUser,
 } from "@/lib/data/calendars";
 import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
 import {
@@ -98,10 +97,8 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   if (!user) redirect("/login");
 
-  const [accessibleCalendars, currentCalendar] = await Promise.all([
-    listCalendarsAccessibleToUser(user.id),
-    getCurrentCalendarForUser(user.id, urlCalendarId),
-  ]);
+  const { accessibleCalendars, currentCalendar } =
+    await resolveCalendarContextForUser(user.id, urlCalendarId);
 
   if (!currentCalendar) {
     return (
@@ -131,6 +128,14 @@ export default async function SettingsPage({ searchParams }: PageProps) {
     currentCalendar.isOwner ? getOrCreateCalendarRankState(currentCalendar.id) : null,
     getProfile(user.id),
   ]);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[perf] settings_page", {
+      calendarId: currentCalendar.id,
+      isOwner: currentCalendar.isOwner,
+      calendarCount: accessibleCalendars.length,
+    });
+  }
 
   return (
     <div className="space-y-4">

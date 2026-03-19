@@ -1,7 +1,7 @@
 "use client";
 
 import dayjs from "dayjs";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { EnsureCalendarIdInUrl } from "@/components/dashboard/EnsureCalendarIdInUrl";
@@ -74,6 +74,16 @@ export function DataPageClient({
     for (const fc of futureCycles ?? []) {
       rankCycles.push({ start: fc.start, end: fc.end, rank: fc.rank });
     }
+    const rankByDate = new Map<string, string | null>();
+    for (const c of rankCycles) {
+      let d = c.start;
+      while (d <= c.end) {
+        if (!rankByDate.has(d)) {
+          rankByDate.set(d, c.rank);
+        }
+        d = dayjs(d, "YYYY-MM-DD").add(1, "day").format("YYYY-MM-DD");
+      }
+    }
 
     const cumulativeByDate =
       rankState && permissions.canViewRank
@@ -113,8 +123,7 @@ export function DataPageClient({
       const weekday = WEEKDAYS[cursor.day()] ?? "";
       const entry = entriesByDate.get(dateStr);
 
-      const cycleForDay =
-        rankCycles.find((c) => dateStr >= c.start && dateStr <= c.end) ?? null;
+      const rankForDay = rankByDate.get(dateStr) ?? null;
 
       rows.push({
         date: dateStr,
@@ -122,7 +131,7 @@ export function DataPageClient({
         ...(entry ?? {}),
         current_rank:
           permissions.canViewRank
-            ? (cycleForDay?.rank ?? rankState?.current_rank ?? null)
+            ? (rankForDay ?? rankState?.current_rank ?? null)
             : undefined,
         rank_score_cumulative:
           permissions.canViewRank && rankState
@@ -134,6 +143,12 @@ export function DataPageClient({
       cursor = cursor.add(1, "day");
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[perf] data_page_rows_compute", {
+        rows: rows.length,
+        entries: entries.length,
+      });
+    }
     return { rows, events };
   }, [
     fromStr,
@@ -142,6 +157,16 @@ export function DataPageClient({
     rangeData,
     toStr,
   ]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[perf] data_page_render", {
+        rows: rows.length,
+        events: events.length,
+        calendarId,
+      });
+    }
+  }, [calendarId, events.length, rows.length]);
 
   if (!permissions.canViewTable) {
     return (

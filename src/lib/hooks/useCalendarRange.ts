@@ -12,6 +12,7 @@ type CalendarRangeResponse = {
 };
 
 export type { CalendarRangeResponse };
+export type CalendarRangeMode = "home" | "calendar" | "data";
 
 const fetcher = async (url: string): Promise<CalendarRangeResponse> => {
   const res = await fetch(url);
@@ -31,13 +32,16 @@ export function getRangeFromBaseMonth(baseMonth: string): { from: string; to: st
 export function useCalendarRange(
   calendarId: string | null,
   baseMonth: string | null,
-  includeEvents: boolean
+  mode: CalendarRangeMode,
+  includeEvents: boolean,
+  includeSchedules: boolean
 ) {
   const hasParams = !!calendarId && !!baseMonth;
   const { from, to } = baseMonth ? getRangeFromBaseMonth(baseMonth) : { from: null, to: null };
   const key =
     hasParams && from && to
-      ? `/api/calendar-range?calendarId=${encodeURIComponent(calendarId!)}&from=${from}&to=${to}&includeEvents=${includeEvents ? "1" : "0"}`
+      ? `/api/calendar-range?calendarId=${encodeURIComponent(calendarId!)}&from=${from}&to=${to}&mode=${mode}&includeEvents=${includeEvents ? "1" : "0"}`
+        + `&includeSchedules=${includeSchedules ? "1" : "0"}`
       : null;
 
   const { data, error, isLoading, mutate } = useSWR<CalendarRangeResponse>(key, fetcher, {

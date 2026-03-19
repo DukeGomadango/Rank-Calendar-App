@@ -81,6 +81,45 @@ export async function getPermissionsForRole(
   return (data ?? []).map((r) => r.permission as PermissionKey);
 }
 
+export async function getPermissionsForRoles(
+  roleIds: string[]
+): Promise<Map<string, PermissionKey[]>> {
+  if (roleIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .schema("iriam")
+    .from("role_permissions")
+    .select("role_id, permission")
+    .in("role_id", roleIds);
+
+  if (error) {
+    throwDataLayerError(
+      new Error(
+        `role_permissions select(batch) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+      )
+    );
+  }
+
+  const map = new Map<string, PermissionKey[]>();
+  for (const roleId of roleIds) {
+    map.set(roleId, []);
+  }
+  for (const row of data ?? []) {
+    const roleId = row.role_id as string;
+    const permission = row.permission as PermissionKey;
+    const current = map.get(roleId);
+    if (current) {
+      current.push(permission);
+    } else {
+      map.set(roleId, [permission]);
+    }
+  }
+  return map;
+}
+
 export async function setRolePermissions(
   roleId: string,
   permissions: PermissionKey[]
