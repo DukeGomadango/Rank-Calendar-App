@@ -68,12 +68,12 @@ export function CalendarWithDataProvider({
     const nextMonth = initialMonth;
     const nextWeekStart = initialWeekStart;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayMonth(dayjs(`${nextMonth}-15`, "YYYY-MM-DD"));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayWeekStart(nextWeekStart);
     setBaseMonth(nextMonth);
   }, [initialMonth, initialWeekStart, setBaseMonth]);
-
-  const today = useMemo(() => dayjs(todayJst), [todayJst]);
 
   const { days } = useMemo(() => {
     if (!rangeData) {
@@ -90,6 +90,7 @@ export function CalendarWithDataProvider({
     const days: DayData[] = [];
     let cursor = dayjs(fromDate);
     const end = dayjs(toDate);
+    const today = dayjs(todayJst);
     while (cursor.isSame(end) || cursor.isBefore(end)) {
       const dateStr = cursor.format("YYYY-MM-DD");
       const weekday = cursor.day();

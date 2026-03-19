@@ -2,14 +2,22 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import type { EventRow, EventType } from "@/lib/data/events";
 import { EVENT_PALETTE } from "@/lib/event-colors";
 import { useToast } from "@/lib/toast-context";
-import { EventCalendarOcrImporter } from "@/components/ocr/EventCalendarOcrImporter";
 import { EnsureCalendarIdInUrl } from "@/components/dashboard/EnsureCalendarIdInUrl";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { EventFormClient } from "./EventFormClient";
 import { EventCard } from "./EventCard";
+
+const EventCalendarOcrImporter = dynamic(
+  () =>
+    import("@/components/ocr/EventCalendarOcrImporter").then(
+      (m) => m.EventCalendarOcrImporter
+    ),
+  { ssr: false }
+);
 
 type Props = {
   initialActive: EventRow[];

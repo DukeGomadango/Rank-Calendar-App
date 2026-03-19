@@ -41,7 +41,15 @@ export default async function globalSetup() {
     return;
   }
 
-  await page.waitForURL(/\/(dashboard|login)/, { waitUntil: "domcontentloaded" }).catch(() => {});
+  try {
+    await page.waitForURL(/\/(dashboard|login)/, { waitUntil: "domcontentloaded" });
+  } catch (err) {
+    console.warn(
+      `[e2e] ログイン後のURL遷移待ちに失敗しました。storageState を保存して継続します（err=${String(
+        err
+      )}）`
+    );
+  }
 
   await context.storageState({ path: statePath });
   await browser.close();

@@ -58,6 +58,9 @@ describe("DataTable permissions", () => {
     canViewTargetActual: true,
     canViewRank: true,
     canViewEvents: true,
+    canViewScheduleStream: true,
+    canViewSchedulePersonal: true,
+    canViewScheduleSecret: true,
   };
 
   const listenerPermissions: CalendarPermissionFlags = {
@@ -70,6 +73,9 @@ describe("DataTable permissions", () => {
     canViewTargetActual: false,
     canViewRank: false,
     canViewEvents: true,
+    canViewScheduleStream: false,
+    canViewSchedulePersonal: false,
+    canViewScheduleSecret: false,
   };
 
   it("オーナー権限ではランク・ボーダー・メモ列が表示される", () => {

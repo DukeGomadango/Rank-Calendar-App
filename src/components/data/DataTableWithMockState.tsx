@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { DataTable } from "./DataTable";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { EventRow } from "@/lib/data/events";
@@ -41,10 +40,9 @@ export function DataTableWithMockState({
   events = [],
 }: Props) {
   const ctx = useMockSchedule();
-  const rows = useMemo(() => {
-    if (!ctx) return initialRows;
-    return initialRows.map((r) => ({ ...r, ...ctx.entriesByDate[r.date] }));
-  }, [initialRows, ctx?.entriesByDate]);
+  const rows = ctx
+    ? initialRows.map((r) => ({ ...r, ...ctx.entriesByDate[r.date] }))
+    : initialRows;
 
   const onUpdateField = ctx
     ? async (

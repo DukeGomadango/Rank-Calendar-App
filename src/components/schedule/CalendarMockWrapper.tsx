@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
@@ -59,16 +58,13 @@ function mockEntryToRow(partial: Record<string, unknown>, date: string): Schedul
  */
 export function CalendarMockWrapper(props: Props) {
   const ctx = useMockSchedule();
-  const mergedDays = useMemo(() => {
-    if (!ctx) return props.days;
-    return props.days.map((d) => {
-      const entry = ctx.entriesByDate[d.date];
-      const entries = entry
-        ? [mockEntryToRow(entry, d.date)]
-        : d.entries;
-      return { ...d, entries };
-    });
-  }, [props.days, ctx?.entriesByDate]);
+  const mergedDays = ctx
+    ? props.days.map((d) => {
+        const entry = ctx.entriesByDate[d.date];
+        const entries = entry ? [mockEntryToRow(entry, d.date)] : d.entries;
+        return { ...d, entries };
+      })
+    : props.days;
 
   // モックではスケジュールテーブルはまだ使用しないため、schedules はそのまま props から渡す。
   return <CalendarWithModal {...props} days={mergedDays} />;

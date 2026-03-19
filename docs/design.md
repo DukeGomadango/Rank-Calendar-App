@@ -15,13 +15,17 @@
 |------|------|------|
 | フレームワーク | Next.js 16 (App Router) | ルーティング・SSR・Server Actions |
 | UI | React 19 | |
+| UI コンポーネント | Mantine | フォーム・モーダル等 |
 | スタイル | Tailwind CSS v4 | PostCSS 経由 |
 | BaaS / DB | Supabase | 認証（Auth）+ PostgreSQL（スキーマ `iriam`） |
 | 日付 | dayjs | ロケール: ja |
 | 祝日 | holiday-jp | 祝日表示用 |
 | 表 UI | @tanstack/react-table | データ表タブ |
+| フェッチ | SWR | クライアント側の再検証・キャッシュ |
+| バリデーション | Zod | 入力検証 |
 | OCR | tesseract.js | クライアントのみ。画像はサーバーに送信しない |
 | テスト | Vitest | `lib/domain/*.test.ts` でドメインロジックをテスト |
+| エラー追跡 | Sentry（任意） | 環境変数がある場合のみ有効化 |
 | フォント | Montserrat, Noto Sans JP | next/font |
 
 ---

@@ -8,7 +8,7 @@
 - [ ] **NEXT_PUBLIC_SUPABASE_ANON_KEY** … Supabase の anon (public) key（本番プロジェクト）
 - [ ] **SUPABASE_SERVICE_ROLE_KEY** … 招待リンク検証などで使用。漏洩に注意し、サーバー側のみで使用すること
 - [ ] **NEXT_PUBLIC_APP_URL**（任意）… 本番のアプリ URL。OAuth コールバック等で必要に応じて設定
-- [ ] **SENTRY_DSN**（Sentry 導入時）… エラー追跡用。未設定の場合は Sentry は無効化される
+- [ ] **SENTRY_DSN** / **NEXT_PUBLIC_SENTRY_DSN**（Sentry 導入時）… エラー追跡用。未設定の場合は Sentry は無効化される
 
 ## 2. Supabase 本番プロジェクト
 

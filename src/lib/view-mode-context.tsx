@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -29,11 +28,7 @@ type ViewModeContextValue = {
 const ViewModeContext = createContext<ViewModeContextValue | null>(null);
 
 export function ViewModeProvider({ children }: { children: ReactNode }) {
-  const [viewMode, setState] = useState<ViewMode>("simple");
-
-  useEffect(() => {
-    setState(readStored());
-  }, []);
+  const [viewMode, setState] = useState<ViewMode>(() => readStored());
 
   const setViewMode = useCallback((mode: ViewMode) => {
     setState(mode);

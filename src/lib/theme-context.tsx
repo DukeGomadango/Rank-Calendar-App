@@ -51,8 +51,8 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedDark, setResolvedDark] = useState(false);
+  const [theme, setThemeState] = useState<Theme>(() => getStoredTheme());
+  const [resolvedDark, setResolvedDark] = useState(() => getEffectiveDark());
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
@@ -62,9 +62,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setThemeState(getStoredTheme());
-    applyTheme(getStoredTheme());
-    setResolvedDark(getEffectiveDark());
+    applyTheme(theme);
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = () => {
@@ -75,7 +73,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
     media.addEventListener("change", handleChange);
     return () => media.removeEventListener("change", handleChange);
-  }, []);
+  }, [theme]);
 
   const value = useMemo(
     () => ({ theme, setTheme, resolvedDark }),

@@ -2,11 +2,16 @@
 
 import { useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import dynamic from "next/dynamic";
 
-import { BorderOcrButton } from "@/components/ocr/BorderOcrButton";
 import { EVENT_PALETTE } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 import { MAX_BORDER_VALUE } from "@/lib/border-constants";
+
+const BorderOcrButton = dynamic(
+  () => import("@/components/ocr/BorderOcrButton").then((m) => m.BorderOcrButton),
+  { ssr: false }
+);
 
 export type ScheduleEntryAction = (
   formData: FormData

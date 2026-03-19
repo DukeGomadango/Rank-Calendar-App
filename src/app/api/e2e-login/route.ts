@@ -8,6 +8,11 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
  * 環境変数 E2E_TEST_USER_EMAIL / E2E_TEST_USER_PASSWORD で指定したユーザーでログインし、/dashboard へリダイレクトする。
  */
 export async function GET(req: Request) {
+  // 本番では常に無効化（誤設定・漏洩時の攻撃面を減らす）
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not Found" }, { status: 404 });
+  }
+
   const secret = process.env.E2E_TEST_SECRET;
   const headerSecret = req.headers.get("x-e2e-secret");
 

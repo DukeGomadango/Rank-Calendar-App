@@ -87,7 +87,7 @@
 
 ## 非機能要件（現状の整理）
 
-- **認証**: Supabase Auth（メール or OAuth）。セッションはサーバー・クライアントで Supabase クライアント（@supabase/auth-helpers-nextjs）経由で利用。
+- **認証**: Supabase Auth（メール or OAuth）。セッションはサーバー・クライアントで Supabase クライアント（`@supabase/ssr`）経由で利用。
 - **データ永続化**: Supabase（PostgreSQL）。スキーマは `iriam`。
 - **プライバシー**: OCR 画像はサーバーに送信・保存しない。トラッキングは行わない方針。
 - **多言語・タイムゾーン**: 日付は JST（Asia/Tokyo）基準。UI は日本語を想定。

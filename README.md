@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IRIAM だんごスケジュール（Rank-Calendar-App）
 
-## Getting Started
+**IRIAM ライバー向けの非公式ランク管理ツール**です。デイリーランクの「目標+ / 実績+」、ボーダー（+2/+4/+6）、スキップパス使用日、イベント等を日別に記録し、カレンダーとデータ表で一元管理できます。
 
-First, run the development server:
+- **技術**: Next.js 16 (App Router) / React 19 / Tailwind CSS v4 / Mantine / Supabase (Auth + Postgres) / Vitest / Playwright / Sentry（任意）
+- **ドキュメント**: `docs/README.md` から全体像を参照
+
+---
+
+## セットアップ（ローカル開発）
+
+### 1) 依存関係
+
+```bash
+npm install
+```
+
+### 2) 環境変数
+
+`.env.example` を参考に `.env.local` を作成し、Supabase の値を設定します。
+
+- **必須**
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **任意**
+  - `SUPABASE_SERVICE_ROLE_KEY`（招待リンクの検証など、RLS を超える読み取りが必要な場合）
+  - `NEXT_PUBLIC_APP_URL`（本番 OAuth リダイレクト用）
+  - `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`（Sentry を有効にする場合）
+
+### 3) 開発サーバー起動
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで `http://localhost:3000` を開きます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Supabase（DB / 認証）
 
-## Learn More
+- **マイグレーション**: `supabase/README.md` を参照（`supabase db push` で未適用分を一括適用）
+- **スキーマ**: `iriam`（主要テーブル: `calendars`, `schedule_entries`, `events`, `calendar_rank_state` ほか）
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## スクリプト
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **開発**: `npm run dev`
+- **ビルド**: `npm run build`
+- **Lint**: `npm run lint`
+- **ユニットテスト**: `npm run test` / `npm run test:run`
+- **カバレッジ**: `npm run test:coverage`
+- **E2E**: `npm run test:e2e`（初回は `npx playwright install chromium`）
+- **環境変数検証**: `npm run validate-env`
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ドキュメント
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **概要**: `docs/overview.md`
+- **機能要件**: `docs/functional-requirements.md`
+- **設計**: `docs/design.md`
+- **CI**: `docs/ci.md`
+- **本番前チェック**: `docs/production-checklist.md`
