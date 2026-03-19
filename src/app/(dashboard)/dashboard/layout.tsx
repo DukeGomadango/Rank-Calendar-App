@@ -40,6 +40,7 @@ export default async function DashboardShellLayout({
   const requestHeaders = await headers();
   const pathname = requestHeaders.get(DASHBOARD_PATHNAME_HEADER) ?? "";
   const isOnboardingPath = pathname.startsWith("/dashboard/onboarding");
+  const isSettingsPath = pathname.startsWith("/dashboard/settings");
   const headerCalendarId =
     requestHeaders.get(DASHBOARD_CALENDAR_HEADER)?.trim() || null;
   const headerFromInvite =
@@ -65,6 +66,9 @@ export default async function DashboardShellLayout({
   );
 
   if (!currentCalendar) {
+    if (isSettingsPath) {
+      return children;
+    }
     if (fromInvite) {
       redirect("/dashboard/settings");
     }
