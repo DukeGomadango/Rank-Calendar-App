@@ -64,11 +64,11 @@ export default async function DashboardShellLayout({
     urlCalendarId,
   );
 
-  if (!currentCalendar && !fromInvite && !isOnboardingPath) {
+  if (!currentCalendar && !fromInvite) {
     redirect("/dashboard/onboarding");
   }
 
-  if (!currentCalendar && !isOnboardingPath) {
+  if (!currentCalendar) {
     redirect("/dashboard/settings");
   }
 
