@@ -129,3 +129,54 @@
 - **検証方法**: `NEXT_PUBLIC_APP_URL` を切り替えた状態で `metadataBase` / `openGraph.url` / OGP 画像URL が期待値になることを確認
 - **ステータス**: 完了
 
+### [P1][M] ダッシュボード遷移の体感遅延（サーバークエリと描画負荷の合算）
+- **場所**: `src/app/(dashboard)/dashboard/layout.tsx` / `src/app/(dashboard)/dashboard/sharing/page.tsx` / `src/app/(dashboard)/dashboard/settings/page.tsx` / `src/app/api/calendar-range/route.ts` / `src/app/(dashboard)/dashboard/data/DataPageClient.tsx` / `src/components/data/DataTable.tsx`
+- **事象**: タブ切替時に、共通レイアウトの認証・権限解決、共有ページの権限取得、データ画面の行生成・テーブル描画が重なり待ち時間が増える
+- **影響**: タブ遷移時にスケルトン表示が長引き、操作体感が悪化する
+- **再現条件**: カレンダー件数・ロール件数・データ行数が増えた状態で `ホーム/カレンダー/データ/共有/設定` を連続遷移した時
+- **推奨対応**: 計測ログ（`[perf]`）を起点に、クエリ集約・N+1解消・`calendar-range` の返却最小化・日次計算の index 化・テーブル再レンダリング抑制を段階適用
+- **実施済み対応（2026-03）**:
+  - `dashboard layout` の重複判定クエリ削減（`hasOwnedCalendar` 呼び出しを削減）
+  - `sharing` の role 権限取得を一括化（N+1解消）
+  - `settings/sharing` でカレンダー解決処理を統合
+  - `calendar-range` に `mode` / `includeSchedules` 導入（画面別に返却を最適化）
+  - `DashboardProvider` で不要ページ（共有/設定/イベント）の range fetch を停止
+  - `DataPageClient` の rank 探索を `find` から `Map` 参照へ変更
+  - `DataTable` に列・ハンドラの memo 化 + 行仮想化（閾値超過時）を導入
+  - `loading.tsx`（ホーム/データ/共有/設定）を軽量化し、状態表示を追加
+- **検証方法（再測定手順）**:
+  1. 開発サーバー起動: `npm run dev`
+  2. ブラウザで `ホーム -> カレンダー -> データ -> 共有 -> 設定` を2周遷移
+  3. サーバーログで以下を収集
+     - `[perf] dashboard_shell_layout`
+     - `[perf] sharing_page`
+     - `[perf] settings_page`
+     - `[perf] api_calendar_range`（`mode`, `entries`, `schedules`, `events`）
+  4. クライアントコンソールで以下を収集
+     - `[perf] data_page_rows_compute`
+     - `[perf] data_page_render`
+     - `[perf] data_table_render`（`virtualized` を含む）
+  5. 改善前後で比較（中央値推奨）
+     - `sharing/settings` の処理時間
+     - `api_calendar_range` 呼び出し回数（タブ別）
+     - `data_table_render` の行数増加時の挙動
+- **判定基準**:
+  - `共有/設定` 遷移で `api_calendar_range` が呼ばれないこと
+  - `ホーム` で `api_calendar_range mode=home` のとき `rankCycleHistory` が不要取得されないこと
+  - 大量行時に `data_table_render.virtualized=true` となり、スクロールが破綻しないこと
+- **ステータス**: 進行中（実装済み・継続観測）
+
+#### 比較記録テンプレ（Before / After）
+
+| 指標 | Before | After | 差分 | 備考 |
+| --- | ---: | ---: | ---: | --- |
+| `dashboard_shell_layout` 処理時間 (ms) |  |  |  |  |
+| `sharing_page` 処理時間 (ms) |  |  |  |  |
+| `settings_page` 処理時間 (ms) |  |  |  |  |
+| `api_calendar_range` 呼び出し回数（共有遷移） |  |  |  |  |
+| `api_calendar_range` 呼び出し回数（設定遷移） |  |  |  |  |
+| `api_calendar_range mode=home` の `rankCycleHistory` 件数 |  |  |  |  |
+| `data_page_rows_compute` 行生成時間 (ms) |  |  |  |  |
+| `data_table_render` 1回あたり行数 |  |  |  |  |
+| `data_table_render.virtualized=true` 確認 |  |  |  | yes/no |
+
