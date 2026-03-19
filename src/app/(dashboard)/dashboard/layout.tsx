@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -8,6 +9,8 @@ import {
 import { getProfile } from "@/lib/data/profiles";
 import { getCalendarPermissionsForUser } from "@/lib/auth/permission";
 import { DashboardProvider } from "@/components/dashboard/DashboardProvider";
+
+const DASHBOARD_CALENDAR_COOKIE = "iriam_dashboard_calendar_id";
 
 type LayoutProps = {
   children: ReactNode;
@@ -31,7 +34,9 @@ export default async function DashboardShellLayout({
       ? await (rawSp as Promise<{ calendarId?: string; fromInvite?: string }>)
       : (rawSp ?? {}) as { calendarId?: string; fromInvite?: string };
 
-  const urlCalendarId = resolvedSp.calendarId ?? null;
+  const cookieStore = await cookies();
+  const cookieCalendarId = cookieStore.get(DASHBOARD_CALENDAR_COOKIE)?.value?.trim() || null;
+  const urlCalendarId = resolvedSp.calendarId ?? cookieCalendarId ?? null;
   const fromInvite = resolvedSp.fromInvite === "1";
 
   if (!user) {

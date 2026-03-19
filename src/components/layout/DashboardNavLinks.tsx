@@ -39,6 +39,16 @@ type Props = {
   onLinkClick?: () => void;
 };
 
+export function shouldShowSharingTab(
+  isOwner: boolean,
+  ownedCalendarIds: string[],
+  calendarId: string | null,
+): boolean {
+  if (!calendarId) return isOwner;
+  if (ownedCalendarIds.includes(calendarId)) return true;
+  return isOwner;
+}
+
 function buildHref(
   path: string,
   searchParams: URLSearchParams,
@@ -63,10 +73,7 @@ export function DashboardNavLinks({
   const sp = new URLSearchParams(spString);
   const calendarId = searchParams.get("calendarId");
 
-  const showSharing =
-    calendarId != null
-      ? ownedCalendarIds.includes(calendarId)
-      : isOwner;
+  const showSharing = shouldShowSharingTab(isOwner, ownedCalendarIds, calendarId);
 
   const items = NAV_ITEMS.filter(
     (item) => item.href !== "/dashboard/sharing" || showSharing

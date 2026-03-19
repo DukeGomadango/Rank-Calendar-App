@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
 import { MOCK_ROLE_COOKIE } from "@/lib/auth/mock-role-cookie";
 
+const DASHBOARD_CALENDAR_COOKIE = "iriam_dashboard_calendar_id";
+
 /**
  * 認証保護用ミドルウェア。
  *
@@ -55,6 +57,16 @@ export async function middleware(req: NextRequest) {
   const response = NextResponse.next({
     request: req,
   });
+  if (pathname.startsWith("/dashboard")) {
+    const requestedCalendarId = req.nextUrl.searchParams.get("calendarId")?.trim();
+    if (requestedCalendarId) {
+      response.cookies.set(DASHBOARD_CALENDAR_COOKIE, requestedCalendarId, {
+        path: "/",
+        sameSite: "lax",
+        httpOnly: false,
+      });
+    }
+  }
 
   const supabase = createSupabaseMiddlewareClient(req, response);
   const {

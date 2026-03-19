@@ -52,6 +52,25 @@ async function renderInvitePage(params: { calendarId: string; token: string }): 
   return InviteRedeemPage({ params: Promise.resolve(params) });
 }
 
+function findHref(node: unknown): string | null {
+  if (!node || typeof node !== "object") return null;
+  const candidate = node as {
+    props?: { href?: unknown; children?: unknown };
+  };
+  if (typeof candidate.props?.href === "string") {
+    return candidate.props.href;
+  }
+  const children = candidate.props?.children;
+  if (Array.isArray(children)) {
+    for (const child of children) {
+      const href = findHref(child);
+      if (href) return href;
+    }
+    return null;
+  }
+  return findHref(children);
+}
+
 describe("InviteRedeemPage", () => {
   const calendarId = "cal-123";
   const token = "tok-abc";
@@ -110,6 +129,9 @@ describe("InviteRedeemPage", () => {
     );
 
     expect(result).toBeTruthy();
+    const dashboardHref = findHref(result);
+    expect(dashboardHref).toContain("fromInvite=1");
+    expect(dashboardHref).toContain("calendarId=cal-123");
   });
 });
 
