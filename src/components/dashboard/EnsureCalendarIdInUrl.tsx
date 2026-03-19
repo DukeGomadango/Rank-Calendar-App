@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
@@ -25,6 +25,7 @@ export function EnsureCalendarIdInUrl({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const lastReplaceTargetRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!pathname) return;
@@ -37,7 +38,17 @@ export function EnsureCalendarIdInUrl({
     next.set("calendarId", calendarId);
 
     const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
+    const target = query ? `${pathname}?${query}` : pathname;
+
+    // 同一ターゲットへの連続 replace を防ぎ、外部スクリプト干渉時の遷移スパムを抑止する。
+    if (lastReplaceTargetRef.current === target) return;
+    if (typeof window !== "undefined") {
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      if (currentUrl === target) return;
+    }
+
+    lastReplaceTargetRef.current = target;
+    router.replace(target);
   }, [calendarId, enforceMatch, pathname, preserveExistingQuery, router, searchParams]);
 
   return null;
