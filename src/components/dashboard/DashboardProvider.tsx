@@ -163,9 +163,9 @@ export function DashboardProvider({
       }
       const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
       if (canRankUp) {
-        forecastRankForNextCycle = getNextRank(
-          rankState.current_rank as RankLabel,
-        );
+        forecastRankForNextCycle =
+          getNextRank(rankState.current_rank as RankLabel) ??
+          (rankState.current_rank as RankLabel);
       } else if (isKeep) {
         forecastRankForNextCycle = rankState.current_rank as RankLabel;
       } else {
@@ -218,9 +218,9 @@ export function DashboardProvider({
         });
         const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
         if (canRankUp) {
-          rankForThisPeriod = getNextRank(
-            rankForThisPeriod as RankLabel,
-          );
+          rankForThisPeriod =
+            getNextRank(rankForThisPeriod as RankLabel) ??
+            (rankForThisPeriod as RankLabel);
         } else if (isKeep) {
           // keep
         } else {
