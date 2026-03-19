@@ -15,6 +15,7 @@ import {
 import { compareJstDate } from "@/lib/domain/calendar";
 import { MAX_BORDER_VALUE } from "@/lib/border-constants";
 import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
+import { throwDataLayerError } from "@/lib/errors";
 import {
   saveScheduleEntrySchema,
   type SaveScheduleEntryResult,
@@ -248,10 +249,11 @@ export async function moveScheduleEntry(
     .eq("date", fromDate);
 
   if (error) {
-    throw new Error(
-      `schedule_entries delete failed: ${error.message ?? ""} (code=${
-        error.code ?? "unknown"
-      })`
+    // 本番で内部詳細がブラウザ側に漏れないよう、データ層と同様に汎用メッセージへ寄せる
+    throwDataLayerError(
+      new Error(
+        `schedule_entries delete failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+      )
     );
   }
 

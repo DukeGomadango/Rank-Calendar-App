@@ -31,7 +31,13 @@ const SITE_NAME = "IRIAM だんごスケジュール";
 const DESCRIPTION =
   "IRIAMライバー向けの非公式ランク管理ツール。デイリーランクの目標+・実績+、ボーダー、スキップパスを日別に記録し、カレンダーとデータ表で一元管理できます。";
 
-const SITE_URL = "https://dango-schedule.vercel.app";
+const SITE_URL = (() => {
+  const v = process.env.NEXT_PUBLIC_APP_URL;
+  if (typeof v === "string" && v.trim()) {
+    return v.replace(/\/$/, "");
+  }
+  return "https://dango-schedule.vercel.app";
+})();
 const OGP_IMAGE_URL = `${SITE_URL}/ogp.png`;
 
 export const metadata: Metadata = {

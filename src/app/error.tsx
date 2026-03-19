@@ -12,7 +12,10 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    // 本番で内部詳細がブラウザ `console` に露出しないよう、開発時のみログ出力する
+    if (process.env.NODE_ENV === "development") {
+      console.error(error);
+    }
     Sentry.captureException(error);
   }, [error]);
 
