@@ -10,6 +10,8 @@ type Props = {
   preserveExistingQuery?: boolean;
   /** true の場合、URL 上の calendarId が Provider と不一致でも補正する */
   enforceMatch?: boolean;
+  /** true の場合、fromInvite クエリをURLから除去する（初回遷移後のループ抑止） */
+  stripFromInvite?: boolean;
 };
 
 /**
@@ -20,6 +22,7 @@ type Props = {
 export function EnsureCalendarIdInUrl({
   preserveExistingQuery = true,
   enforceMatch = false,
+  stripFromInvite = true,
 }: Props) {
   const { calendarId } = useDashboardCalendar();
   const router = useRouter();
@@ -35,6 +38,9 @@ export function EnsureCalendarIdInUrl({
     if (!enforceMatch && current.has("calendarId") && currentCalendarId) return;
 
     const next = preserveExistingQuery ? current : new URLSearchParams();
+    if (stripFromInvite && next.has("fromInvite")) {
+      next.delete("fromInvite");
+    }
     next.set("calendarId", calendarId);
 
     const query = next.toString();
@@ -49,7 +55,7 @@ export function EnsureCalendarIdInUrl({
 
     lastReplaceTargetRef.current = target;
     router.replace(target);
-  }, [calendarId, enforceMatch, pathname, preserveExistingQuery, router, searchParams]);
+  }, [calendarId, enforceMatch, pathname, preserveExistingQuery, router, searchParams, stripFromInvite]);
 
   return null;
 }

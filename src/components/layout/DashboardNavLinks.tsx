@@ -55,6 +55,8 @@ function buildHref(
   calendarId: string | null,
 ): string {
   const next = new URLSearchParams(searchParams.toString());
+  // 招待導線の一時フラグは持ち回らない（再遷移時の分岐暴発を防ぐ）
+  next.delete("fromInvite");
   if (calendarId) next.set("calendarId", calendarId);
   const query = next.toString();
   return query ? `${path}?${query}` : path;
