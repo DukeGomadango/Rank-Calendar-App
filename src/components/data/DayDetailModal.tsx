@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useToast } from "@/lib/toast-context";
 import type { EventRow } from "@/lib/data/events";
 import { getRankBadgeClass } from "@/lib/rank-styles";
 import { getEventColorClasses } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES } from "@/lib/plus-options";
+import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { ConfettiIcon, FireIcon, TicketIcon } from "@/components/icons/DashboardIcons";
 
 export type DayDetailRow = {
@@ -78,12 +78,58 @@ export function DayDetailModal({
   onUpdateField,
   onClose,
 }: Props) {
-  const router = useRouter();
   const { showToast } = useToast();
+  const { refreshRange } = useDashboardCalendar();
   const [row, setRow] = useState(initialRow);
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
-  const dayEvents = eventsOnDate(events, row.date);
+  const [eventsState, setEventsState] = useState<EventRow[]>(events);
+  const [eventsLoadedFor, setEventsLoadedFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEventsState(events);
+  }, [events]);
+
+  useEffect(() => {
+    // Dataタブ側では events を同梱しないため、モーダル表示時に必要な日のみ取得する。
+    if (!calendarId) return;
+    if (!permissions.canViewEvents) return;
+    if (events.length > 0) return; // 既に親から渡っている場合は取得しない
+    if (eventsLoadedFor === row.date) return;
+
+    let cancelled = false;
+    const date = row.date;
+
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/calendar-events?calendarId=${encodeURIComponent(calendarId)}&date=${encodeURIComponent(
+            date
+          )}`,
+          { method: "GET" }
+        );
+        if (!res.ok) return;
+        const json = (await res.json()) as { events?: EventRow[] };
+        if (cancelled) return;
+        setEventsState((json.events ?? []) as EventRow[]);
+        setEventsLoadedFor(date);
+      } catch {
+        // 失敗しても編集体験を止めない
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    calendarId,
+    permissions.canViewEvents,
+    events.length,
+    eventsLoadedFor,
+    row.date,
+  ]);
+
+  const dayEvents = eventsOnDate(eventsState, row.date);
   const canEdit = !!(permissions.canEditSchedule && calendarId && onUpdateField);
   const isSkip = !!row.skip_pass_used;
 
@@ -113,7 +159,7 @@ export function DayDetailModal({
     onUpdateField(calendarId, date, field, value as string | number | boolean)
       .then(() => {
         setUpdatingKey(null);
-        router.refresh();
+        refreshRange();
         showToast("保存しました");
       })
       .catch((err: { message?: string }) => {

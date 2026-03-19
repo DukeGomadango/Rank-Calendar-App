@@ -26,12 +26,16 @@ export function getRangeFromBaseMonth(baseMonth: string): { from: string; to: st
   return { from, to };
 }
 
-export function useCalendarRange(calendarId: string | null, baseMonth: string | null) {
+export function useCalendarRange(
+  calendarId: string | null,
+  baseMonth: string | null,
+  includeEvents: boolean
+) {
   const hasParams = !!calendarId && !!baseMonth;
   const { from, to } = baseMonth ? getRangeFromBaseMonth(baseMonth) : { from: null, to: null };
   const key =
     hasParams && from && to
-      ? `/api/calendar-range?calendarId=${encodeURIComponent(calendarId!)}&from=${from}&to=${to}`
+      ? `/api/calendar-range?calendarId=${encodeURIComponent(calendarId!)}&from=${from}&to=${to}&includeEvents=${includeEvents ? "1" : "0"}`
       : null;
 
   const { data, error, isLoading, mutate } = useSWR<CalendarRangeResponse>(key, fetcher, {

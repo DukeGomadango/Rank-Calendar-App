@@ -16,6 +16,11 @@ export async function GET(req: NextRequest) {
   const calendarId = url.searchParams.get("calendarId");
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+  const includeEventsParam = url.searchParams.get("includeEvents");
+  const includeEvents =
+    includeEventsParam == null
+      ? true
+      : includeEventsParam !== "0" && includeEventsParam !== "false";
 
   if (!calendarId || !from || !to) {
     return NextResponse.json({ error: "missing params" }, { status: 400 });
@@ -35,14 +40,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  await ensureSkipPassIncrementForLastWeek(calendarId);
+  // `skip_pass_remaining` を表示/利用するのはカレンダー側なので、データタブ(`includeEvents=false`)では GET のたびに不要な計算を走らせない。
+  if (includeEvents) {
+    await ensureSkipPassIncrementForLastWeek(calendarId);
+  }
+
+  const eventsPromise = includeEvents
+    ? listEventsForCalendar(calendarId)
+    : Promise.resolve([]);
 
   const [entries, rankState, rankCycleHistory, schedules, events] = await Promise.all([
     getScheduleEntriesInRange(calendarId, from, to),
     getOrCreateCalendarRankState(calendarId),
     getRankCycleHistory(calendarId, from, to),
     getSchedulesInRange(calendarId, from, to),
-    listEventsForCalendar(calendarId),
+    eventsPromise,
   ]);
 
   return NextResponse.json({

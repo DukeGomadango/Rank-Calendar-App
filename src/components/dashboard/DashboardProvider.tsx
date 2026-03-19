@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import dayjs from "dayjs";
+import { usePathname } from "next/navigation";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useCalendarRange } from "@/lib/hooks/useCalendarRange";
@@ -76,9 +77,17 @@ export function DashboardProvider({
   permissions,
   children,
 }: Props) {
+  const pathname = usePathname();
   const [baseMonth, setBaseMonth] = useState(dayjs().format("YYYY-MM"));
 
-  const { data, isLoading, mutate } = useCalendarRange(calendarId, baseMonth);
+  // 編集頻度が高い`/dashboard/data`ではeventsを同梱しない（レスポンス肥大を回避）。
+  const includeEvents = pathname.startsWith("/dashboard/calendar");
+
+  const { data, isLoading, mutate } = useCalendarRange(
+    calendarId,
+    baseMonth,
+    includeEvents
+  );
   const todayJst = useMemo(() => toJstDateString(new Date()), []);
 
   const { rangeData, futureCycles, forecastLabel } = useMemo(() => {
