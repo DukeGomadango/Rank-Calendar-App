@@ -51,9 +51,9 @@ export default async function DashboardShellLayout({
     const { data: redemptions, error: redemptionsError } = await supabaseService
       .schema("iriam")
       .from("invite_redemptions")
-      .select("id")
+      .select("invite_link_id")
       .eq("user_id", targetUserId)
-      .in("id", inviteLinkIds)
+      .in("invite_link_id", inviteLinkIds)
       .limit(1);
     if (redemptionsError) return false;
     return Array.isArray(redemptions) && redemptions.length > 0;
