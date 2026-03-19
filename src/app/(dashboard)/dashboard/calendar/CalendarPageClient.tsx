@@ -19,6 +19,13 @@ type Props = {
   ) => Promise<void>;
   saveScheduleAction: (formData: FormData) => Promise<SaveCalendarScheduleResult>;
   deleteScheduleAction: (scheduleId: string) => Promise<void>;
+  shiftScheduleAction: (
+    calendarId: string,
+    scheduleId: string,
+    mode: "move" | "copy",
+    newStartDate: string,
+    newStartTime: string | null
+  ) => Promise<void>;
 };
 
 export function CalendarPageClient({
@@ -28,6 +35,7 @@ export function CalendarPageClient({
   moveEntryAction,
   saveScheduleAction,
   deleteScheduleAction,
+  shiftScheduleAction,
 }: Props) {
   const { calendarId, calendarName, permissions, setBaseMonth } =
     useDashboardCalendar();
@@ -66,6 +74,7 @@ export function CalendarPageClient({
         moveEntryAction={moveEntryAction}
         saveScheduleAction={saveScheduleAction}
         deleteScheduleAction={deleteScheduleAction}
+        shiftScheduleAction={shiftScheduleAction}
       />
     </div>
   );

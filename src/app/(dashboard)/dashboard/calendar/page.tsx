@@ -6,6 +6,7 @@ import { CalendarPageClient } from "./CalendarPageClient";
 import {
   deleteCalendarSchedule,
   moveScheduleEntry,
+  shiftCalendarSchedule,
   saveCalendarSchedule,
   saveScheduleEntry,
 } from "../actions";
@@ -54,6 +55,7 @@ export default async function CalendarPage(props: PageProps) {
       moveEntryAction={moveScheduleEntry}
       saveScheduleAction={saveCalendarSchedule}
       deleteScheduleAction={deleteCalendarSchedule}
+      shiftScheduleAction={shiftCalendarSchedule}
     />
   );
 }

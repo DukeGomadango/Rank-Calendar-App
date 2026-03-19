@@ -35,6 +35,14 @@ type Props = {
   saveScheduleAction?: (formData: FormData) => Promise<SaveCalendarScheduleResult>;
   /** 時間付き予定削除用 Server Action */
   deleteScheduleAction?: (scheduleId: string) => Promise<void>;
+  /** 予定（calendar_schedules）移動/コピー用 Server Action */
+  shiftScheduleAction?: (
+    calendarId: string,
+    scheduleId: string,
+    mode: "move" | "copy",
+    newStartDate: string,
+    newStartTime: string | null
+  ) => Promise<void>;
 };
 
 export function CalendarWithDataProvider({
@@ -47,6 +55,7 @@ export function CalendarWithDataProvider({
   moveEntryAction,
   saveScheduleAction,
   deleteScheduleAction,
+  shiftScheduleAction,
 }: Props) {
   const [displayMonth, setDisplayMonth] = useState(dayjs(`${initialMonth}-15`, "YYYY-MM-DD"));
   const [displayWeekStart, setDisplayWeekStart] = useState(initialWeekStart);
@@ -197,6 +206,20 @@ export function CalendarWithDataProvider({
             : undefined
         }
         deleteScheduleAction={deleteScheduleAction}
+        shiftScheduleAction={
+          shiftScheduleAction
+            ? async (scheduleId, mode, newStartDate, newStartTime) => {
+                await shiftScheduleAction(
+                  calendarId,
+                  scheduleId,
+                  mode,
+                  newStartDate,
+                  newStartTime
+                );
+                refreshRange();
+              }
+            : undefined
+        }
       />
     </>
   );

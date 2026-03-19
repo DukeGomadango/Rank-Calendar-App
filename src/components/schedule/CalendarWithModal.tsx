@@ -169,6 +169,13 @@ type Props = {
   >;
   /** 時間付き予定の削除用 Server Action */
   deleteScheduleAction?: (scheduleId: string) => Promise<void>;
+  /** 予定（calendar_schedules）の開始日時を基準に移動/コピーする Server Action */
+  shiftScheduleAction?: (
+    scheduleId: string,
+    mode: "move" | "copy",
+    newStartDate: string,
+    newStartTime: string | null
+  ) => Promise<void>;
 };
 
 /** 日付が周期範囲内か判定 */
@@ -211,6 +218,7 @@ export function CalendarWithModal({
   schedules = [],
   saveScheduleAction,
   deleteScheduleAction,
+  shiftScheduleAction,
 }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -247,7 +255,12 @@ export function CalendarWithModal({
   useEffect(() => {
     if (!selectedDate) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedDate(null);
+      if (e.key === "Escape") {
+        setSelectedDate(null);
+        setSelectedScheduleId(null);
+        setScheduleCreatePrefill(null);
+        setScheduleCreateSelection(null);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -296,6 +309,7 @@ export function CalendarWithModal({
 
   const schedulesByDate = useMemo(() => {
     const map = new Map<string, CalendarScheduleRow[]>();
+    const dateSet = new Set(localDays.map((d) => d.date));
 
     const canSee = (s: CalendarScheduleRow): boolean => {
       if (permissions.isOwner) return true;
@@ -314,9 +328,21 @@ export function CalendarWithModal({
 
     for (const s of schedules) {
       if (!canSee(s)) continue;
-      const list = map.get(s.date) ?? [];
-      list.push(s);
-      map.set(s.date, list);
+      const start = s.date;
+      const end = s.end_date ?? s.date;
+      if (!start || !end) continue;
+
+      let cursor = dayjs(start, "YYYY-MM-DD");
+      const endDay = dayjs(end, "YYYY-MM-DD");
+      while (cursor.isSame(endDay) || cursor.isBefore(endDay)) {
+        const dateStr = cursor.format("YYYY-MM-DD");
+        if (dateSet.has(dateStr)) {
+          const list = map.get(dateStr) ?? [];
+          list.push(s);
+          map.set(dateStr, list);
+        }
+        cursor = cursor.add(1, "day");
+      }
     }
 
     // 各日の中で、終日→開始時刻順の順に並べる
@@ -324,21 +350,49 @@ export function CalendarWithModal({
       list.sort((a, b) => {
         if (a.is_all_day && !b.is_all_day) return -1;
         if (!a.is_all_day && b.is_all_day) return 1;
-        const as = a.start_time ?? "";
-        const bs = b.start_time ?? "";
-        return as.localeCompare(bs);
+        const segStart = (s: CalendarScheduleRow): string => {
+          if (s.is_all_day) return "";
+          if (key === s.date) return (s.start_time ?? "").slice(0, 5);
+          // 途中日: 基本的に「その日の00:00扱い」で並べる
+          return "00:00";
+        };
+        return segStart(a).localeCompare(segStart(b));
       });
       map.set(key, list);
     }
     return map;
-  }, [permissions, schedules]);
+  }, [permissions, schedules, localDays]);
 
   const selectedSchedules = selectedDate
     ? schedulesByDate.get(selectedDate) ?? []
     : [];
 
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  /** 範囲指定で新規作成する場合の入力プリフィル（selectedScheduleId が null のときに使う） */
+  const [scheduleCreatePrefill, setScheduleCreatePrefill] = useState<
+    | null
+    | {
+        is_all_day: false;
+        startTime: string; // HH:MM
+        endTime: string; // HH:MM
+        endDate: string; // YYYY-MM-DD
+      }
+  >(null);
+  /** 時間グリッド上のドラッグ範囲（新規作成用） */
+  const [scheduleCreateSelection, setScheduleCreateSelection] = useState<
+    | null
+    | {
+        dayDate: string; // columnのYYYY-MM-DD（軸の開始日）
+        startOffsetMinutes: number; // axis start(05:00)からのオフセット
+        endOffsetMinutes: number;
+      }
+  >(null);
+  const scheduleCreateSelectionRef = useRef<typeof scheduleCreateSelection>(null);
   const [modalTab, setModalTab] = useState<"rank" | "schedule">("rank");
+
+  useEffect(() => {
+    scheduleCreateSelectionRef.current = scheduleCreateSelection;
+  }, [scheduleCreateSelection]);
 
   const selectedSchedule =
     selectedScheduleId && selectedDate
@@ -625,22 +679,57 @@ export function CalendarWithModal({
     calendarId,
     date,
     initialSchedule,
+    prefill,
   }: {
     calendarId: string;
     date: string;
     initialSchedule?: CalendarScheduleRow | null;
+    prefill?: {
+      is_all_day: false;
+      startTime: string; // HH:MM
+      endTime: string; // HH:MM
+      endDate: string; // YYYY-MM-DD
+    } | null;
   }) {
     const idPrefix = useId();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
     const { pending } = useFormStatus();
     const loading = pending || isSubmitting;
-    const [startTime, setStartTime] = useState(
-      initialSchedule?.start_time ? initialSchedule.start_time.slice(0, 5) : ""
+    const startDateForEdit = initialSchedule?.date ?? date;
+
+    const [startTime, setStartTime] = useState<string>(
+      initialSchedule?.start_time ? initialSchedule.start_time.slice(0, 5) : prefill?.startTime ?? ""
     );
-    const [endTime, setEndTime] = useState(
-      initialSchedule?.end_time ? initialSchedule.end_time.slice(0, 5) : ""
+    const [endTime, setEndTime] = useState<string>(
+      initialSchedule?.end_time ? initialSchedule.end_time.slice(0, 5) : prefill?.endTime ?? ""
     );
+    const [endDate, setEndDate] = useState<string>(
+      initialSchedule?.end_date ?? prefill?.endDate ?? startDateForEdit
+    );
+
+    useEffect(() => {
+      const nextStartDate = initialSchedule?.date ?? date;
+      setStartTime(
+        initialSchedule?.start_time ? initialSchedule.start_time.slice(0, 5) : prefill?.startTime ?? ""
+      );
+      setEndTime(
+        initialSchedule?.end_time ? initialSchedule.end_time.slice(0, 5) : prefill?.endTime ?? ""
+      );
+      setEndDate(
+        initialSchedule?.end_date ?? prefill?.endDate ?? nextStartDate
+      );
+    }, [
+      date,
+      initialSchedule?.id,
+      initialSchedule?.date,
+      initialSchedule?.end_date,
+      initialSchedule?.start_time,
+      initialSchedule?.end_time,
+      prefill?.startTime,
+      prefill?.endTime,
+      prefill?.endDate,
+    ]);
 
     const getError = (name: string) => fieldErrors[name]?.[0];
     const inputErrorClass =
@@ -682,7 +771,8 @@ export function CalendarWithModal({
         className="space-y-2 rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-3 text-[11px] dark:border-slate-600 dark:bg-slate-900/60"
       >
         <input type="hidden" name="calendar_id" value={calendarId} />
-        <input type="hidden" name="date" value={date} />
+        <input type="hidden" name="date" value={startDateForEdit} />
+        <input type="hidden" name="end_date" value={endDate} />
         <input type="hidden" name="start_time" value={startTime} />
         <input type="hidden" name="end_time" value={endTime} />
         {initialSchedule && <input type="hidden" name="id" value={initialSchedule.id} />}
@@ -763,6 +853,17 @@ export function CalendarWithModal({
               </MantineProvider>
             </div>
           </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+            終了日
+          </span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className={inputBaseClass}
+          />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1">
@@ -1150,12 +1251,24 @@ export function CalendarWithModal({
     const WEEK_START_HOUR = 5;
     const WEEK_END_HOUR = 27; // 翌3時まで
     const totalMinutes = (WEEK_END_HOUR - WEEK_START_HOUR) * 60;
+    const msPerMinute = 60 * 1000;
+    const canCreate = permissions.canEditSchedule && !!saveScheduleAction;
+    const canShift = permissions.canEditSchedule && !!shiftScheduleAction;
 
-    const parseTimeToMinutes = (time: string | null): number | null => {
-      if (!time) return null;
-      const [h, m] = time.split(":").map((v) => Number(v));
-      if (Number.isNaN(h) || Number.isNaN(m)) return null;
-      return (h - WEEK_START_HOUR) * 60 + m;
+    const parseYMD = (d: string): { y: number; mo: number; da: number } => {
+      const [y, mo, da] = d.split("-").map((v) => Number(v));
+      return { y, mo, da };
+    };
+
+    const parseHHMM = (t: string): { hh: number; mm: number } => {
+      const [hh, mm] = t.split(":").map((v) => Number(v));
+      return { hh, mm };
+    };
+
+    const toUtcMs = (dateStr: string, timeStr: string): number => {
+      const { y, mo, da } = parseYMD(dateStr);
+      const { hh, mm } = parseHHMM(timeStr);
+      return Date.UTC(y, mo - 1, da, hh, mm, 0);
     };
 
     const hours: number[] = [];
@@ -1257,20 +1370,70 @@ export function CalendarWithModal({
                 const daySchedulesRaw = schedulesByDate.get(day.date) ?? [];
                 const daySchedules = daySchedulesRaw.filter((s) => !s.is_all_day);
                 const allDaySchedules = daySchedulesRaw.filter((s) => s.is_all_day);
+                const daySelection =
+                  scheduleCreateSelection?.dayDate === day.date
+                    ? scheduleCreateSelection
+                    : null;
                 const bg = day.isToday
                   ? "bg-accent-50/40 dark:bg-accent-950/30"
                   : "bg-white dark:bg-zinc-950/40";
+                const axisStartMs = toUtcMs(day.date, "05:00");
+                const axisEndDate = dayjs(day.date).add(1, "day").format("YYYY-MM-DD");
+                const axisEndMs = toUtcMs(axisEndDate, "03:00");
+                const axisLengthMs = totalMinutes * msPerMinute;
 
                 return (
                   <div key={day.date} className="relative flex min-w-[180px] flex-1 flex-col border-r border-zinc-200 last:border-r-0 dark:border-zinc-800">
                     {/* 終日帯 */}
                     {allDaySchedules.length > 0 && (
-                      <div className="flex flex-wrap gap-1 border-b border-zinc-200 bg-zinc-50 px-1.5 py-1 text-[10px] dark:border-zinc-800 dark:bg-zinc-900">
+                      <div
+                        className="flex flex-wrap gap-1 border-b border-zinc-200 bg-zinc-50 px-1.5 py-1 text-[10px] dark:border-zinc-800 dark:bg-zinc-900"
+                        onDragOver={(e) => {
+                          if (!canShift) return;
+                          e.preventDefault();
+                        }}
+                        onDrop={async (e) => {
+                          if (!canShift) return;
+                          e.preventDefault();
+                          const scheduleId = e.dataTransfer.getData("calendar/scheduleId");
+                          const modeRaw = e.dataTransfer.getData("calendar/mode");
+                          const isAllDayRaw = e.dataTransfer.getData("calendar/isAllDay");
+                          if (!scheduleId) return;
+                          if (isAllDayRaw !== "1") return; // 終日帯は all-day のみ
+                          const mode = modeRaw === "copy" ? "copy" : "move";
+
+                          try {
+                            await shiftScheduleAction?.(scheduleId, mode, day.date, null);
+                            setScheduleCreatePrefill(null);
+                            setScheduleCreateSelection(null);
+                            setSelectedScheduleId(null);
+                          } catch {
+                            showToast("移動に失敗しました");
+                          }
+                        }}
+                      >
                         {allDaySchedules.map((s) => {
                           const color = getEventColorClasses(s.color_id ?? null);
                           return (
                             <span
                               key={s.id}
+                              data-schedule-block="1"
+                              draggable={canShift}
+                              onDragStart={(e) => {
+                                if (!canShift) return;
+                                const mode = e.ctrlKey || e.metaKey ? "copy" : "move";
+                                e.dataTransfer.setData("calendar/scheduleId", s.id);
+                                e.dataTransfer.setData("calendar/mode", mode);
+                                e.dataTransfer.setData("calendar/isAllDay", "1");
+                                e.dataTransfer.effectAllowed = mode === "copy" ? "copy" : "move";
+                              }}
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                setSelectedDate(day.date);
+                                setSelectedScheduleId(s.id);
+                                setModalTab("schedule");
+                                setScheduleCreatePrefill(null);
+                              }}
                               className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${color.bg} ${color.text}`}
                               title={s.title}
                             >
@@ -1285,8 +1448,145 @@ export function CalendarWithModal({
                     {/* 時間スロット */}
                     <div
                       className={`${bg} relative flex-1`}
-                      onClick={() => setSelectedDate(day.date)}
+                      onDragOver={(e) => {
+                        if (!canShift) return;
+                        e.preventDefault();
+                      }}
+                      onDrop={async (e) => {
+                        if (!canShift) return;
+                        e.preventDefault();
+                        const scheduleId = e.dataTransfer.getData("calendar/scheduleId");
+                        const modeRaw = e.dataTransfer.getData("calendar/mode");
+                        const isAllDayRaw = e.dataTransfer.getData("calendar/isAllDay");
+                        if (!scheduleId) return;
+                        if (isAllDayRaw === "1") return; // time grid は time 予定のみ
+                        const mode = modeRaw === "copy" ? "copy" : "move";
+
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const clampedY = Math.max(0, Math.min(rect.height, y));
+                        const offsetMinutes = (clampedY / rect.height) * totalMinutes;
+
+                        const absTotalMinutes = WEEK_START_HOUR * 60 + offsetMinutes;
+                        const dateOffsetDays = Math.floor(absTotalMinutes / (24 * 60));
+                        const timeMinutes = Math.floor(absTotalMinutes - dateOffsetDays * 24 * 60);
+
+                        const newStartDate = dayjs(day.date)
+                          .add(dateOffsetDays, "day")
+                          .format("YYYY-MM-DD");
+                        const hh = String(Math.floor(timeMinutes / 60)).padStart(2, "0");
+                        const mm = String(timeMinutes % 60).padStart(2, "0");
+                        const newStartTime = `${hh}:${mm}`;
+
+                        try {
+                          await shiftScheduleAction?.(scheduleId, mode, newStartDate, newStartTime);
+                          setScheduleCreatePrefill(null);
+                          setScheduleCreateSelection(null);
+                          setSelectedScheduleId(null);
+                        } catch {
+                          showToast("移動に失敗しました");
+                        }
+                      }}
+                      onPointerDown={(e) => {
+                        if (!canCreate) return;
+                        if ((e.target as HTMLElement | null)?.closest?.("[data-schedule-block]")) return;
+
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const clampedY = Math.max(0, Math.min(rect.height, y));
+                        const offsetMinutes = (clampedY / rect.height) * totalMinutes;
+
+                        setSelectedScheduleId(null);
+                        setScheduleCreatePrefill(null);
+                        setScheduleCreateSelection({
+                          dayDate: day.date,
+                          startOffsetMinutes: offsetMinutes,
+                          endOffsetMinutes: offsetMinutes,
+                        });
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!canCreate) return;
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const clampedY = Math.max(0, Math.min(rect.height, y));
+                        const offsetMinutes = (clampedY / rect.height) * totalMinutes;
+                        setScheduleCreateSelection((prev) => {
+                          if (!prev || prev.dayDate !== day.date) return prev;
+                          return { ...prev, endOffsetMinutes: offsetMinutes };
+                        });
+                      }}
+                      onPointerUp={(e) => {
+                        if (!canCreate) return;
+                        const sel = scheduleCreateSelectionRef.current;
+                        if (!sel || sel.dayDate !== day.date) return;
+
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const clampedY = Math.max(0, Math.min(rect.height, y));
+                        const offsetMinutes = (clampedY / rect.height) * totalMinutes;
+
+                        const startOffset = Math.min(sel.startOffsetMinutes, offsetMinutes);
+                        const endOffset = Math.max(sel.startOffsetMinutes, offsetMinutes);
+                        setScheduleCreateSelection(null);
+
+                        // 短い操作は「日付選択（従来挙動）」として扱う
+                        if (endOffset - startOffset < 6) {
+                          setSelectedDate(day.date);
+                          setModalTab("rank");
+                          setScheduleCreatePrefill(null);
+                          return;
+                        }
+
+                        const axisStartMinutes = WEEK_START_HOUR * 60 + startOffset;
+                        const axisEndMinutes = WEEK_START_HOUR * 60 + endOffset;
+
+                        const startDateOffsetDays = Math.floor(axisStartMinutes / (24 * 60));
+                        const endDateOffsetDays = Math.floor(axisEndMinutes / (24 * 60));
+                        const startTimeMinutes = Math.floor(axisStartMinutes - startDateOffsetDays * 24 * 60);
+                        const endTimeMinutes = Math.floor(axisEndMinutes - endDateOffsetDays * 24 * 60);
+
+                        const startDate = dayjs(day.date).add(startDateOffsetDays, "day").format("YYYY-MM-DD");
+                        const endDate = dayjs(day.date).add(endDateOffsetDays, "day").format("YYYY-MM-DD");
+                        const startHh = String(Math.floor(startTimeMinutes / 60)).padStart(2, "0");
+                        const startMm = String(startTimeMinutes % 60).padStart(2, "0");
+                        const endHh = String(Math.floor(endTimeMinutes / 60)).padStart(2, "0");
+                        const endMm = String(endTimeMinutes % 60).padStart(2, "0");
+
+                        // モーダルが描ける範囲（localDays 内）に限定
+                        const localDateSet = new Set(localDays.map((d) => d.date));
+                        if (!localDateSet.has(startDate) || !localDateSet.has(endDate)) {
+                          showToast("範囲が表示範囲外です");
+                          return;
+                        }
+
+                        setSelectedDate(startDate);
+                        setSelectedScheduleId(null);
+                        setModalTab("schedule");
+                        setScheduleCreatePrefill({
+                          is_all_day: false,
+                          startTime: `${startHh}:${startMm}`,
+                          endTime: `${endHh}:${endMm}`,
+                          endDate,
+                        });
+                      }}
+                      onPointerCancel={() => {
+                        if (canCreate) setScheduleCreateSelection(null);
+                      }}
                     >
+                      {/* 範囲選択（新規登録）プレビュー */}
+                      {daySelection && (() => {
+                        const startOffset = Math.min(daySelection.startOffsetMinutes, daySelection.endOffsetMinutes);
+                        const endOffset = Math.max(daySelection.startOffsetMinutes, daySelection.endOffsetMinutes);
+                        const top = (startOffset / totalMinutes) * 100;
+                        const height = ((endOffset - startOffset) / totalMinutes) * 100;
+                        return (
+                          <div
+                            className="pointer-events-none absolute left-1 right-1 rounded-md bg-accent-500/20 border border-accent-400/60"
+                            style={{ top: `${top}%`, height: `${height}%` }}
+                          />
+                        );
+                      })()}
                       {/* ガイドライン */}
                       {hours.map((h, idx) => (
                         <div
@@ -1298,28 +1598,62 @@ export function CalendarWithModal({
 
                       {/* 予定ブロック */}
                       {daySchedules.map((s) => {
-                        const startMinutes = parseTimeToMinutes(s.start_time);
-                        const endMinutes = parseTimeToMinutes(s.end_time) ?? startMinutes;
-                        if (startMinutes == null) return null;
-                        const top = Math.max(0, (startMinutes / totalMinutes) * 100);
-                        const heightMinutes = Math.max(30, (endMinutes ?? startMinutes) - startMinutes || 30);
-                        const height = Math.min(100 - top, (heightMinutes / totalMinutes) * 100);
+                        if (!s.start_time || !s.end_time) return null;
+
+                        const scheduleStartMs = toUtcMs(s.date, s.start_time);
+                        const scheduleEndMs = toUtcMs(s.end_date ?? s.date, s.end_time);
+
+                        const segStartMs = Math.max(axisStartMs, scheduleStartMs);
+                        const segEndMs = Math.min(axisEndMs, scheduleEndMs);
+                        if (segEndMs <= segStartMs) return null;
+
+                        const segMinutes = (segEndMs - segStartMs) / msPerMinute;
+                        const displayMinutes = Math.max(30, segMinutes);
+                        const displayEndMs = Math.min(
+                          axisEndMs,
+                          segStartMs + displayMinutes * msPerMinute
+                        );
+
+                        const top = ((segStartMs - axisStartMs) / axisLengthMs) * 100;
+                        const height =
+                          ((displayEndMs - segStartMs) / axisLengthMs) * 100;
+
                         const color = getEventColorClasses(s.color_id ?? null);
-                        const labelTime = s.start_time ? s.start_time.slice(0, 5) : "--:--";
+                        const labelTime =
+                          segStartMs === scheduleStartMs
+                            ? s.start_time.slice(0, 5)
+                            : "05:00";
+
                         return (
                           <div
                             key={s.id}
+                            data-schedule-block="1"
+                            draggable={canShift}
                             className={`absolute left-1 right-1 overflow-hidden rounded-md border text-[10px] shadow-sm ${color.bg} ${color.text} ${color.leftBar}`}
                             style={{
                               top: `${top}%`,
                               height: `${height}%`,
                             }}
                             title={s.title}
+                            onDragStart={(e) => {
+                              if (!canShift) return;
+                              const mode = e.ctrlKey || e.metaKey ? "copy" : "move";
+                              e.dataTransfer.setData("calendar/scheduleId", s.id);
+                              e.dataTransfer.setData("calendar/mode", mode);
+                              e.dataTransfer.setData("calendar/isAllDay", "0");
+                              e.dataTransfer.effectAllowed = mode === "copy" ? "copy" : "move";
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedDate(day.date);
                               setSelectedScheduleId(s.id);
                               setModalTab("schedule");
+                              setScheduleCreatePrefill(null);
+                              setScheduleCreateSelection(null);
+                            }}
+                            onPointerDown={(e) => {
+                              // 範囲選択の開始を防ぐ
+                              e.stopPropagation();
                             }}
                           >
                             <div className="flex items-center gap-1 px-1 py-0.5">
@@ -1480,7 +1814,12 @@ export function CalendarWithModal({
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedDate(null)}
+                onClick={() => {
+                  setSelectedDate(null);
+                  setSelectedScheduleId(null);
+                  setScheduleCreatePrefill(null);
+                  setScheduleCreateSelection(null);
+                }}
                 className="rounded-md px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               >
                 閉じる
@@ -1542,6 +1881,7 @@ export function CalendarWithModal({
                     calendarId={calendarId}
                     date={selectedDate}
                     initialSchedule={selectedSchedule}
+                    prefill={scheduleCreatePrefill}
                   />
                 )}
                 <div className="flex items-baseline justify-between">
@@ -1572,7 +1912,10 @@ export function CalendarWithModal({
                       return (
                         <li
                           key={s.id}
-                          onClick={() => setSelectedScheduleId(s.id)}
+                          onClick={() => {
+                            setSelectedScheduleId(s.id);
+                            setScheduleCreatePrefill(null);
+                          }}
                           className="flex gap-2 text-[11px] text-zinc-800 dark:text-zinc-100 cursor-pointer"
                         >
                           {/* 左側: 時刻 + タイムライン */}
@@ -1622,10 +1965,17 @@ export function CalendarWithModal({
                                   <span className="text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
                                     {s.start_time?.slice(0, 5) ?? "--:--"}
                                     {s.end_time && `〜${s.end_time.slice(0, 5)}`}
+                                    {s.end_date && s.end_date !== s.date
+                                      ? ` (${s.end_date.slice(5)})`
+                                      : null}
                                   </span>
                                 )}
                                 {s.is_all_day && (
-                                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">終日</span>
+                                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                                    {s.end_date && s.end_date !== s.date
+                                      ? `終日〜${s.end_date.slice(5)}`
+                                      : "終日"}
+                                  </span>
                                 )}
                               </p>
                               <p className="truncate text-[11px] font-medium">
@@ -1671,7 +2021,12 @@ export function CalendarWithModal({
           events={events}
           permissions={permissions}
           calendarId={calendarId}
-          onClose={() => setSelectedDate(null)}
+          onClose={() => {
+            setSelectedDate(null);
+            setSelectedScheduleId(null);
+            setScheduleCreatePrefill(null);
+            setScheduleCreateSelection(null);
+          }}
         />
       )}
     </div>

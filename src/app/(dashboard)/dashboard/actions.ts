@@ -20,7 +20,11 @@ import {
   saveScheduleEntrySchema,
   type SaveScheduleEntryResult,
 } from "@/lib/validations/schedule";
-import { upsertScheduleForCalendar, deleteScheduleById } from "@/lib/data/schedules";
+import {
+  upsertScheduleForCalendar,
+  deleteScheduleById,
+  getScheduleByIdInCalendar,
+} from "@/lib/data/schedules";
 
 export async function saveScheduleEntry(
   formData: FormData
@@ -121,6 +125,7 @@ export async function saveCalendarSchedule(
   const idRaw = raw.id != null ? String(raw.id) : "";
   const calendarId = String(raw.calendar_id ?? "");
   const date = String(raw.date ?? "");
+  const endDateRaw = raw.end_date != null ? String(raw.end_date) : "";
   const title = String(raw.title ?? "").trim();
   const isAllDay = String(raw.is_all_day ?? "") === "on";
   const startTimeRaw = raw.start_time != null ? String(raw.start_time) : "";
@@ -144,6 +149,14 @@ export async function saveCalendarSchedule(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     errors.date = ["日付は YYYY-MM-DD 形式で入力してください"];
   }
+
+  const endDate = endDateRaw ? endDateRaw : date;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+    errors.end_date = ["終了日が YYYY-MM-DD 形式で入力してください"];
+  } else if (endDate < date) {
+    errors.end_date = ["終了日は開始日以降にしてください"];
+  }
+
   if (!title) {
     errors.title = ["タイトルを入力してください"];
   }
@@ -155,9 +168,16 @@ export async function saveCalendarSchedule(
     if (!timeRegex.test(endTimeRaw)) {
       errors.end_time = ["終了時刻を HH:MM 形式で入力してください"];
     }
+    const toUtcMs = (d: string, t: string): number => {
+      const [y, mo, da] = d.split("-").map((v) => Number(v));
+      const [hh, mm] = t.split(":").map((v) => Number(v));
+      return Date.UTC(y, mo - 1, da, hh, mm, 0);
+    };
     if (timeRegex.test(startTimeRaw) && timeRegex.test(endTimeRaw)) {
-      if (startTimeRaw > endTimeRaw) {
-        errors.end_time = ["終了時刻は開始時刻以降にしてください"];
+      const startMs = toUtcMs(date, startTimeRaw);
+      const endMs = toUtcMs(endDate, endTimeRaw);
+      if (startMs > endMs) {
+        errors.end_time = ["終了日時は開始日時以降にしてください"];
       }
     }
   }
@@ -174,6 +194,7 @@ export async function saveCalendarSchedule(
   await upsertScheduleForCalendar(calendarId, {
     id: idRaw || undefined,
     date,
+    end_date: endDate || null,
     is_all_day: isAllDay,
     start_time: startTime,
     end_time: endTime,
@@ -185,6 +206,144 @@ export async function saveCalendarSchedule(
   });
 
   return { ok: true };
+}
+
+type ShiftCalendarScheduleMode = "move" | "copy";
+
+/**
+ * 予定（calendar_schedules）の開始日時を指定して移動/コピーする。
+ * duration（開始〜終了の差分）を維持して、end_date/end_time も再計算する。
+ */
+export async function shiftCalendarSchedule(
+  calendarId: string,
+  scheduleId: string,
+  mode: ShiftCalendarScheduleMode,
+  newStartDate: string,
+  newStartTime: string | null
+): Promise<void> {
+  "use server";
+
+  if (!calendarId || !scheduleId) return;
+  if (mode !== "move" && mode !== "copy") return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newStartDate)) return;
+
+  await ensureUserCanEditCalendar(calendarId);
+
+  const existing = await getScheduleByIdInCalendar(calendarId, scheduleId);
+  if (!existing) return;
+
+  const parseYMD = (d: string): { y: number; mo: number; da: number } => {
+    const [y, mo, da] = d.split("-").map((v) => Number(v));
+    return { y, mo, da };
+  };
+
+  const parseHHMM = (t: string): { hh: number; mm: number } => {
+    const [hh, mm] = t.split(":").map((v) => Number(v));
+    return { hh, mm };
+  };
+
+  const toUtcMs = (dateStr: string, timeStr: string): number => {
+    const { y, mo, da } = parseYMD(dateStr);
+    const { hh, mm } = parseHHMM(timeStr);
+    return Date.UTC(y, mo - 1, da, hh, mm, 0);
+  };
+
+  const formatYMD = (ms: number): string => {
+    const dt = new Date(ms);
+    const y = dt.getUTCFullYear();
+    const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
+    const da = String(dt.getUTCDate()).padStart(2, "0");
+    return `${y}-${mo}-${da}`;
+  };
+
+  const formatHHMM = (ms: number): string => {
+    const dt = new Date(ms);
+    const hh = String(dt.getUTCHours()).padStart(2, "0");
+    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
+
+  const msPerDay = 24 * 60 * 60 * 1000;
+
+  const startDate = existing.date;
+  const endDate = existing.end_date ?? existing.date;
+
+  if (existing.is_all_day) {
+    const startMs = Date.UTC(
+      parseYMD(startDate).y,
+      parseYMD(startDate).mo - 1,
+      parseYMD(startDate).da,
+      0,
+      0,
+      0
+    );
+    const endMs = Date.UTC(
+      parseYMD(endDate).y,
+      parseYMD(endDate).mo - 1,
+      parseYMD(endDate).da,
+      0,
+      0,
+      0
+    );
+    const durationDays = Math.round((endMs - startMs) / msPerDay) + 1;
+
+    const newStartMs = Date.UTC(
+      parseYMD(newStartDate).y,
+      parseYMD(newStartDate).mo - 1,
+      parseYMD(newStartDate).da,
+      0,
+      0,
+      0
+    );
+    const newEndMs = newStartMs + (durationDays - 1) * msPerDay;
+
+    const computedEndDate = formatYMD(newEndMs);
+    const endDateForRow = computedEndDate === newStartDate ? null : computedEndDate;
+
+    await upsertScheduleForCalendar(calendarId, {
+      id: mode === "move" ? existing.id : undefined,
+      date: newStartDate,
+      end_date: endDateForRow,
+      is_all_day: true,
+      start_time: null,
+      end_time: null,
+      title: existing.title,
+      kind: existing.kind,
+      visibility: existing.visibility ?? null,
+      color_id: existing.color_id,
+      memo: existing.memo,
+    });
+    return;
+  }
+
+  if (!newStartTime || !/^\d{2}:\d{2}$/.test(newStartTime)) return;
+  if (!existing.start_time || !existing.end_time) return;
+
+  const existingStartMs = toUtcMs(startDate, existing.start_time);
+  const existingEndMs = toUtcMs(endDate, existing.end_time);
+  const durationMs = existingEndMs - existingStartMs;
+  if (durationMs < 0) return;
+
+  const newStartMs = toUtcMs(newStartDate, newStartTime);
+  const newEndMs = newStartMs + durationMs;
+
+  const computedEndDate = formatYMD(newEndMs);
+  const endDateForRow = computedEndDate === newStartDate ? null : computedEndDate;
+  const computedEndTime = formatHHMM(newEndMs);
+
+  await upsertScheduleForCalendar(calendarId, {
+    id: mode === "move" ? existing.id : undefined,
+    date: newStartDate,
+    end_date: endDateForRow,
+    is_all_day: false,
+    start_time: `${newStartTime}:00`,
+    end_time: `${computedEndTime}:00`,
+    title: existing.title,
+    kind: existing.kind,
+    visibility: existing.visibility ?? null,
+    color_id: existing.color_id,
+    memo: existing.memo,
+  });
 }
 
 export async function deleteCalendarSchedule(
