@@ -12,7 +12,6 @@ import {
 import { getProfile } from "@/lib/data/profiles";
 import { getCalendarPermissionsForUser } from "@/lib/auth/permission";
 import { DashboardProvider } from "@/components/dashboard/DashboardProvider";
-import { upsertShareWithServiceRole } from "@/lib/data/shares";
 
 const DASHBOARD_CALENDAR_COOKIE = "iriam_dashboard_calendar_id";
 const DASHBOARD_CALENDAR_HEADER = "x-dashboard-calendar-id";
@@ -30,79 +29,34 @@ export default async function DashboardShellLayout({
   children,
   searchParams,
 }: LayoutProps) {
-  async function repairShareFromInvite(
+  async function hasInviteRedemptionForCalendar(
     targetCalendarId: string,
     targetUserId: string,
   ): Promise<boolean> {
     const supabaseService = createSupabaseServiceRoleClient();
-    const { data: redemptions, error: redemptionsError } = await supabaseService
+
+    const { data: inviteLinks, error: linksError } = await supabaseService
       .schema("iriam")
-      .from("invite_redemptions")
-      .select("invite_link_id")
-      .eq("user_id", targetUserId)
-      .order("redeemed_at", { ascending: false })
-      .limit(20);
-    if (redemptionsError) return false;
-    const inviteLinkIds = (redemptions ?? [])
-      .map((r) => r?.invite_link_id)
+      .from("invite_links")
+      .select("id")
+      .eq("calendar_id", targetCalendarId)
+      .limit(200);
+    if (linksError) return false;
+
+    const inviteLinkIds = (inviteLinks ?? [])
+      .map((r) => r?.id)
       .filter((id): id is string => typeof id === "string" && id.length > 0);
     if (inviteLinkIds.length === 0) return false;
 
-    const { data: links, error: linksError } = await supabaseService
+    const { data: redemptions, error: redemptionsError } = await supabaseService
       .schema("iriam")
-      .from("invite_links")
-      .select("id, role_id")
-      .eq("calendar_id", targetCalendarId)
+      .from("invite_redemptions")
+      .select("id")
+      .eq("user_id", targetUserId)
       .in("id", inviteLinkIds)
-      .order("created_at", { ascending: false })
       .limit(1);
-    if (linksError) return false;
-    const inviteLink = Array.isArray(links) ? links[0] : null;
-    if (!inviteLink) return false;
-
-    async function roleHasViewCalendar(roleId: string): Promise<boolean> {
-      const { data, error } = await supabaseService
-        .schema("iriam")
-        .from("role_permissions")
-        .select("permission")
-        .eq("role_id", roleId)
-        .eq("permission", "view_calendar")
-        .limit(1);
-      if (error) return false;
-      return Array.isArray(data) && data.length > 0;
-    }
-
-    let roleId: string | null =
-      typeof inviteLink.role_id === "string" ? inviteLink.role_id : null;
-    if (roleId && !(await roleHasViewCalendar(roleId))) {
-      roleId = null;
-    }
-    if (!roleId) {
-      const { data: roles, error: rolesError } = await supabaseService
-        .schema("iriam")
-        .from("roles")
-        .select("id")
-        .eq("calendar_id", targetCalendarId)
-        .order("created_at", { ascending: true })
-        .limit(50);
-      if (rolesError) return false;
-      const roleIds = (roles ?? [])
-        .map((r) => r?.id)
-        .filter((id): id is string => typeof id === "string" && id.length > 0);
-      for (const candidate of roleIds) {
-        if (await roleHasViewCalendar(candidate)) {
-          roleId = candidate;
-          break;
-        }
-      }
-      if (!roleId) {
-        roleId = roleIds[0] ?? null;
-      }
-    }
-
-    if (!roleId) return false;
-    await upsertShareWithServiceRole(targetCalendarId, targetUserId, roleId);
-    return true;
+    if (redemptionsError) return false;
+    return Array.isArray(redemptions) && redemptions.length > 0;
   }
 
   const supabase = await createSupabaseServerClient();
@@ -120,6 +74,7 @@ export default async function DashboardShellLayout({
   const pathname = requestHeaders.get(DASHBOARD_PATHNAME_HEADER) ?? "";
   const isOnboardingPath = pathname.startsWith("/dashboard/onboarding");
   const isSettingsPath = pathname.startsWith("/dashboard/settings");
+  const isInvitePendingPath = pathname.startsWith("/dashboard/invite-pending");
   const headerCalendarId =
     requestHeaders.get(DASHBOARD_CALENDAR_HEADER)?.trim() || null;
   const headerFromInvite =
@@ -135,7 +90,7 @@ export default async function DashboardShellLayout({
     redirect("/login");
   }
 
-  if (isOnboardingPath) {
+  if (isOnboardingPath || isInvitePendingPath) {
     return children;
   }
 
@@ -143,19 +98,20 @@ export default async function DashboardShellLayout({
     user.id,
     urlCalendarId,
   );
-  if (!currentCalendar && fromInvite && urlCalendarId) {
-    const repaired = await repairShareFromInvite(urlCalendarId, user.id);
-    if (repaired) {
-      currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
-    }
+  const hasPendingInviteForRequested =
+    !!urlCalendarId &&
+    await hasInviteRedemptionForCalendar(urlCalendarId, user.id);
+  if (
+    urlCalendarId &&
+    hasPendingInviteForRequested &&
+    (!currentCalendar || currentCalendar.id !== urlCalendarId)
+  ) {
+    redirect(`/dashboard/invite-pending?calendarId=${encodeURIComponent(urlCalendarId)}`);
   }
 
   if (!currentCalendar) {
     if (isSettingsPath) {
       return children;
-    }
-    if (fromInvite) {
-      redirect("/dashboard/settings");
     }
     const profile = await getProfile(user.id);
     if (profile?.setup_wizard_done) {
