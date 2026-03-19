@@ -1,6 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
+import fs from "node:fs";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const hasE2EAuthEnv = !!(
+  process.env.E2E_TEST_SECRET &&
+  process.env.E2E_TEST_USER_EMAIL &&
+  process.env.E2E_TEST_USER_PASSWORD
+);
+const hasStoredAuthState = fs.existsSync("e2e/.auth/user.json");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -20,14 +27,18 @@ export default defineConfig({
       testMatch: /(landing|auth)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
-    {
-      name: "authenticated",
-      testMatch: /(dashboard|schedule)\.spec\.ts/,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: "e2e/.auth/user.json",
-      },
-    },
+    ...(hasE2EAuthEnv || hasStoredAuthState
+      ? ([
+          {
+            name: "authenticated",
+            testMatch: /(dashboard|schedule)\.spec\.ts/,
+            use: {
+              ...devices["Desktop Chrome"],
+              storageState: "e2e/.auth/user.json",
+            },
+          },
+        ] as const)
+      : ([] as const)),
   ],
   webServer: {
     command: "npm run dev",

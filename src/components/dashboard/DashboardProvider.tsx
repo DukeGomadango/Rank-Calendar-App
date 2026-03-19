@@ -9,9 +9,10 @@ import {
 } from "react";
 import dayjs from "dayjs";
 import { usePathname } from "next/navigation";
+import type { KeyedMutator } from "swr";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
-import { useCalendarRange } from "@/lib/hooks/useCalendarRange";
+import { useCalendarRange, type CalendarRangeResponse } from "@/lib/hooks/useCalendarRange";
 import {
   addDays,
   getCycleEndDateIncludingSkips,
@@ -34,6 +35,7 @@ type DashboardContextValue = {
   baseMonth: string;
   setBaseMonth: (month: string) => void;
   refreshRange: () => void;
+  mutateRange: KeyedMutator<CalendarRangeResponse>;
   rangeData:
     | {
         entries: ScheduleEntryRow[];
@@ -245,6 +247,7 @@ export function DashboardProvider({
     baseMonth,
     setBaseMonth,
     refreshRange,
+    mutateRange: mutate,
     rangeData,
     futureCycles,
     forecastLabel,

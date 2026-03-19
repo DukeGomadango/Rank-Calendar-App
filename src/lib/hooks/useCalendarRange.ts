@@ -11,6 +11,8 @@ type CalendarRangeResponse = {
   events: unknown[];
 };
 
+export type { CalendarRangeResponse };
+
 const fetcher = async (url: string): Promise<CalendarRangeResponse> => {
   const res = await fetch(url);
   if (!res.ok) {

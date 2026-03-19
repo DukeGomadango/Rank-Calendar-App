@@ -73,7 +73,7 @@ export function CalendarWithDataProvider({
     setBaseMonth(nextMonth);
   }, [initialMonth, initialWeekStart, setBaseMonth]);
 
-  const today = dayjs(todayJst);
+  const today = useMemo(() => dayjs(todayJst), [todayJst]);
 
   const { days } = useMemo(() => {
     if (!rangeData) {
@@ -113,7 +113,7 @@ export function CalendarWithDataProvider({
     }
 
     return { days };
-  }, [rangeData, displayMonth, today]);
+  }, [rangeData, displayMonth, todayJst]);
 
   const events = (rangeData?.events ?? []) as EventRow[];
   const schedules = (rangeData?.schedules ?? []) as CalendarScheduleRow[];

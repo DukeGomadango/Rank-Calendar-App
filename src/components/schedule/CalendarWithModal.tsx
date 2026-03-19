@@ -18,6 +18,7 @@ import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClas
 import { EVENT_PALETTE, getEventColorClasses, getEventColorDotClass } from "@/lib/event-colors";
 import { toJstDateString } from "@/lib/domain/calendar";
 import { useViewMode } from "@/lib/view-mode-context";
+import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { ScheduleForm } from "./ScheduleForm";
 import { DayDetailModal, type DayDetailRow } from "@/components/data/DayDetailModal";
 
@@ -213,6 +214,7 @@ export function CalendarWithModal({
 }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { mutateRange } = useDashboardCalendar();
   const { viewMode, setViewMode } = useViewMode();
   const useSimpleView = !permissions.isOwner && viewMode === "simple";
   const todayStr = todayJst ?? toJstDateString(new Date());
@@ -220,12 +222,14 @@ export function CalendarWithModal({
   const [localDays, setLocalDays] = useState<DayData[]>(days);
   const [moveError, setMoveError] = useState<string | null>(null);
   const prevLocalDaysRef = useRef<DayData[] | null>(null);
+  const isSavingRef = useRef(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
   /** モバイルでボトムシートを下からせり上がらせる用。開いた直後に true にして transition をかける */
   const [sheetEntered, setSheetEntered] = useState(false);
 
   useEffect(() => {
+    if (isSavingRef.current) return;
     setLocalDays(days);
   }, [days]);
 
@@ -358,11 +362,50 @@ export function CalendarWithModal({
       }
 
       prevLocalDaysRef.current = localDays;
+      isSavingRef.current = true;
+
+      // `nextEntry` を先に生成しておき、localDays と SWR cache の両方を同じ内容で楽観更新する。
+      const existingEntry = localDays.find((d) => d.date === date)?.entries[0] ?? null;
+      const parseNumber = (name: string): number | null => {
+        const raw = formData.get(name);
+        if (raw == null) return null;
+        const s = String(raw).trim();
+        if (!s) return null;
+        const n = Number(s);
+        return Number.isNaN(n) ? null : n;
+      };
+
+      const skipPassUsed = formData.get("skip_pass_used") === "on";
+      const targetPlus = parseNumber("target_plus");
+      const actualPlus = parseNumber("actual_plus");
+      const ansukoBaseline = parseNumber("ansuko_baseline");
+      const borderPlus2 = parseNumber("border_plus2");
+      const borderPlus4 = parseNumber("border_plus4");
+      const borderPlus6 = parseNumber("border_plus6");
+      const eventIdRaw = formData.get("event_id");
+      const memoRaw = formData.get("memo");
+      const streamContentRaw = formData.get("stream_content");
+      const streamContentColorRaw = formData.get("stream_content_color");
+
+      const nextEntry: ScheduleEntryRow = {
+        id: existingEntry?.id ?? `temp-${date}`,
+        date,
+        ansuko_baseline: ansukoBaseline,
+        border_plus2: borderPlus2,
+        border_plus4: borderPlus4,
+        border_plus6: borderPlus6,
+        event_id: eventIdRaw ? String(eventIdRaw) || null : null,
+        memo: memoRaw ? (String(memoRaw).trim() || null) : null,
+        target_plus: targetPlus,
+        actual_plus: actualPlus,
+        skip_pass_used: skipPassUsed,
+        stream_content: streamContentRaw ? (String(streamContentRaw).trim() || null) : null,
+        stream_content_color: streamContentColorRaw ? String(streamContentColorRaw) || null : null,
+      };
+
       setLocalDays((prev) =>
         prev.map((day) => {
           if (day.date !== date) return day;
-
-          const existing = day.entries[0] ?? null;
           const parseNumber = (name: string): number | null => {
             const raw = formData.get(name);
             if (raw == null) return null;
@@ -370,38 +413,6 @@ export function CalendarWithModal({
             if (!s) return null;
             const n = Number(s);
             return Number.isNaN(n) ? null : n;
-          };
-
-          const skipPassUsed = formData.get("skip_pass_used") === "on";
-          const targetPlus = parseNumber("target_plus");
-          const actualPlus = parseNumber("actual_plus");
-          const ansukoBaseline = parseNumber("ansuko_baseline");
-          const borderPlus2 = parseNumber("border_plus2");
-          const borderPlus4 = parseNumber("border_plus4");
-          const borderPlus6 = parseNumber("border_plus6");
-          const eventIdRaw = formData.get("event_id");
-          const memoRaw = formData.get("memo");
-          const streamContentRaw = formData.get("stream_content");
-          const streamContentColorRaw = formData.get("stream_content_color");
-
-          const nextEntry: ScheduleEntryRow = {
-            id: existing?.id ?? `temp-${day.date}`,
-            date,
-            ansuko_baseline: ansukoBaseline,
-            border_plus2: borderPlus2,
-            border_plus4: borderPlus4,
-            border_plus6: borderPlus6,
-            event_id: eventIdRaw ? String(eventIdRaw) || null : null,
-            memo: memoRaw ? (String(memoRaw).trim() || null) : null,
-            target_plus: targetPlus,
-            actual_plus: actualPlus,
-            skip_pass_used: skipPassUsed,
-            stream_content: streamContentRaw
-              ? (String(streamContentRaw).trim() || null)
-              : null,
-            stream_content_color: streamContentColorRaw
-              ? String(streamContentColorRaw) || null
-              : null,
           };
 
           return {
@@ -413,6 +424,21 @@ export function CalendarWithModal({
 
       setSelectedDate(null);
 
+      // SWR cache（rangeData.entries）も同じ内容で楽観更新し、再検証中の「巻き戻り」を見せない。
+      void mutateRange(
+        (current) => {
+          if (!current) return current;
+          const prevEntries = (current.entries ?? []) as unknown as ScheduleEntryRow[];
+          const nextEntries = (() => {
+            const replaced = prevEntries.map((e) => (e.date === date ? { ...e, ...nextEntry } : e));
+            const exists = prevEntries.some((e) => e.date === date);
+            return exists ? replaced : [...replaced, nextEntry].sort((a, b) => a.date.localeCompare(b.date));
+          })();
+          return { ...current, entries: nextEntries };
+        },
+        { revalidate: false, populateCache: true }
+      );
+
       Promise.resolve(saveAction(formData))
         .then(() => {
           showToast("保存しました");
@@ -421,11 +447,16 @@ export function CalendarWithModal({
           if (prevLocalDaysRef.current) {
             setLocalDays(prevLocalDaysRef.current);
           }
+          // SWR も再検証して戻す（local rollback に合わせて整合させる）
+          void mutateRange();
           prevLocalDaysRef.current = null;
           showToast("保存に失敗しました");
+        })
+        .finally(() => {
+          isSavingRef.current = false;
         });
     },
-    [localDays, saveAction, showToast]
+    [localDays, mutateRange, saveAction, showToast]
   );
 
   const prevMonthParam = useMemo(() => {

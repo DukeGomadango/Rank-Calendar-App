@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import dayjs from "dayjs";
 
 test.describe("スケジュール・カレンダー（認証済み）", () => {
   test("カレンダーページが表示される", async ({ page }) => {
@@ -46,5 +47,40 @@ test.describe("スケジュール・カレンダー（認証済み）", () => {
 
     const targetAfter = page.getByRole("combobox", { name: /今日の \+目標/ }).first();
     await expect(targetAfter).toHaveValue("6", { timeout: 10_000 });
+  });
+
+  test("カレンダー編集モーダル保存で表示が巻き戻らない", async ({ page }) => {
+    await page.goto("/dashboard/calendar");
+    await expect(page).toHaveURL(/\/dashboard\/calendar/);
+
+    // 今日のセルを開く（セル内に「今日」バッジがある）
+    await page.getByRole("button", { name: /今日/ }).first().click();
+    await expect(page.getByRole("heading", { name: "日別スケジュールの編集" })).toBeVisible();
+
+    // 目標+を変更して保存
+    const targetSelect = page.getByRole("combobox", { name: "目標+" });
+    const before = await targetSelect.inputValue();
+    const next = before === "6" ? "8" : "6";
+    await targetSelect.selectOption(next);
+
+    const saveButton = page.getByRole("button", { name: "保存する" });
+    await saveButton.click();
+
+    // ここが肝: 保存直後に一瞬戻らないことを、短時間で連続確認する
+    await expect(targetSelect).toHaveValue(next, { timeout: 10_000 });
+    await page.waitForTimeout(150);
+    await expect(targetSelect).toHaveValue(next);
+    await page.waitForTimeout(150);
+    await expect(targetSelect).toHaveValue(next);
+
+    // さらに、トースト（「保存しました」）が表示されても値が維持されること
+    await expect(page.getByText("保存しました")).toBeVisible({ timeout: 10_000 });
+    await expect(targetSelect).toHaveValue(next);
+
+    // モーダルを閉じて、同じ日のセル表示も反映されていること（最低限：達成バッジ等で日付セルが更新される）
+    await page.getByRole("button", { name: "閉じる" }).click();
+    const todayDate = dayjs().date();
+    // カレンダー内に今日の日付が見える（巻き戻りで空になると検知しづらいので最低限の存在確認）
+    await expect(page.getByRole("button", { name: new RegExp(String(todayDate)) }).first()).toBeVisible();
   });
 });
