@@ -9,13 +9,15 @@ import {
 import { listRolesForCalendar, getPermissionsForRole } from "@/lib/data/roles";
 import { listInviteLinksForCalendar } from "@/lib/data/invite-links";
 import { listRedemptionsForCalendar } from "@/lib/data/invite-redemptions";
-import { listSharesForCalendar } from "@/lib/data/shares";
+import { listSharesWithProfilesForCalendar } from "@/lib/data/shares";
 import {
   PERMISSION_KEYS,
   PERMISSION_LABELS,
   type PermissionKey,
 } from "@/lib/data/permissions";
 import { SharingPageClient } from "./SharingPageClient";
+import { SharingManagementClient, type ShareMemberItem } from "./SharingManagementClient";
+import { PendingSubmitButton } from "./PendingSubmitButton";
 
 /** 権限のグループ（基本情報 / センシティブ情報） */
 const PERM_GROUP_BASIC: PermissionKey[] = [
@@ -38,10 +40,6 @@ import {
   createRole,
   deleteRole,
   saveRolePermissions,
-  createInviteLinkAction,
-  deleteInviteLink,
-  assignRoleToUser,
-  removeShare,
   noopCreateRole,
   noopDeleteRole,
   noopSaveRolePermissions,
@@ -270,10 +268,34 @@ export default async function SharingPage({ searchParams }: PageProps) {
     listRolesForCalendar(currentCalendar.id),
     listInviteLinksForCalendar(currentCalendar.id),
     listRedemptionsForCalendar(currentCalendar.id),
-    listSharesForCalendar(currentCalendar.id),
+    listSharesWithProfilesForCalendar(currentCalendar.id),
   ]);
 
-  const shareByUserId = new Map(shares.map((s) => [s.user_id, s.role_id]));
+  const membersByUserId = new Map<string, ShareMemberItem>();
+  for (const s of shares) {
+    membersByUserId.set(s.user_id, {
+      user_id: s.user_id,
+      display_name: s.display_name ?? null,
+      redeemed_at: null,
+      role_id: s.role_id,
+      shared_at: s.created_at,
+    });
+  }
+  for (const r of redemptions) {
+    const prev = membersByUserId.get(r.user_id);
+    membersByUserId.set(r.user_id, {
+      user_id: r.user_id,
+      display_name: prev?.display_name ?? r.display_name ?? null,
+      redeemed_at: r.redeemed_at,
+      role_id: prev?.role_id ?? null,
+      shared_at: prev?.shared_at ?? null,
+    });
+  }
+  const members = [...membersByUserId.values()].sort((a, b) => {
+    const at = a.redeemed_at ?? a.shared_at ?? "";
+    const bt = b.redeemed_at ?? b.shared_at ?? "";
+    return bt.localeCompare(at);
+  });
   const rolePermissions = await Promise.all(
     roles.map(async (r) => ({ roleId: r.id, perms: await getPermissionsForRole(r.id) }))
   );
@@ -325,12 +347,10 @@ export default async function SharingPage({ searchParams }: PageProps) {
               placeholder="例）リスナーA"
             />
           </label>
-          <button
-            type="submit"
-            className="rounded-md bg-accent-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-accent-600"
-          >
-            追加
-          </button>
+          <PendingSubmitButton
+            idleLabel="追加"
+            className="rounded-md bg-accent-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-accent-600 disabled:opacity-60"
+          />
         </form>
         {roles.length === 0 ? (
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -350,12 +370,10 @@ export default async function SharingPage({ searchParams }: PageProps) {
                   <form action={deleteRole}>
                     <input type="hidden" name="calendar_id" value={currentCalendar.id} />
                     <input type="hidden" name="role_id" value={role.id} />
-                    <button
-                      type="submit"
-                      className="text-[11px] text-zinc-500 hover:text-red-600 dark:hover:text-zinc-400 dark:hover:text-red-400"
-                    >
-                      削除
-                    </button>
+                    <PendingSubmitButton
+                      idleLabel="削除"
+                      className="text-[11px] text-zinc-500 hover:text-red-600 disabled:opacity-60 dark:hover:text-zinc-400 dark:hover:text-red-400"
+                    />
                   </form>
                 </div>
                 <form action={saveRolePermissions} className="space-y-3">
@@ -383,9 +401,10 @@ export default async function SharingPage({ searchParams }: PageProps) {
                       ))}
                     </div>
                   </div>
-                  <button type="submit" className="rounded bg-zinc-200 px-2 py-0.5 text-[11px] hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600">
-                    権限を保存
-                  </button>
+                  <PendingSubmitButton
+                    idleLabel="権限を保存"
+                    className="rounded bg-zinc-200 px-2 py-0.5 text-[11px] hover:bg-zinc-300 disabled:opacity-60 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+                  />
                 </form>
               </li>
             ))}
@@ -393,136 +412,12 @@ export default async function SharingPage({ searchParams }: PageProps) {
         )}
       </section>
 
-      {/* 招待リンク */}
-      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
-        <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
-          招待リンク
-        </h2>
-        <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
-          リンクを共有し、踏んだユーザーを「招待済み」に追加します。ロールを選んで発行すると、参加時に自動でそのロールが付与されます。
-        </p>
-        <form action={createInviteLinkAction} className="flex flex-wrap items-end gap-2">
-          <input type="hidden" name="calendar_id" value={currentCalendar.id} />
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
-              このリンクで付与するロール
-            </span>
-            <select
-              name="role_id"
-              className="w-48 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-            >
-              <option value="">未設定（後で手動付与）</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            className="rounded-md bg-accent-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent-600"
-          >
-            招待リンクを発行
-          </button>
-        </form>
-        {inviteLinks.length === 0 ? (
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            まだ招待リンクがありません。
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {inviteLinks.map((link) => (
-              <li
-                key={link.id}
-                className="flex flex-wrap items-center gap-2 rounded border border-zinc-100 py-2 px-2 dark:border-zinc-800"
-              >
-                <CopyInviteUrl calendarId={currentCalendar.id} token={link.token} />
-                {link.role_id && (
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    （{roles.find((r) => r.id === link.role_id)?.name ?? "ロール"}）
-                  </span>
-                )}
-                <form action={deleteInviteLink}>
-                  <input type="hidden" name="calendar_id" value={currentCalendar.id} />
-                  <input type="hidden" name="invite_link_id" value={link.id} />
-                  <button
-                    type="submit"
-                    className="text-[11px] text-zinc-500 hover:text-red-600 dark:hover:text-zinc-400 dark:hover:text-red-400"
-                  >
-                    削除
-                  </button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* 招待済みユーザー */}
-      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
-        <h2 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50">
-          招待済みユーザー
-        </h2>
-        <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
-          招待リンクで登録したユーザーにロールを付与すると、その権限でカレンダーを閲覧できます。
-        </p>
-        {redemptions.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/80 p-3 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
-            <p>まだ誰も招待リンクから登録していません。</p>
-            <p className="mt-1">
-              招待リンクを発行して共有すると、登録した方がここに表示されます。ロールを付与するとスケジュールを閲覧できるようになります。
-            </p>
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {redemptions.map((r) => {
-              const currentRoleId = shareByUserId.get(r.user_id) ?? "none";
-              return (
-                <li
-                  key={r.id}
-                  className="flex flex-wrap items-center gap-2 rounded border border-zinc-100 py-2 px-2 dark:border-zinc-800"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <form action={assignRoleToUser} className="flex items-center gap-1">
-                      <input type="hidden" name="calendar_id" value={currentCalendar.id} />
-                      <input type="hidden" name="user_id" value={r.user_id} />
-                      <select
-                        name="role_id"
-                        defaultValue={currentRoleId}
-                        className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-[11px] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                      >
-                        <option value="none">未付与</option>
-                        {roles.map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="submit"
-                        className="rounded bg-zinc-200 px-2 py-0.5 text-[11px] hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600"
-                      >
-                        反映
-                      </button>
-                    </form>
-                    <form action={removeShare}>
-                      <input type="hidden" name="calendar_id" value={currentCalendar.id} />
-                      <input type="hidden" name="user_id" value={r.user_id} />
-                      <button
-                        type="submit"
-                        className="text-[11px] text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
-                      >
-                        共有を解除
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <SharingManagementClient
+        calendarId={currentCalendar.id}
+        roles={roles.map((r) => ({ id: r.id, name: r.name }))}
+        initialInviteLinks={inviteLinks.map((l) => ({ id: l.id, token: l.token, role_id: l.role_id ?? null }))}
+        initialMembers={members}
+      />
     </div>
   );
 }

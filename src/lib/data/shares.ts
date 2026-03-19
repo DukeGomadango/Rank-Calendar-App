@@ -8,6 +8,10 @@ export type ShareRow = {
   created_at: string;
 };
 
+export type ShareWithProfileRow = ShareRow & {
+  display_name: string | null;
+};
+
 export async function listSharesForCalendar(
   calendarId: string
 ): Promise<ShareRow[]> {
@@ -24,6 +28,34 @@ export async function listSharesForCalendar(
     );
   }
   return (data ?? []) as ShareRow[];
+}
+
+export async function listSharesWithProfilesForCalendar(
+  calendarId: string
+): Promise<ShareWithProfileRow[]> {
+  const shares = await listSharesForCalendar(calendarId);
+  if (shares.length === 0) return [];
+  const userIds = [...new Set(shares.map((s) => s.user_id))];
+  const supabase = await createSupabaseServerClient();
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("id, display_name")
+    .in("id", userIds);
+
+  if (error) {
+    throwDataLayerError(
+      new Error(
+        `profiles select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+      )
+    );
+  }
+  const profileMap = new Map(
+    (profiles ?? []).map((p) => [String(p.id), (p.display_name as string | null) ?? null])
+  );
+  return shares.map((s) => ({
+    ...s,
+    display_name: profileMap.get(s.user_id) ?? null,
+  }));
 }
 
 export async function upsertShare(

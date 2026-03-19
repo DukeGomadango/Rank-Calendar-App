@@ -86,11 +86,33 @@ export async function setRolePermissions(
   permissions: PermissionKey[]
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  await supabase
+  const { data: beforeRows, error: beforeError } = await supabase
+    .schema("iriam")
+    .from("role_permissions")
+    .select("permission")
+    .eq("role_id", roleId);
+
+  if (beforeError) {
+    throwDataLayerError(
+      new Error(
+        `role_permissions select(before) failed: ${beforeError.message ?? ""} (code=${beforeError.code ?? "unknown"})`
+      )
+    );
+  }
+  const before = ((beforeRows ?? []).map((r) => r.permission) as PermissionKey[]);
+
+  const { error: deleteError } = await supabase
     .schema("iriam")
     .from("role_permissions")
     .delete()
     .eq("role_id", roleId);
+  if (deleteError) {
+    throwDataLayerError(
+      new Error(
+        `role_permissions delete failed: ${deleteError.message ?? ""} (code=${deleteError.code ?? "unknown"})`
+      )
+    );
+  }
 
   if (permissions.length > 0) {
     const { error } = await supabase
@@ -99,9 +121,18 @@ export async function setRolePermissions(
       .insert(permissions.map((permission) => ({ role_id: roleId, permission })));
 
     if (error) {
+      // 擬似ロールバック: delete 済みで insert に失敗した場合は旧状態に戻す。
+      if (before.length > 0) {
+        await supabase
+          .schema("iriam")
+          .from("role_permissions")
+          .insert(before.map((permission) => ({ role_id: roleId, permission })));
+      }
       throwDataLayerError(
         new Error(`role_permissions insert failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`)
       );
     }
+  } else if (before.length > 0) {
+    // empty 保存は意図どおり（権限ゼロ）なので何もしない
   }
 }
