@@ -1528,6 +1528,51 @@ export function CalendarWithModal({
             </div>
           )}
 
+          {/* イベント帯（ランク帯とタイムラインの間。月ビューと同様の複数日帯） */}
+          {permissions.canViewEvents && (
+            <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              {weekDays.map((day) => {
+                const eventsOnDay = eventsByDate.get(day.date) ?? [];
+                const cycle = getCycleForDate(day.date);
+                const cellBg =
+                  cycle
+                    ? getPeriodCellClass(cycle.periodType, day.isToday)
+                    : day.isToday
+                      ? "bg-accent-50/40 dark:bg-accent-950/30"
+                      : "bg-white dark:bg-zinc-900";
+                return (
+                  <div
+                    key={`week-events-${day.date}`}
+                    className={`${cellBg} min-h-[2.75rem] border border-zinc-200/80 px-1 py-1 dark:border-zinc-800/80`}
+                  >
+                    {eventsOnDay.length > 0 && (
+                      <div className="flex flex-col gap-px">
+                        {eventsOnDay.map((ev) => {
+                          const isStart =
+                            ev.start_date != null && ev.start_date === day.date;
+                          const isEnd =
+                            ev.end_date != null && ev.end_date === day.date;
+                          const { border, bg, text } = getEventColorClasses(
+                            ev.color ?? null
+                          );
+                          return (
+                            <div
+                              key={`${ev.id}-${day.date}`}
+                              className={`${bg} py-px text-[9px] font-medium line-clamp-2 ${text} ${isStart ? "rounded-l border-l-4 pl-1 " + border : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
+                              title={ev.name}
+                            >
+                              {isStart ? ev.name : "\u00A0"}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* 時間グリッド本体 */}
           <div className="flex min-h-0 flex-1 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
             {/* 時刻軸 */}
