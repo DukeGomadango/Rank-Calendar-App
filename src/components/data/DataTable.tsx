@@ -7,7 +7,6 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
@@ -15,6 +14,7 @@ import type { EventRow } from "@/lib/data/events";
 import { toJstDateString } from "@/lib/domain/calendar";
 import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 import { useToast } from "@/lib/toast-context";
+import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { useViewMode } from "@/lib/view-mode-context";
 import { DayDetailModal, type DayDetailRow } from "./DayDetailModal";
 
@@ -85,8 +85,8 @@ export function DataTable({
   events = [],
   onUpdateSkipPassSnapshot,
 }: Props) {
-  const router = useRouter();
   const { showToast } = useToast();
+  const { refreshRange } = useDashboardCalendar();
   const [rows, setRows] = useState<Row[]>(data);
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -117,7 +117,7 @@ export function DataTable({
     onUpdateField(calendarId, date, field, value)
       .then(() => {
         setUpdatingKey(null);
-        router.refresh();
+        refreshRange();
         showToast("保存しました");
       })
       .catch((err) => {
@@ -150,7 +150,7 @@ export function DataTable({
     onUpdateSkipPassSnapshot(calendarId, date, value)
       .then(() => {
         setUpdatingKey(null);
-        router.refresh();
+        refreshRange();
         showToast("保存しました");
       })
       .catch((err) => {

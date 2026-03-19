@@ -379,10 +379,6 @@ export async function updateScheduleEntryField(
   }
 
   await ensureSkipPassIncrementForLastWeek(calendarId);
-
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/calendar");
-  revalidatePath("/dashboard/data");
 }
 
 /**
@@ -395,8 +391,6 @@ export async function updateSkipPassRemaining(
   "use server";
   await ensureUserCanEditCalendar(calendarId);
   await updateSkipPassRemainingState(calendarId, value);
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/data");
 }
 
 /**
@@ -410,8 +404,6 @@ export async function updateSkipPassSnapshot(
   "use server";
   await ensureUserCanEditCalendar(calendarId);
   await setSkipPassSnapshot(calendarId, asOfDate, value);
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/data");
 }
 
 /**
