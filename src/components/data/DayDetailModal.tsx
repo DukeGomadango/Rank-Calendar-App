@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useToast } from "@/lib/toast-context";
 import type { EventRow } from "@/lib/data/events";
-import { eventOverlapsDate } from "@/lib/data/events";
+import { eventOverlapsDate } from "@/lib/data/event-overlaps";
 import { getRankBadgeClass } from "@/lib/rank-styles";
 import { getEventColorClasses } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES } from "@/lib/plus-options";

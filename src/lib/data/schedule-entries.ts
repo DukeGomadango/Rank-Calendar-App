@@ -137,6 +137,6 @@ export async function getScheduleEntriesInRange(
     );
   }
 
-  return (data ?? []) as ScheduleEntryRow[];
+  return (data ?? []) as unknown as ScheduleEntryRow[];
 }
 

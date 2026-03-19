@@ -12,33 +12,11 @@ export type EventRow = {
   event_type: EventType | null;
 };
 
-/**
- * イベントが「指定日」を含むか（start_date/end_date の片側 null は“その側の日付のみ”
- * として扱う。= 既存UIの getEventsOnDate / eventsOnDate の挙動に合わせる）
- */
-export function eventOverlapsDate(
-  ev: Pick<EventRow, "start_date" | "end_date">,
-  date: string
-): boolean {
-  const start = ev.start_date ?? ev.end_date;
-  const end = ev.end_date ?? ev.start_date;
-  if (start == null || end == null) return false;
-  return start <= date && date <= end;
-}
+import { eventOverlapsDate, eventOverlapsRange, type EventDateRange } from "./event-overlaps";
 
-/**
- * イベントが「指定期間」を何らかの形で重なるか。
- */
-export function eventOverlapsRange(
-  ev: Pick<EventRow, "start_date" | "end_date">,
-  fromDate: string,
-  toDate: string
-): boolean {
-  const start = ev.start_date ?? ev.end_date;
-  const end = ev.end_date ?? ev.start_date;
-  if (start == null || end == null) return false;
-  return start <= toDate && end >= fromDate;
-}
+// eventOverlapsDate/Range は pure 実装を `event-overlaps.ts` に分離している
+// （クライアント側で import しても Supabase(server) を引かないため）
+export type { EventDateRange };
 
 function eventsSelectFields(): string {
   return "id, name, start_date, end_date, color, event_type";
@@ -76,7 +54,7 @@ export async function listEventsForCalendarOnDate(
     );
   }
 
-  const rows = (data ?? []) as EventRow[];
+  const rows = (data ?? []) as unknown as EventRow[];
   // SQL 側条件の安全弁（nullパターン等がズレるとUIの点表示が崩れるため）
   return rows.filter((ev) => eventOverlapsDate(ev, date));
 }
@@ -114,7 +92,7 @@ export async function listEventsForCalendarOverlappingRange(
     );
   }
 
-  const rows = (data ?? []) as EventRow[];
+  const rows = (data ?? []) as unknown as EventRow[];
   // SQL 側条件の安全弁（nullパターン等がズレると表示が崩れるため）
   return rows.filter((ev) => eventOverlapsRange(ev, fromDate, toDate));
 }
