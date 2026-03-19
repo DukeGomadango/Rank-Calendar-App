@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/data/profiles";
 import { ListenerWelcome } from "@/components/onboarding/ListenerWelcome";
+import { getCurrentCalendarForUser } from "@/lib/data/calendars";
 
 type PageProps = {
   searchParams?: Promise<{ calendarId?: string }> | { calendarId?: string };
@@ -29,9 +30,45 @@ export default async function InvitePendingPage({ searchParams }: PageProps) {
     redirect("/dashboard/settings");
   }
 
-  const profile = await getProfile(user.id);
+  // 既に閲覧可能になっている場合は通常ダッシュボードへ戻す。
+  const currentCalendar = await getCurrentCalendarForUser(user.id, calendarId);
+  if (currentCalendar?.id === calendarId) {
+    redirect(`/dashboard?calendarId=${encodeURIComponent(calendarId)}`);
+  }
 
+  // 招待を受諾した本人のみ承認待ちページを閲覧できる。
   const supabaseService = createSupabaseServiceRoleClient();
+  const { data: inviteLinks, error: linksError } = await supabaseService
+    .schema("iriam")
+    .from("invite_links")
+    .select("id")
+    .eq("calendar_id", calendarId)
+    .limit(200);
+  if (linksError) {
+    redirect("/dashboard/settings");
+  }
+  const inviteLinkIds = (inviteLinks ?? [])
+    .map((r) => r?.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (inviteLinkIds.length === 0) {
+    redirect("/dashboard/settings");
+  }
+  const { data: redemptions, error: redemptionsError } = await supabaseService
+    .schema("iriam")
+    .from("invite_redemptions")
+    .select("invite_link_id")
+    .eq("user_id", user.id)
+    .in("invite_link_id", inviteLinkIds)
+    .limit(1);
+  if (
+    redemptionsError ||
+    !Array.isArray(redemptions) ||
+    redemptions.length === 0
+  ) {
+    redirect("/dashboard/settings");
+  }
+
+  const profile = await getProfile(user.id);
   const { data: cal } = await supabaseService
     .schema("iriam")
     .from("calendars")
@@ -46,6 +83,7 @@ export default async function InvitePendingPage({ searchParams }: PageProps) {
         calendarId={calendarId}
         calendarName={calendarName}
         displayName={profile?.display_name ?? null}
+        redirectOnDismiss={false}
       />
       <header className="space-y-1">
         <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">

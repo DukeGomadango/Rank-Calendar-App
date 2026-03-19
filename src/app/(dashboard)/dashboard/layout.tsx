@@ -2,10 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 
-import {
-  createSupabaseServerClient,
-  createSupabaseServiceRoleClient,
-} from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentCalendarForUser,
 } from "@/lib/data/calendars";
@@ -29,36 +26,6 @@ export default async function DashboardShellLayout({
   children,
   searchParams,
 }: LayoutProps) {
-  async function hasInviteRedemptionForCalendar(
-    targetCalendarId: string,
-    targetUserId: string,
-  ): Promise<boolean> {
-    const supabaseService = createSupabaseServiceRoleClient();
-
-    const { data: inviteLinks, error: linksError } = await supabaseService
-      .schema("iriam")
-      .from("invite_links")
-      .select("id")
-      .eq("calendar_id", targetCalendarId)
-      .limit(200);
-    if (linksError) return false;
-
-    const inviteLinkIds = (inviteLinks ?? [])
-      .map((r) => r?.id)
-      .filter((id): id is string => typeof id === "string" && id.length > 0);
-    if (inviteLinkIds.length === 0) return false;
-
-    const { data: redemptions, error: redemptionsError } = await supabaseService
-      .schema("iriam")
-      .from("invite_redemptions")
-      .select("invite_link_id")
-      .eq("user_id", targetUserId)
-      .in("invite_link_id", inviteLinkIds)
-      .limit(1);
-    if (redemptionsError) return false;
-    return Array.isArray(redemptions) && redemptions.length > 0;
-  }
-
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -98,16 +65,7 @@ export default async function DashboardShellLayout({
     user.id,
     urlCalendarId,
   );
-  const hasPendingInviteForRequested =
-    !!urlCalendarId &&
-    await hasInviteRedemptionForCalendar(urlCalendarId, user.id);
-  if (
-    urlCalendarId &&
-    hasPendingInviteForRequested &&
-    (!currentCalendar || currentCalendar.id !== urlCalendarId)
-  ) {
-    redirect(`/dashboard/invite-pending?calendarId=${encodeURIComponent(urlCalendarId)}`);
-  }
+
   if (fromInvite && urlCalendarId && (!currentCalendar || currentCalendar.id !== urlCalendarId)) {
     redirect(`/dashboard/invite-pending?calendarId=${encodeURIComponent(urlCalendarId)}`);
   }

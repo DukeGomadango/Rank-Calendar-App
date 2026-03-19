@@ -11,9 +11,16 @@ type Props = {
   calendarId: string;
   calendarName: string | null;
   displayName: string | null;
+  /** 承認待ちページでは閉じても遷移しない */
+  redirectOnDismiss?: boolean;
 };
 
-export function ListenerWelcome({ calendarId, calendarName, displayName }: Props) {
+export function ListenerWelcome({
+  calendarId,
+  calendarName,
+  displayName,
+  redirectOnDismiss = true,
+}: Props) {
   const router = useRouter();
   const [step, setStep] = useState<"name" | "welcome" | "done">("done");
   const [displayNameValue, setDisplayNameValue] = useState(displayName ?? "");
@@ -39,8 +46,10 @@ export function ListenerWelcome({ calendarId, calendarName, displayName }: Props
       localStorage.setItem(WELCOME_KEY + calendarId, "1");
     }
     setStep("done");
-    const url = `/dashboard?calendarId=${encodeURIComponent(calendarId)}`;
-    router.replace(url, { scroll: false });
+    if (redirectOnDismiss) {
+      const url = `/dashboard?calendarId=${encodeURIComponent(calendarId)}`;
+      router.replace(url, { scroll: false });
+    }
   };
 
   const handleSubmitName = async (e: React.FormEvent) => {
