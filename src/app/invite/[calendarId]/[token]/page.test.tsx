@@ -15,6 +15,19 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: () => mockCreateSupabaseServerClient(),
+  createSupabaseServiceRoleClient: () => {
+    const rolePermQuery = {
+      select: vi.fn(() => rolePermQuery),
+      eq: vi.fn(() => rolePermQuery),
+      limit: vi.fn(() => Promise.resolve({ data: [{ permission: "view_calendar" }], error: null })),
+    };
+
+    return {
+      schema: vi.fn(() => ({
+        from: vi.fn(() => rolePermQuery),
+      })),
+    };
+  },
 }));
 
 vi.mock("@/lib/data/invite-links", () => ({

@@ -87,6 +87,9 @@ describe("getCalendarPermissionsForUser", () => {
       canViewTargetActual: false,
       canViewRank: false,
       canViewEvents: false,
+      canViewSchedulePersonal: false,
+      canViewScheduleSecret: false,
+      canViewScheduleStream: false,
     });
   });
 

@@ -24,6 +24,8 @@ const PERM_GROUP_BASIC: PermissionKey[] = [
   "view_target_actual",
   "view_rank",
   "view_events",
+  // スケジュール（配信）
+  "view_schedule_stream",
 ];
 const PERM_GROUP_SENSITIVE: PermissionKey[] = [
   "view_borders",
@@ -89,8 +91,14 @@ export default async function SharingPage({ searchParams }: PageProps) {
     ];
     const shareByUserId = new Map(shares.map((s) => [s.user_id, s.role_id]));
     const permsByRoleId = new Map<string, string[]>([
-      ["mock-role-1", ["view_calendar", "view_table", "view_target_actual", "view_rank", "view_events"]],
-      ["mock-role-2", ["view_calendar", "view_table", "view_borders", "view_memo", "view_target_actual", "view_rank", "view_events"]],
+      [
+        "mock-role-1",
+        ["view_calendar", "view_table", "view_target_actual", "view_rank", "view_events", "view_schedule_stream", "view_schedule_personal"],
+      ],
+      [
+        "mock-role-2",
+        ["view_calendar", "view_table", "view_borders", "view_memo", "view_target_actual", "view_rank", "view_events", "view_schedule_stream", "view_schedule_personal"],
+      ],
     ]);
 
     return (

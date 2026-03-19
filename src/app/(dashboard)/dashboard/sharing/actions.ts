@@ -76,6 +76,10 @@ export async function saveRolePermissions(formData: FormData): Promise<void> {
     "view_target_actual",
     "view_rank",
     "view_events",
+    // スケジュール閲覧権限も role_permissions に保存する
+    "view_schedule_stream",
+    "view_schedule_personal",
+    "view_schedule_secret",
   ] as PermissionKey[]) {
     if (formData.get(`perm_${key}`) === "on") {
       permissions.push(key);
