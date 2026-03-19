@@ -64,12 +64,15 @@ export default async function DashboardShellLayout({
     urlCalendarId,
   );
 
-  if (!currentCalendar && !fromInvite) {
-    redirect("/dashboard/onboarding");
-  }
-
   if (!currentCalendar) {
-    redirect("/dashboard/settings");
+    if (fromInvite) {
+      redirect("/dashboard/settings");
+    }
+    const profile = await getProfile(user.id);
+    if (profile?.setup_wizard_done) {
+      redirect("/dashboard/settings");
+    }
+    redirect("/dashboard/onboarding");
   }
 
   const profilePromise =

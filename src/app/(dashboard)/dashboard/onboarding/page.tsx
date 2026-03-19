@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/data/profiles";
-import { getOrCreateDefaultCalendarForUser } from "@/lib/data/calendars";
+import {
+  getCurrentCalendarForUser,
+  getOrCreateDefaultCalendarForUser,
+} from "@/lib/data/calendars";
 import { getOrCreateCalendarRankState } from "@/lib/data/calendar-rank-state";
 import { addDays, getJstWeekStart, toJstDateString } from "@/lib/domain/calendar";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
@@ -16,7 +19,11 @@ export default async function OnboardingPage() {
 
   const profile = await getProfile(user.id);
   if (profile?.setup_wizard_done) {
-    redirect("/dashboard");
+    const currentCalendar = await getCurrentCalendarForUser(user.id, null);
+    if (!currentCalendar) {
+      redirect("/dashboard/settings");
+    }
+    redirect(`/dashboard?calendarId=${encodeURIComponent(currentCalendar.id)}`);
   }
 
   const calendar = await getOrCreateDefaultCalendarForUser(user.id);
