@@ -6,6 +6,7 @@ import { MOCK_ROLE_COOKIE } from "@/lib/auth/mock-role-cookie";
 const DASHBOARD_CALENDAR_COOKIE = "iriam_dashboard_calendar_id";
 const DASHBOARD_CALENDAR_HEADER = "x-dashboard-calendar-id";
 const DASHBOARD_FROM_INVITE_HEADER = "x-dashboard-from-invite";
+const DASHBOARD_PATHNAME_HEADER = "x-dashboard-pathname";
 
 /**
  * 認証保護用ミドルウェア。
@@ -39,6 +40,7 @@ export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
 
   if (pathname.startsWith("/dashboard")) {
+    requestHeaders.set(DASHBOARD_PATHNAME_HEADER, pathname);
     const requestedCalendarId = req.nextUrl.searchParams.get("calendarId")?.trim();
     const fromInvite = req.nextUrl.searchParams.get("fromInvite") === "1";
     if (requestedCalendarId) {

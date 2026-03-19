@@ -13,6 +13,7 @@ import { DashboardProvider } from "@/components/dashboard/DashboardProvider";
 const DASHBOARD_CALENDAR_COOKIE = "iriam_dashboard_calendar_id";
 const DASHBOARD_CALENDAR_HEADER = "x-dashboard-calendar-id";
 const DASHBOARD_FROM_INVITE_HEADER = "x-dashboard-from-invite";
+const DASHBOARD_PATHNAME_HEADER = "x-dashboard-pathname";
 
 type LayoutProps = {
   children: ReactNode;
@@ -37,6 +38,8 @@ export default async function DashboardShellLayout({
       : (rawSp ?? {}) as { calendarId?: string; fromInvite?: string };
 
   const requestHeaders = await headers();
+  const pathname = requestHeaders.get(DASHBOARD_PATHNAME_HEADER) ?? "";
+  const isOnboardingPath = pathname.startsWith("/dashboard/onboarding");
   const headerCalendarId =
     requestHeaders.get(DASHBOARD_CALENDAR_HEADER)?.trim() || null;
   const headerFromInvite =
@@ -52,16 +55,20 @@ export default async function DashboardShellLayout({
     redirect("/login");
   }
 
+  if (isOnboardingPath) {
+    return children;
+  }
+
   const currentCalendar = await getCurrentCalendarForUser(
     user.id,
     urlCalendarId,
   );
 
-  if (!currentCalendar && !fromInvite) {
+  if (!currentCalendar && !fromInvite && !isOnboardingPath) {
     redirect("/dashboard/onboarding");
   }
 
-  if (!currentCalendar) {
+  if (!currentCalendar && !isOnboardingPath) {
     redirect("/dashboard/settings");
   }
 
@@ -78,7 +85,12 @@ export default async function DashboardShellLayout({
     permissionsPromise,
   ]);
 
-  if (currentCalendar.isOwner && !fromInvite && !profile?.setup_wizard_done) {
+  if (
+    currentCalendar.isOwner &&
+    !fromInvite &&
+    !profile?.setup_wizard_done &&
+    !isOnboardingPath
+  ) {
     redirect("/dashboard/onboarding");
   }
 
