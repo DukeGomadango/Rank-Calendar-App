@@ -233,7 +233,6 @@ export function CalendarWithModal({
   const prevLocalDaysRef = useRef<DayData[] | null>(null);
   const isSavingRef = useRef(false);
   const scheduleShiftPendingRef = useRef(0);
-  const latestSchedulesRef = useRef<CalendarScheduleRow[]>(schedules);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
   /** モバイルでボトムシートを下からせり上がらせる用。開いた直後に true にして transition をかける */
@@ -245,7 +244,6 @@ export function CalendarWithModal({
   }, [days]);
 
   useEffect(() => {
-    latestSchedulesRef.current = schedules;
     if (scheduleShiftPendingRef.current > 0) return;
     setLocalSchedules(schedules);
   }, [schedules]);
@@ -617,8 +615,11 @@ export function CalendarWithModal({
       newStartDate: string,
       newStartTime: string | null
     ): { applied: boolean; rollback: () => void } => {
-      let snapshot: CalendarScheduleRow[] | null = null;
+      let snapshotLocal: CalendarScheduleRow[] | null = null;
+      let snapshotCache: CalendarScheduleRow[] | null = null;
       let applied = false;
+      const optimisticId = `temp-shift-${scheduleId}-${Date.now()}`;
+      const optimisticCreatedAt = new Date().toISOString();
 
       const parseYMD = (d: string): { y: number; mo: number; da: number } => {
         const [y, mo, da] = d.split("-").map((v) => Number(v));
@@ -647,14 +648,11 @@ export function CalendarWithModal({
         return `${hh}:${mm}:00`;
       };
 
-      setLocalSchedules((prev) => {
-        const source = prev.find((s) => s.id === scheduleId);
-        if (!source) return prev;
-
+      const buildShifted = (
+        source: CalendarScheduleRow
+      ): CalendarScheduleRow | null => {
         const sourceStartDate = source.date;
         const sourceEndDate = source.end_date ?? source.date;
-        let shifted: CalendarScheduleRow | null = null;
-
         if (source.is_all_day) {
           const msPerDay = 24 * 60 * 60 * 1000;
           const startMs = Date.UTC(
@@ -685,47 +683,50 @@ export function CalendarWithModal({
           const newEndMs = newStartMs + (durationDays - 1) * msPerDay;
           const computedEndDate = formatYMD(newEndMs);
 
-          shifted = {
+          return {
             ...source,
             date: newStartDate,
             end_date: computedEndDate === newStartDate ? null : computedEndDate,
             start_time: null,
             end_time: null,
           };
-        } else {
-          if (!newStartTime || !source.start_time || !source.end_time) return prev;
-
-          const sourceStartMs = toUtcMs(sourceStartDate, source.start_time);
-          const sourceEndMs = toUtcMs(sourceEndDate, source.end_time);
-          const durationMs = sourceEndMs - sourceStartMs;
-          if (durationMs < 0) return prev;
-
-          const newStartMs = toUtcMs(newStartDate, newStartTime);
-          const newEndMs = newStartMs + durationMs;
-          const computedEndDate = formatYMD(newEndMs);
-
-          shifted = {
-            ...source,
-            date: newStartDate,
-            end_date: computedEndDate === newStartDate ? null : computedEndDate,
-            start_time: `${newStartTime}:00`,
-            end_time: formatHHMMSS(newEndMs),
-          };
         }
+        if (!newStartTime || !source.start_time || !source.end_time) return null;
 
+        const sourceStartMs = toUtcMs(sourceStartDate, source.start_time);
+        const sourceEndMs = toUtcMs(sourceEndDate, source.end_time);
+        const durationMs = sourceEndMs - sourceStartMs;
+        if (durationMs < 0) return null;
+
+        const newStartMs = toUtcMs(newStartDate, newStartTime);
+        const newEndMs = newStartMs + durationMs;
+        const computedEndDate = formatYMD(newEndMs);
+
+        return {
+          ...source,
+          date: newStartDate,
+          end_date: computedEndDate === newStartDate ? null : computedEndDate,
+          start_time: `${newStartTime}:00`,
+          end_time: formatHHMMSS(newEndMs),
+        };
+      };
+
+      setLocalSchedules((prev) => {
+        const source = prev.find((s) => s.id === scheduleId);
+        if (!source) return prev;
+        const shifted = buildShifted(source);
         if (!shifted) return prev;
 
-        snapshot = prev;
+        snapshotLocal = prev;
         applied = true;
 
         if (mode === "copy") {
-          const optimisticId = `temp-shift-${source.id}-${Date.now()}`;
           return [
             ...prev,
             {
               ...shifted,
               id: optimisticId,
-              created_at: new Date().toISOString(),
+              created_at: optimisticCreatedAt,
             },
           ];
         }
@@ -733,14 +734,53 @@ export function CalendarWithModal({
         return prev.map((s) => (s.id === source.id ? shifted : s));
       });
 
+      void mutateRange(
+        (current) => {
+          if (!current) return current;
+          const prevSchedules = (current.schedules ?? []) as unknown as CalendarScheduleRow[];
+          const source = prevSchedules.find((s) => s.id === scheduleId);
+          if (!source) return current;
+          const shifted = buildShifted(source);
+          if (!shifted) return current;
+
+          snapshotCache = prevSchedules;
+          applied = true;
+
+          const nextSchedules =
+            mode === "copy"
+              ? [
+                  ...prevSchedules,
+                  {
+                    ...shifted,
+                    id: optimisticId,
+                    created_at: optimisticCreatedAt,
+                  },
+                ]
+              : prevSchedules.map((s) => (s.id === source.id ? shifted : s));
+
+          return { ...current, schedules: nextSchedules };
+        },
+        { revalidate: false, populateCache: true }
+      );
+
       const rollback = () => {
-        if (!snapshot) return;
-        setLocalSchedules(snapshot);
+        if (snapshotLocal) setLocalSchedules(snapshotLocal);
+        if (snapshotCache) {
+          void mutateRange(
+            (current) => {
+              if (!current) return current;
+              return { ...current, schedules: snapshotCache as CalendarScheduleRow[] };
+            },
+            { revalidate: false, populateCache: true }
+          );
+        } else {
+          void mutateRange();
+        }
       };
 
       return { applied, rollback };
     },
-    []
+    [mutateRange]
   );
 
   /** この日付が属する周期（現在 > 履歴 > 予測）と周期種別・予測フラグ */
@@ -1643,7 +1683,7 @@ export function CalendarWithModal({
                               scheduleShiftPendingRef.current - 1
                             );
                             if (scheduleShiftPendingRef.current === 0) {
-                              setLocalSchedules(latestSchedulesRef.current);
+                              void mutateRange();
                             }
                           }
                         }}
@@ -1735,7 +1775,7 @@ export function CalendarWithModal({
                             scheduleShiftPendingRef.current - 1
                           );
                           if (scheduleShiftPendingRef.current === 0) {
-                            setLocalSchedules(latestSchedulesRef.current);
+                            void mutateRange();
                           }
                         }
                       }}
