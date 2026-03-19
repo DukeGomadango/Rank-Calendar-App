@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { CheckIcon, ClipboardIcon } from "@/components/icons/DashboardIcons";
 
 type Props = {
   calendarId: string;
@@ -36,10 +37,13 @@ export function CopyInviteUrl({ calendarId, token }: Props) {
         className="inline-flex items-center gap-1 rounded bg-zinc-200 px-2 py-0.5 text-[11px] hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600"
       >
         {copied ? (
-          <>✓ コピーしました</>
+          <>
+            <CheckIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            コピーしました
+          </>
         ) : (
           <>
-            <span aria-hidden className="text-[10px]">📋</span>
+            <ClipboardIcon className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-300" />
             コピー
           </>
         )}

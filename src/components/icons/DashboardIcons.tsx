@@ -136,3 +136,95 @@ export function TicketIcon(props: IconProps) {
   );
 }
 
+export function ClipboardIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <rect
+        x="6"
+        y="4.5"
+        width="12"
+        height="16"
+        rx="2.5"
+        className="fill-none stroke-current"
+        strokeWidth="1.5"
+      />
+      <rect
+        x="9"
+        y="2.5"
+        width="6"
+        height="4"
+        rx="1.5"
+        className="fill-none stroke-current"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M9 10h6M9 13h6M9 16h4"
+        className="fill-none stroke-current"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <path
+        d="M5 12.5 9.2 16.7 19 7.3"
+        className="fill-none stroke-current"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function NoteIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <rect
+        x="4"
+        y="3.5"
+        width="16"
+        height="17"
+        rx="2.5"
+        className="fill-none stroke-current"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M8 8h8M8 11h8M8 14h5"
+        className="fill-none stroke-current"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <path
+        d="M4 7.5h16M9 7.5V5.8a1.3 1.3 0 0 1 1.3-1.3h3.4A1.3 1.3 0 0 1 15 5.8v1.7"
+        className="fill-none stroke-current"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M7.5 7.5 8.2 18a2 2 0 0 0 2 1.8h3.6a2 2 0 0 0 2-1.8l.7-10.5"
+        className="fill-none stroke-current"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M10 11v5M14 11v5"
+        className="fill-none stroke-current"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+

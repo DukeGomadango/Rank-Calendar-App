@@ -19,6 +19,7 @@ import { EVENT_PALETTE, getEventColorClasses, getEventColorDotClass } from "@/li
 import { toJstDateString } from "@/lib/domain/calendar";
 import { useViewMode } from "@/lib/view-mode-context";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
+import { SparklesIcon, NoteIcon, TrashIcon } from "@/components/icons/DashboardIcons";
 import { ScheduleForm } from "./ScheduleForm";
 import { DayDetailModal, type DayDetailRow } from "@/components/data/DayDetailModal";
 
@@ -1282,8 +1283,16 @@ export function CalendarWithModal({
                         <div className="flex items-center justify-between gap-0.5">
                           <span className={`flex items-center gap-0.5 text-[11px] font-medium ${textColor}`}>
                             {dateObj.date()}
-                            {showEventIcon && <span className="text-[10px]" title="イベント">🎉</span>}
-                            {showMemoIcon && <span className="text-[10px]" title="メモ">📝</span>}
+                            {showEventIcon && (
+                              <span className="inline-flex text-zinc-500 dark:text-zinc-300" title="イベント">
+                                <SparklesIcon className="h-3 w-3" />
+                              </span>
+                            )}
+                            {showMemoIcon && (
+                              <span className="inline-flex text-zinc-500 dark:text-zinc-300" title="メモ">
+                                <NoteIcon className="h-3 w-3" />
+                              </span>
+                            )}
                           </span>
                           {day.isToday && (
                             <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[9px] font-medium text-white shrink-0">
@@ -1312,8 +1321,16 @@ export function CalendarWithModal({
                         <div className="flex items-center justify-between gap-0.5">
                           <span className={`flex items-center gap-0.5 text-[11px] font-medium ${textColor}`}>
                             {dateObj.date()}
-                            {showEventIcon && <span className="text-[10px]" title="イベント">🎉</span>}
-                            {showMemoIcon && <span className="text-[10px]" title="メモ">📝</span>}
+                            {showEventIcon && (
+                              <span className="inline-flex text-zinc-500 dark:text-zinc-300" title="イベント">
+                                <SparklesIcon className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            {showMemoIcon && (
+                              <span className="inline-flex text-zinc-500 dark:text-zinc-300" title="メモ">
+                                <NoteIcon className="h-3.5 w-3.5" />
+                              </span>
+                            )}
                           </span>
                           {day.isToday && (
                             <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[9px] font-medium text-white shrink-0">
@@ -2293,7 +2310,7 @@ export function CalendarWithModal({
                                 className="shrink-0 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                                 aria-label="予定を削除"
                               >
-                                🗑
+                                <TrashIcon className="h-3.5 w-3.5" />
                               </button>
                             )}
                           </div>
