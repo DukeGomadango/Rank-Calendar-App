@@ -51,17 +51,22 @@ export default async function DashboardShellLayout({
     redirect("/dashboard/settings");
   }
 
-  if (currentCalendar.isOwner && !fromInvite) {
-    const profile = await getProfile(user.id);
-    if (!profile?.setup_wizard_done) {
-      redirect("/dashboard/onboarding");
-    }
-  }
-
-  const permissions = await getCalendarPermissionsForUser(
+  const profilePromise =
+    currentCalendar.isOwner && !fromInvite
+      ? getProfile(user.id)
+      : Promise.resolve(null);
+  const permissionsPromise = getCalendarPermissionsForUser(
     currentCalendar.id,
     user.id,
   );
+  const [profile, permissions] = await Promise.all([
+    profilePromise,
+    permissionsPromise,
+  ]);
+
+  if (currentCalendar.isOwner && !fromInvite && !profile?.setup_wizard_done) {
+    redirect("/dashboard/onboarding");
+  }
 
   if (process.env.NODE_ENV !== "production") {
     console.info("[perf] dashboard_shell_layout", {

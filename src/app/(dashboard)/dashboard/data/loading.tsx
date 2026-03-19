@@ -1,6 +1,6 @@
 export default function DataPageLoading() {
   return (
-    <div className="space-y-4">
+    <div className="loading-shell space-y-4">
       <div className="rounded-lg border border-zinc-200/80 bg-white/70 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400">
         データを読み込み中…
       </div>

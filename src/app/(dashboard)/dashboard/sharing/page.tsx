@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  hasOwnedCalendar,
   resolveCalendarContextForUser,
 } from "@/lib/data/calendars";
 import { listRolesForCalendar, getPermissionsForRoles } from "@/lib/data/roles";
@@ -61,13 +60,6 @@ export default async function SharingPage({ searchParams }: PageProps) {
 
   if (!user && !isDevMock) {
     redirect("/login");
-  }
-
-  if (user && !isDevMock) {
-    const owned = await hasOwnedCalendar(user.id);
-    if (!owned) {
-      redirect("/dashboard");
-    }
   }
 
   if (isDevMock) {
@@ -258,6 +250,10 @@ export default async function SharingPage({ searchParams }: PageProps) {
     user.id,
     urlCalendarId
   );
+  const hasOwned = accessibleCalendars.some((c) => c.isOwner);
+  if (!hasOwned) {
+    redirect("/dashboard");
+  }
   if (!currentCalendar) redirect("/dashboard/settings");
   if (!currentCalendar.isOwner) {
     const firstOwned = accessibleCalendars.find((c) => c.isOwner);

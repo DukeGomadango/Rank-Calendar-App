@@ -1,6 +1,6 @@
 export default function EventsPageLoading() {
   return (
-    <div className="space-y-4">
+    <div className="loading-shell space-y-4">
       <header className="space-y-1">
         <div className="h-6 w-28 animate-pulse rounded-md bg-accent-200/80 dark:bg-accent-800/60" />
         <div className="h-4 w-full max-w-md animate-pulse rounded-md bg-accent-100/70 dark:bg-accent-900/40" />

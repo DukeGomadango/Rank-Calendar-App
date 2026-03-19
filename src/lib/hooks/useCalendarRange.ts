@@ -47,6 +47,8 @@ export function useCalendarRange(
   const { data, error, isLoading, mutate } = useSWR<CalendarRangeResponse>(key, fetcher, {
     revalidateOnFocus: false,
     keepPreviousData: true,
+    dedupingInterval: 30_000,
+    revalidateIfStale: false,
   });
 
   return {

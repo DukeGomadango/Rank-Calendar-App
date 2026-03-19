@@ -1,6 +1,6 @@
 export default function CalendarPageLoading() {
   return (
-    <div className="space-y-4">
+    <div className="loading-shell space-y-4">
       {/* 月ナビ・週表示のスケルトン */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="h-9 w-32 animate-pulse rounded-md bg-accent-200/80 dark:bg-accent-800/60" />

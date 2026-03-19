@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import {
   Home,
   Calendar,
@@ -55,9 +56,11 @@ export function DashboardNavLinks({
   variant,
   onLinkClick,
 }: Props) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const sp = new URLSearchParams(searchParams?.toString() ?? "");
+  const spString = searchParams?.toString() ?? "";
+  const sp = new URLSearchParams(spString);
   const calendarId = searchParams.get("calendarId");
 
   const showSharing =
@@ -68,6 +71,15 @@ export function DashboardNavLinks({
   const items = NAV_ITEMS.filter(
     (item) => item.href !== "/dashboard/sharing" || showSharing
   );
+
+  useEffect(() => {
+    const targets = ["/dashboard", "/dashboard/calendar", "/dashboard/data"]
+      .filter((href) => href !== pathname)
+      .map((href) => buildHref(href, new URLSearchParams(spString), calendarId));
+    for (const href of targets) {
+      router.prefetch(href);
+    }
+  }, [calendarId, pathname, router, spString]);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -90,7 +102,12 @@ export function DashboardNavLinks({
             <li key={href} className="flex-1">
               <Link
                 href={buildHref(href, sp, calendarId)}
+                prefetch
                 onClick={onLinkClick}
+                onMouseEnter={() => {
+                  const target = buildHref(href, sp, calendarId);
+                  router.prefetch(target);
+                }}
                 className={`flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 dark:focus-visible:ring-accent-500 ${
                   active
                     ? "bg-zinc-100 font-medium text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50"
@@ -125,7 +142,12 @@ export function DashboardNavLinks({
           <Link
             key={href}
             href={buildHref(href, sp, calendarId)}
+            prefetch
             onClick={onLinkClick}
+            onMouseEnter={() => {
+              const target = buildHref(href, sp, calendarId);
+              router.prefetch(target);
+            }}
             className={`${linkBase} ${padding} ${
               active ? linkActive : linkInactive
             }`}
