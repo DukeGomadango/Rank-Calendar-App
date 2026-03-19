@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -11,6 +11,8 @@ import { getCalendarPermissionsForUser } from "@/lib/auth/permission";
 import { DashboardProvider } from "@/components/dashboard/DashboardProvider";
 
 const DASHBOARD_CALENDAR_COOKIE = "iriam_dashboard_calendar_id";
+const DASHBOARD_CALENDAR_HEADER = "x-dashboard-calendar-id";
+const DASHBOARD_FROM_INVITE_HEADER = "x-dashboard-from-invite";
 
 type LayoutProps = {
   children: ReactNode;
@@ -34,10 +36,17 @@ export default async function DashboardShellLayout({
       ? await (rawSp as Promise<{ calendarId?: string; fromInvite?: string }>)
       : (rawSp ?? {}) as { calendarId?: string; fromInvite?: string };
 
+  const requestHeaders = await headers();
+  const headerCalendarId =
+    requestHeaders.get(DASHBOARD_CALENDAR_HEADER)?.trim() || null;
+  const headerFromInvite =
+    requestHeaders.get(DASHBOARD_FROM_INVITE_HEADER) === "1";
   const cookieStore = await cookies();
-  const cookieCalendarId = cookieStore.get(DASHBOARD_CALENDAR_COOKIE)?.value?.trim() || null;
-  const urlCalendarId = resolvedSp.calendarId ?? cookieCalendarId ?? null;
-  const fromInvite = resolvedSp.fromInvite === "1";
+  const cookieCalendarId =
+    cookieStore.get(DASHBOARD_CALENDAR_COOKIE)?.value?.trim() || null;
+  const urlCalendarId =
+    resolvedSp.calendarId ?? headerCalendarId ?? cookieCalendarId ?? null;
+  const fromInvite = resolvedSp.fromInvite === "1" || headerFromInvite;
 
   if (!user) {
     redirect("/login");

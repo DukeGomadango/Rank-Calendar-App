@@ -4,6 +4,8 @@ import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
 import { MOCK_ROLE_COOKIE } from "@/lib/auth/mock-role-cookie";
 
 const DASHBOARD_CALENDAR_COOKIE = "iriam_dashboard_calendar_id";
+const DASHBOARD_CALENDAR_HEADER = "x-dashboard-calendar-id";
+const DASHBOARD_FROM_INVITE_HEADER = "x-dashboard-from-invite";
 
 /**
  * 認証保護用ミドルウェア。
@@ -34,6 +36,18 @@ const PUBLIC_PATHS = new Set<string>([
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const requestHeaders = new Headers(req.headers);
+
+  if (pathname.startsWith("/dashboard")) {
+    const requestedCalendarId = req.nextUrl.searchParams.get("calendarId")?.trim();
+    const fromInvite = req.nextUrl.searchParams.get("fromInvite") === "1";
+    if (requestedCalendarId) {
+      requestHeaders.set(DASHBOARD_CALENDAR_HEADER, requestedCalendarId);
+    }
+    if (fromInvite) {
+      requestHeaders.set(DASHBOARD_FROM_INVITE_HEADER, "1");
+    }
+  }
 
   // 静的ファイルや Next 内部パスはスキップ
   if (
@@ -55,7 +69,9 @@ export async function middleware(req: NextRequest) {
   }
 
   const response = NextResponse.next({
-    request: req,
+    request: {
+      headers: requestHeaders,
+    },
   });
   if (pathname.startsWith("/dashboard")) {
     const requestedCalendarId = req.nextUrl.searchParams.get("calendarId")?.trim();
