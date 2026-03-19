@@ -108,10 +108,16 @@ export default async function DashboardShellLayout({
   ) {
     redirect(`/dashboard/invite-pending?calendarId=${encodeURIComponent(urlCalendarId)}`);
   }
+  if (fromInvite && urlCalendarId && (!currentCalendar || currentCalendar.id !== urlCalendarId)) {
+    redirect(`/dashboard/invite-pending?calendarId=${encodeURIComponent(urlCalendarId)}`);
+  }
 
   if (!currentCalendar) {
     if (isSettingsPath) {
       return children;
+    }
+    if (fromInvite && urlCalendarId) {
+      redirect(`/dashboard/invite-pending?calendarId=${encodeURIComponent(urlCalendarId)}`);
     }
     const profile = await getProfile(user.id);
     if (profile?.setup_wizard_done) {
