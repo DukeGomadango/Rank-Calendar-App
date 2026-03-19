@@ -12,6 +12,113 @@ export type EventRow = {
   event_type: EventType | null;
 };
 
+/**
+ * イベントが「指定日」を含むか（start_date/end_date の片側 null は“その側の日付のみ”
+ * として扱う。= 既存UIの getEventsOnDate / eventsOnDate の挙動に合わせる）
+ */
+export function eventOverlapsDate(
+  ev: Pick<EventRow, "start_date" | "end_date">,
+  date: string
+): boolean {
+  const start = ev.start_date ?? ev.end_date;
+  const end = ev.end_date ?? ev.start_date;
+  if (start == null || end == null) return false;
+  return start <= date && date <= end;
+}
+
+/**
+ * イベントが「指定期間」を何らかの形で重なるか。
+ */
+export function eventOverlapsRange(
+  ev: Pick<EventRow, "start_date" | "end_date">,
+  fromDate: string,
+  toDate: string
+): boolean {
+  const start = ev.start_date ?? ev.end_date;
+  const end = ev.end_date ?? ev.start_date;
+  if (start == null || end == null) return false;
+  return start <= toDate && end >= fromDate;
+}
+
+function eventsSelectFields(): string {
+  return "id, name, start_date, end_date, color, event_type";
+}
+
+export async function listEventsForCalendarOnDate(
+  calendarId: string,
+  date: string
+): Promise<EventRow[]> {
+  const supabase = await createSupabaseServerClient();
+
+  // - start_date/end_date 両方あり: start_date <= date && end_date >= date
+  // - start_date のみあり: start_date == date（end_date が null）
+  // - end_date のみあり: end_date == date（start_date が null）
+  const { data, error } = await supabase
+    .schema("iriam")
+    .from("events")
+    .select(eventsSelectFields())
+    .eq("calendar_id", calendarId)
+    .or(
+      [
+        `and(start_date.lte.${date},end_date.gte.${date})`,
+        `and(start_date.eq.${date},end_date.is.null)`,
+        `and(end_date.eq.${date},start_date.is.null)`,
+      ].join(",")
+    )
+    .order("start_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throwDataLayerError(
+      new Error(
+        `events on date select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+      )
+    );
+  }
+
+  const rows = (data ?? []) as EventRow[];
+  // SQL 側条件の安全弁（nullパターン等がズレるとUIの点表示が崩れるため）
+  return rows.filter((ev) => eventOverlapsDate(ev, date));
+}
+
+export async function listEventsForCalendarOverlappingRange(
+  calendarId: string,
+  fromDate: string,
+  toDate: string
+): Promise<EventRow[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .schema("iriam")
+    .from("events")
+    .select(eventsSelectFields())
+    .eq("calendar_id", calendarId)
+    .or(
+      [
+        // 両端あり（またぎ）
+        `and(start_date.lte.${toDate},end_date.gte.${fromDate})`,
+        // start_date のみあり（単日扱い）
+        `and(start_date.gte.${fromDate},start_date.lte.${toDate},end_date.is.null)`,
+        // end_date のみあり（単日扱い）
+        `and(end_date.gte.${fromDate},end_date.lte.${toDate},start_date.is.null)`,
+      ].join(",")
+    )
+    .order("start_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throwDataLayerError(
+      new Error(
+        `events range select failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+      )
+    );
+  }
+
+  const rows = (data ?? []) as EventRow[];
+  // SQL 側条件の安全弁（nullパターン等がズレると表示が崩れるため）
+  return rows.filter((ev) => eventOverlapsRange(ev, fromDate, toDate));
+}
+
 export async function listEventsForCalendar(
   calendarId: string
 ): Promise<EventRow[]> {

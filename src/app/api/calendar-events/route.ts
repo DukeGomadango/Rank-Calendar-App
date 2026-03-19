@@ -2,25 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCalendarPermissionsForUser } from "@/lib/auth/permission";
-import { listEventsForCalendar } from "@/lib/data/events";
-
-type EventRow = {
-  id: string;
-  name: string;
-  start_date: string | null;
-  end_date: string | null;
-  color: string | null;
-  event_type: string | null;
-};
-
-function eventsOnDate(events: EventRow[], date: string): EventRow[] {
-  return events.filter((ev) => {
-    const start = ev.start_date ?? ev.end_date;
-    const end = ev.end_date ?? ev.start_date;
-    if (start == null || end == null) return false;
-    return start <= date && date <= end;
-  });
-}
+import { listEventsForCalendarOnDate } from "@/lib/data/events";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -45,10 +27,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  // モーダル表示時だけ呼ばれる想定なので、まずはカレンダー全イベントを取り、
-  // UIと同じロジックで日付でフィルタリングする。
-  const allEvents = await listEventsForCalendar(calendarId);
-  const events = eventsOnDate(allEvents as EventRow[], date);
+  const events = await listEventsForCalendarOnDate(calendarId, date);
 
   return NextResponse.json({ events });
 }

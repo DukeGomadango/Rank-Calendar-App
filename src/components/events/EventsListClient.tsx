@@ -14,6 +14,11 @@ import { EventCard } from "./EventCard";
 type Props = {
   initialActive: EventRow[];
   initialPast: EventRow[];
+  /**
+   * 過去イベントを <details> 展開時に遅延取得するか。
+   * `initialPast` が空でも details を出したい場合に true にする。
+   */
+  enableLazyPast?: boolean;
   calendarId: string;
   calendarName: string | null;
   createAction: (formData: FormData) => Promise<void>;
@@ -24,6 +29,7 @@ type Props = {
 export function EventsListClient({
   initialActive,
   initialPast,
+  enableLazyPast,
   calendarId,
   calendarName,
   createAction,
@@ -35,12 +41,15 @@ export function EventsListClient({
   const { permissions } = useDashboardCalendar();
   const [active, setActive] = useState<EventRow[]>(initialActive);
   const [past, setPast] = useState<EventRow[]>(initialPast);
+  const [pastLoaded, setPastLoaded] = useState(initialPast.length > 0);
+  const [isPastLoading, setIsPastLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
 
   useEffect(() => {
     setActive(initialActive);
     setPast(initialPast);
+    setPastLoaded(initialPast.length > 0);
   }, [initialActive, initialPast]);
 
   const handleCreate = async (formData: FormData) => {
@@ -95,6 +104,27 @@ export function EventsListClient({
 
   const handleEditRequest = (event: EventRow) => {
     setEditing(event);
+  };
+
+  const loadPastEvents = async () => {
+    if (!permissions.canViewEvents) return;
+    if (pastLoaded || isPastLoading) return;
+
+    setIsPastLoading(true);
+    setListError(null);
+    try {
+      const res = await fetch(
+        `/api/calendar-events-list?calendarId=${encodeURIComponent(calendarId)}&mode=past`
+      );
+      if (!res.ok) throw new Error(`events list failed: ${res.status}`);
+      const json = (await res.json()) as { events?: EventRow[] };
+      setPast((json.events ?? []) as EventRow[]);
+      setPastLoaded(true);
+    } catch {
+      setListError("過去イベントの取得に失敗しました");
+    } finally {
+      setIsPastLoading(false);
+    }
   };
 
   if (!permissions.canViewEvents) {
@@ -180,13 +210,26 @@ export function EventsListClient({
               </ul>
             )}
           </div>
-          {past.length > 0 && (
-            <details className="group">
+          {enableLazyPast ? (
+            <details
+              className="group"
+              onToggle={(e) => {
+                const el = e.currentTarget as HTMLDetailsElement;
+                if (el.open) void loadPastEvents();
+              }}
+            >
               <summary className="cursor-pointer list-none text-[11px] font-medium text-zinc-500 dark:text-zinc-400 [&::-webkit-details-marker]:hidden">
-                <span className="inline-flex items-center gap-1">過去のイベント（{past.length}件）</span>
+                <span className="inline-flex items-center gap-1">
+                  {isPastLoading
+                    ? "過去のイベント（読み込み中…）"
+                    : pastLoaded
+                      ? `過去のイベント（${past.length}件）`
+                      : "過去のイベント"}
+                </span>
               </summary>
               <ul className="mt-2 space-y-2">
-                {past.map((event) => (
+                {isPastLoading && <li className="text-[11px] text-zinc-500">読み込み中…</li>}
+                {!isPastLoading && past.map((event) => (
                   <li key={event.id}>
                     <EventCard
                       event={event}
@@ -198,8 +241,35 @@ export function EventsListClient({
                     />
                   </li>
                 ))}
+                {!isPastLoading && pastLoaded && past.length === 0 && (
+                  <li className="text-[11px] text-zinc-500">該当する過去イベントはありません。</li>
+                )}
               </ul>
             </details>
+          ) : (
+            past.length > 0 && (
+              <details className="group">
+                <summary className="cursor-pointer list-none text-[11px] font-medium text-zinc-500 dark:text-zinc-400 [&::-webkit-details-marker]:hidden">
+                  <span className="inline-flex items-center gap-1">
+                    過去のイベント（{past.length}件）
+                  </span>
+                </summary>
+                <ul className="mt-2 space-y-2">
+                  {past.map((event) => (
+                    <li key={event.id}>
+                      <EventCard
+                        event={event}
+                        calendarId={calendarId}
+                        deleteAction={permissions.canEditSchedule ? deleteAction : async () => {}}
+                        onDeleteRequest={handleDeleteRequest}
+                        onEditRequest={handleEditRequest}
+                        isPast
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )
           )}
         </div>
       </section>

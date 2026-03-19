@@ -175,19 +175,6 @@ function dateInCycle(date: string, start: string, end: string): boolean {
   return date >= start && date <= end;
 }
 
-/** 指定日が含まれるイベントを返す（start_date/end_date を保持して初日・最終日判定に使う） */
-function getEventsOnDate(
-  events: EventRow[],
-  date: string
-): EventRow[] {
-  return events.filter((ev) => {
-    const start = ev.start_date ?? ev.end_date;
-    const end = ev.end_date ?? ev.start_date;
-    if (start == null || end == null) return false;
-    return start <= date && date <= end;
-  });
-}
-
 /** 周期の種別（過去/現在/未来） */
 type PeriodType = "past" | "current" | "future";
 
@@ -266,6 +253,43 @@ export function CalendarWithModal({
     ? localDays.find((d) => d.date === selectedDate) ?? null
     : null;
 
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, EventRow[]>();
+    for (const d of localDays) map.set(d.date, []);
+
+    if (events.length === 0 || localDays.length === 0) return map;
+
+    const rangeStart = localDays[0]?.date;
+    const rangeEnd = localDays[localDays.length - 1]?.date;
+    if (!rangeStart || !rangeEnd) return map;
+
+    const dateSet = new Set(localDays.map((d) => d.date));
+
+    for (const ev of events) {
+      const start = ev.start_date ?? ev.end_date;
+      const end = ev.end_date ?? ev.start_date;
+      if (start == null || end == null) continue;
+
+      // event が画面レンジ外の場合は無視
+      const clampedStart = start < rangeStart ? rangeStart : start;
+      const clampedEnd = end > rangeEnd ? rangeEnd : end;
+      if (clampedStart > clampedEnd) continue;
+
+      let cursor = dayjs(clampedStart, "YYYY-MM-DD");
+      const endDay = dayjs(clampedEnd, "YYYY-MM-DD");
+      while (cursor.isSame(endDay) || cursor.isBefore(endDay)) {
+        const dateStr = cursor.format("YYYY-MM-DD");
+        if (dateSet.has(dateStr)) {
+          const list = map.get(dateStr);
+          if (list) list.push(ev);
+        }
+        cursor = cursor.add(1, "day");
+      }
+    }
+
+    return map;
+  }, [events, localDays]);
+
   const schedulesByDate = useMemo(() => {
     const map = new Map<string, CalendarScheduleRow[]>();
 
@@ -321,7 +345,7 @@ export function CalendarWithModal({
   const effectiveDefaultEventId =
     selectedDay?.entries[0]?.event_id ??
     (selectedDate && (() => {
-      const onDay = getEventsOnDate(events, selectedDate);
+      const onDay = eventsByDate.get(selectedDate) ?? [];
       return onDay.length === 1 ? onDay[0].id : undefined;
     })());
 
@@ -889,7 +913,9 @@ export function CalendarWithModal({
                   permissions.isOwner && (!day.entries.length || !entry?.skip_pass_used);
                 const showEventIcon = permissions.canViewEvents && entry?.event_id;
                 const showMemoIcon = permissions.canViewMemo && entry?.memo?.trim();
-                const eventsOnDay = permissions.canViewEvents ? getEventsOnDate(events, day.date) : [];
+                const eventsOnDay = permissions.canViewEvents
+                  ? eventsByDate.get(day.date) ?? []
+                  : [];
                 const showBordersInCell = permissions.canViewBorders && viewMode === "detailed";
 
                 const daySchedules = schedulesByDate.get(day.date) ?? [];

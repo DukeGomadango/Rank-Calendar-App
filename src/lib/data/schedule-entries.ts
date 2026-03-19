@@ -75,19 +75,55 @@ export type ScheduleEntryRow = {
   stream_content_color: string | null;
 };
 
+export type GetScheduleEntriesInRangeOptions = {
+  includeBorders?: boolean;
+  includeMemo?: boolean;
+  /**
+   * listener の「今日の予定」などに使うテキスト（長文になりがち）
+   * 色ドットは `stream_content_color` のみでも表現できるため、色は常に返す前提。
+   */
+  includeStreamContent?: boolean;
+};
+
 export async function getScheduleEntriesInRange(
   calendarId: string,
   fromDate: string,
-  toDate: string
+  toDate: string,
+  options: GetScheduleEntriesInRangeOptions = {}
 ): Promise<ScheduleEntryRow[]> {
+  const {
+    includeBorders = true,
+    includeMemo = true,
+    includeStreamContent = true,
+  } = options;
+
   const supabase = await createSupabaseServerClient();
+
+  const columns = [
+    "id",
+    "date",
+    // 編集/表示に必要
+    "event_id",
+    "target_plus",
+    "actual_plus",
+    "skip_pass_used",
+    // 色ドット用（テキストは permissions に応じて）
+    "stream_content_color",
+  ];
+  if (includeBorders) {
+    columns.push("ansuko_baseline", "border_plus2", "border_plus4", "border_plus6");
+  }
+  if (includeMemo) {
+    columns.push("memo");
+  }
+  if (includeStreamContent) {
+    columns.push("stream_content");
+  }
 
   const { data, error } = await supabase
     .schema("iriam")
     .from("schedule_entries")
-    .select(
-      "id, date, ansuko_baseline, border_plus2, border_plus4, border_plus6, event_id, memo, target_plus, actual_plus, skip_pass_used, stream_content, stream_content_color"
-    )
+    .select(columns.join(", "))
     .eq("calendar_id", calendarId)
     .gte("date", fromDate)
     .lte("date", toDate)

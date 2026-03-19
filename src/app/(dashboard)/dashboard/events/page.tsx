@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentCalendarForUser } from "@/lib/data/calendars";
-import { listEventsForCalendar, type EventRow } from "@/lib/data/events";
+import { listEventsForCalendarOverlappingRange, type EventRow } from "@/lib/data/events";
 import { getMockEvents } from "@/lib/mock-seed-data";
 import {
   createEvent,
@@ -77,19 +77,23 @@ export default async function EventsPage({ searchParams }: PageProps) {
   if (!user) redirect("/login");
   const currentCalendar = await getCurrentCalendarForUser(user.id, urlCalendarId);
   if (!currentCalendar) redirect("/dashboard/settings");
-  const events = await listEventsForCalendar(currentCalendar.id);
-  const { active, past } = splitActivePast(events);
+  // 過去イベントは <details> 展開時に遅延取得するため、初期は進行中/予定のみ取得する。
+  const today = todayStr();
+  const farFuture = "9999-12-31";
+  const active = await listEventsForCalendarOverlappingRange(currentCalendar.id, today, farFuture);
+  active.sort((a, b) => (a.start_date ?? "").localeCompare(b.start_date ?? ""));
 
   return (
     <div className="space-y-4">
       <EventsListClient
         initialActive={active}
-        initialPast={past}
+        initialPast={[]}
         calendarId={currentCalendar.id}
         calendarName={currentCalendar.name}
         createAction={createEvent}
         deleteAction={deleteEventAction}
         updateAction={updateEvent}
+        enableLazyPast
       />
     </div>
   );

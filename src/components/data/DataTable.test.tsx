@@ -17,6 +17,12 @@ vi.mock("@/lib/view-mode-context", () => ({
   useViewMode: () => ({ viewMode: "detailed" as const }),
 }));
 
+vi.mock("@/components/dashboard/DashboardProvider", () => ({
+  useDashboardCalendar: () => ({
+    refreshRange: vi.fn(),
+  }),
+}));
+
 const baseRow = {
   date: "2024-01-01",
   weekday: "月",

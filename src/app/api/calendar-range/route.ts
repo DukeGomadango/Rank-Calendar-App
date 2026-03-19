@@ -9,7 +9,10 @@ import {
   ensureSkipPassIncrementForLastWeek,
 } from "@/lib/data/calendar-rank-state";
 import { getSchedulesInRange } from "@/lib/data/schedules";
-import { listEventsForCalendar } from "@/lib/data/events";
+import {
+  listEventsForCalendarOverlappingRange,
+  type EventRow,
+} from "@/lib/data/events";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -41,18 +44,34 @@ export async function GET(req: NextRequest) {
   }
 
   // `skip_pass_remaining` を表示/利用するのはカレンダー側なので、データタブ(`includeEvents=false`)では GET のたびに不要な計算を走らせない。
-  if (includeEvents) {
+  if (includeEvents && permissions.canViewRank) {
     await ensureSkipPassIncrementForLastWeek(calendarId);
   }
 
-  const eventsPromise = includeEvents
-    ? listEventsForCalendar(calendarId)
+  const entriesPromise = getScheduleEntriesInRange(calendarId, from, to, {
+    includeBorders: permissions.canViewBorders,
+    includeMemo: permissions.canViewMemo,
+    // listener の「今日の予定」等で使うテキスト（グリッドの色ドットは色のみ）
+    includeStreamContent: permissions.canViewEvents,
+  });
+
+  const rankStatePromise = permissions.canViewRank
+    ? getOrCreateCalendarRankState(calendarId)
+    : Promise.resolve(null);
+
+  const rankCycleHistoryPromise = permissions.canViewRank
+    ? getRankCycleHistory(calendarId, from, to)
     : Promise.resolve([]);
 
+  const eventsPromise: Promise<EventRow[]> =
+    includeEvents && permissions.canViewEvents
+      ? listEventsForCalendarOverlappingRange(calendarId, from, to)
+      : Promise.resolve([]);
+
   const [entries, rankState, rankCycleHistory, schedules, events] = await Promise.all([
-    getScheduleEntriesInRange(calendarId, from, to),
-    getOrCreateCalendarRankState(calendarId),
-    getRankCycleHistory(calendarId, from, to),
+    entriesPromise,
+    rankStatePromise,
+    rankCycleHistoryPromise,
     getSchedulesInRange(calendarId, from, to),
     eventsPromise,
   ]);
