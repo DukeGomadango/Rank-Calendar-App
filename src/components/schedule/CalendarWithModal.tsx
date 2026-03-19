@@ -1390,9 +1390,9 @@ export function CalendarWithModal({
   );
 
   const renderWeekGrid = () => {
-    const WEEK_START_HOUR = 5;
-    const WEEK_END_HOUR = 27; // 翌3時まで
-    const totalMinutes = (WEEK_END_HOUR - WEEK_START_HOUR) * 60;
+    // 各列は「カレンダー日 D の 0:00 〜 翌日 0:00（24h）」。
+    // 旧: 5:00〜翌3:00 の22h軸だと、翌日未明の部分が前日列に吸い込まれ水曜列に出ない・帯が不自然になる。
+    const totalMinutes = 24 * 60;
     const msPerMinute = 60 * 1000;
     const canCreate = permissions.canEditSchedule && !!saveScheduleAction;
     const canShift = permissions.canEditSchedule && !!shiftScheduleAction;
@@ -1402,8 +1402,18 @@ export function CalendarWithModal({
       return { y, mo, da };
     };
 
-    const parseHHMM = (t: string): { hh: number; mm: number } => {
-      const [hh, mm] = t.split(":").map((v) => Number(v));
+    /** DB の time 文字列（HH:MM / HH:MM:SS 等）から HH:MM を抽出 */
+    const wallClockHHMM = (t: string | null | undefined): string | null => {
+      if (t == null) return null;
+      const m = String(t).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?/);
+      if (!m) return null;
+      const hh = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+      const mm = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+      return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+    };
+
+    const parseHHMM = (hhmm: string): { hh: number; mm: number } => {
+      const [hh, mm] = hhmm.split(":").map((v) => Number(v));
       return { hh, mm };
     };
 
@@ -1413,8 +1423,31 @@ export function CalendarWithModal({
       return Date.UTC(y, mo - 1, da, hh, mm, 0);
     };
 
+    const formatHHMMFromUtcMs = (ms: number): string => {
+      const dt = new Date(ms);
+      const h = String(dt.getUTCHours()).padStart(2, "0");
+      const m = String(dt.getUTCMinutes()).padStart(2, "0");
+      return `${h}:${m}`;
+    };
+
+    /** 予定の絶対開始・終了（深夜跨ぎは end_date または 終了時刻が開始より前なら翌日に補正） */
+    const getScheduleSpanMs = (
+      s: CalendarScheduleRow
+    ): { startMs: number; endMs: number } | null => {
+      const st = wallClockHHMM(s.start_time);
+      const et = wallClockHHMM(s.end_time);
+      if (!st || !et) return null;
+      const startMs = toUtcMs(s.date, st);
+      const endDay = s.end_date ?? s.date;
+      let endMs = toUtcMs(endDay, et);
+      if (endMs <= startMs) {
+        endMs = toUtcMs(dayjs(s.date).add(1, "day").format("YYYY-MM-DD"), et);
+      }
+      return { startMs, endMs };
+    };
+
     const hours: number[] = [];
-    for (let h = WEEK_START_HOUR; h <= WEEK_END_HOUR; h += 2) {
+    for (let h = 0; h < 24; h += 2) {
       hours.push(h);
     }
 
@@ -1501,7 +1534,7 @@ export function CalendarWithModal({
             <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               {hours.map((h) => (
                 <div key={h} className="h-12 px-1 text-right leading-none">
-                  {`${((h + 24) % 24).toString().padStart(2, "0")}:00`}
+                  {`${h.toString().padStart(2, "0")}:00`}
                 </div>
               ))}
             </div>
@@ -1519,9 +1552,9 @@ export function CalendarWithModal({
                 const bg = day.isToday
                   ? "bg-accent-50/40 dark:bg-accent-950/30"
                   : "bg-white dark:bg-zinc-950/40";
-                const axisStartMs = toUtcMs(day.date, "05:00");
+                const axisStartMs = toUtcMs(day.date, "00:00");
                 const axisEndDate = dayjs(day.date).add(1, "day").format("YYYY-MM-DD");
-                const axisEndMs = toUtcMs(axisEndDate, "03:00");
+                const axisEndMs = toUtcMs(axisEndDate, "00:00");
                 const axisLengthMs = totalMinutes * msPerMinute;
 
                 return (
@@ -1625,7 +1658,7 @@ export function CalendarWithModal({
                         const clampedY = Math.max(0, Math.min(rect.height, y));
                         const offsetMinutes = (clampedY / rect.height) * totalMinutes;
 
-                        const absTotalMinutes = WEEK_START_HOUR * 60 + offsetMinutes;
+                        const absTotalMinutes = offsetMinutes;
                         const dateOffsetDays = Math.floor(absTotalMinutes / (24 * 60));
                         const timeMinutes = Math.floor(absTotalMinutes - dateOffsetDays * 24 * 60);
 
@@ -1712,8 +1745,8 @@ export function CalendarWithModal({
                           return;
                         }
 
-                        const axisStartMinutes = WEEK_START_HOUR * 60 + startOffset;
-                        const axisEndMinutes = WEEK_START_HOUR * 60 + endOffset;
+                        const axisStartMinutes = startOffset;
+                        const axisEndMinutes = endOffset;
 
                         const startDateOffsetDays = Math.floor(axisStartMinutes / (24 * 60));
                         const endDateOffsetDays = Math.floor(axisEndMinutes / (24 * 60));
@@ -1774,8 +1807,9 @@ export function CalendarWithModal({
                       {daySchedules.map((s) => {
                         if (!s.start_time || !s.end_time) return null;
 
-                        const scheduleStartMs = toUtcMs(s.date, s.start_time);
-                        const scheduleEndMs = toUtcMs(s.end_date ?? s.date, s.end_time);
+                        const span = getScheduleSpanMs(s);
+                        if (!span) return null;
+                        const { startMs: scheduleStartMs, endMs: scheduleEndMs } = span;
 
                         const segStartMs = Math.max(axisStartMs, scheduleStartMs);
                         const segEndMs = Math.min(axisEndMs, scheduleEndMs);
@@ -1794,9 +1828,9 @@ export function CalendarWithModal({
 
                         const color = getEventColorClasses(s.color_id ?? null);
                         const labelTime =
-                          segStartMs === scheduleStartMs
-                            ? s.start_time.slice(0, 5)
-                            : "05:00";
+                          segStartMs > scheduleStartMs
+                            ? formatHHMMFromUtcMs(segStartMs)
+                            : (wallClockHHMM(s.start_time) ?? formatHHMMFromUtcMs(segStartMs));
 
                         return (
                           <div
