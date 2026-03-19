@@ -228,9 +228,12 @@ export function CalendarWithModal({
   const todayStr = todayJst ?? toJstDateString(new Date());
 
   const [localDays, setLocalDays] = useState<DayData[]>(days);
+  const [localSchedules, setLocalSchedules] = useState<CalendarScheduleRow[]>(schedules);
   const [moveError, setMoveError] = useState<string | null>(null);
   const prevLocalDaysRef = useRef<DayData[] | null>(null);
   const isSavingRef = useRef(false);
+  const scheduleShiftPendingRef = useRef(0);
+  const latestSchedulesRef = useRef<CalendarScheduleRow[]>(schedules);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
   /** モバイルでボトムシートを下からせり上がらせる用。開いた直後に true にして transition をかける */
@@ -240,6 +243,12 @@ export function CalendarWithModal({
     if (isSavingRef.current) return;
     setLocalDays(days);
   }, [days]);
+
+  useEffect(() => {
+    latestSchedulesRef.current = schedules;
+    if (scheduleShiftPendingRef.current > 0) return;
+    setLocalSchedules(schedules);
+  }, [schedules]);
 
   useEffect(() => {
     if (!selectedDate) {
@@ -326,7 +335,7 @@ export function CalendarWithModal({
       }
     };
 
-    for (const s of schedules) {
+    for (const s of localSchedules) {
       if (!canSee(s)) continue;
       const start = s.date;
       const end = s.end_date ?? s.date;
@@ -361,7 +370,7 @@ export function CalendarWithModal({
       map.set(key, list);
     }
     return map;
-  }, [permissions, schedules, localDays]);
+  }, [permissions, localSchedules, localDays]);
 
   const selectedSchedules = selectedDate
     ? schedulesByDate.get(selectedDate) ?? []
@@ -599,6 +608,139 @@ export function CalendarWithModal({
         });
     },
     [calendarId, localDays, moveEntry, router, showToast]
+  );
+
+  const applyOptimisticScheduleShift = useCallback(
+    (
+      scheduleId: string,
+      mode: "move" | "copy",
+      newStartDate: string,
+      newStartTime: string | null
+    ): { applied: boolean; rollback: () => void } => {
+      let snapshot: CalendarScheduleRow[] | null = null;
+      let applied = false;
+
+      const parseYMD = (d: string): { y: number; mo: number; da: number } => {
+        const [y, mo, da] = d.split("-").map((v) => Number(v));
+        return { y, mo, da };
+      };
+      const parseHHMM = (t: string): { hh: number; mm: number } => {
+        const [hh, mm] = t.split(":").map((v) => Number(v));
+        return { hh, mm };
+      };
+      const toUtcMs = (dateStr: string, timeStr: string): number => {
+        const { y, mo, da } = parseYMD(dateStr);
+        const { hh, mm } = parseHHMM(timeStr);
+        return Date.UTC(y, mo - 1, da, hh, mm, 0);
+      };
+      const formatYMD = (ms: number): string => {
+        const dt = new Date(ms);
+        const y = dt.getUTCFullYear();
+        const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
+        const da = String(dt.getUTCDate()).padStart(2, "0");
+        return `${y}-${mo}-${da}`;
+      };
+      const formatHHMMSS = (ms: number): string => {
+        const dt = new Date(ms);
+        const hh = String(dt.getUTCHours()).padStart(2, "0");
+        const mm = String(dt.getUTCMinutes()).padStart(2, "0");
+        return `${hh}:${mm}:00`;
+      };
+
+      setLocalSchedules((prev) => {
+        const source = prev.find((s) => s.id === scheduleId);
+        if (!source) return prev;
+
+        const sourceStartDate = source.date;
+        const sourceEndDate = source.end_date ?? source.date;
+        let shifted: CalendarScheduleRow | null = null;
+
+        if (source.is_all_day) {
+          const msPerDay = 24 * 60 * 60 * 1000;
+          const startMs = Date.UTC(
+            parseYMD(sourceStartDate).y,
+            parseYMD(sourceStartDate).mo - 1,
+            parseYMD(sourceStartDate).da,
+            0,
+            0,
+            0
+          );
+          const endMs = Date.UTC(
+            parseYMD(sourceEndDate).y,
+            parseYMD(sourceEndDate).mo - 1,
+            parseYMD(sourceEndDate).da,
+            0,
+            0,
+            0
+          );
+          const durationDays = Math.round((endMs - startMs) / msPerDay) + 1;
+          const newStartMs = Date.UTC(
+            parseYMD(newStartDate).y,
+            parseYMD(newStartDate).mo - 1,
+            parseYMD(newStartDate).da,
+            0,
+            0,
+            0
+          );
+          const newEndMs = newStartMs + (durationDays - 1) * msPerDay;
+          const computedEndDate = formatYMD(newEndMs);
+
+          shifted = {
+            ...source,
+            date: newStartDate,
+            end_date: computedEndDate === newStartDate ? null : computedEndDate,
+            start_time: null,
+            end_time: null,
+          };
+        } else {
+          if (!newStartTime || !source.start_time || !source.end_time) return prev;
+
+          const sourceStartMs = toUtcMs(sourceStartDate, source.start_time);
+          const sourceEndMs = toUtcMs(sourceEndDate, source.end_time);
+          const durationMs = sourceEndMs - sourceStartMs;
+          if (durationMs < 0) return prev;
+
+          const newStartMs = toUtcMs(newStartDate, newStartTime);
+          const newEndMs = newStartMs + durationMs;
+          const computedEndDate = formatYMD(newEndMs);
+
+          shifted = {
+            ...source,
+            date: newStartDate,
+            end_date: computedEndDate === newStartDate ? null : computedEndDate,
+            start_time: `${newStartTime}:00`,
+            end_time: formatHHMMSS(newEndMs),
+          };
+        }
+
+        if (!shifted) return prev;
+
+        snapshot = prev;
+        applied = true;
+
+        if (mode === "copy") {
+          const optimisticId = `temp-shift-${source.id}-${Date.now()}`;
+          return [
+            ...prev,
+            {
+              ...shifted,
+              id: optimisticId,
+              created_at: new Date().toISOString(),
+            },
+          ];
+        }
+
+        return prev.map((s) => (s.id === source.id ? shifted : s));
+      });
+
+      const rollback = () => {
+        if (!snapshot) return;
+        setLocalSchedules(snapshot);
+      };
+
+      return { applied, rollback };
+    },
+    []
   );
 
   /** この日付が属する周期（現在 > 履歴 > 予測）と周期種別・予測フラグ */
@@ -1402,13 +1544,29 @@ export function CalendarWithModal({
                           if (isAllDayRaw !== "1") return; // 終日帯は all-day のみ
                           const mode = modeRaw === "copy" ? "copy" : "move";
 
+                          const optimistic = applyOptimisticScheduleShift(
+                            scheduleId,
+                            mode,
+                            day.date,
+                            null
+                          );
+                          scheduleShiftPendingRef.current += 1;
                           try {
                             await shiftScheduleAction?.(scheduleId, mode, day.date, null);
                             setScheduleCreatePrefill(null);
                             setScheduleCreateSelection(null);
                             setSelectedScheduleId(null);
                           } catch {
+                            if (optimistic.applied) optimistic.rollback();
                             showToast("移動に失敗しました");
+                          } finally {
+                            scheduleShiftPendingRef.current = Math.max(
+                              0,
+                              scheduleShiftPendingRef.current - 1
+                            );
+                            if (scheduleShiftPendingRef.current === 0) {
+                              setLocalSchedules(latestSchedulesRef.current);
+                            }
                           }
                         }}
                       >
@@ -1478,13 +1636,29 @@ export function CalendarWithModal({
                         const mm = String(timeMinutes % 60).padStart(2, "0");
                         const newStartTime = `${hh}:${mm}`;
 
+                        const optimistic = applyOptimisticScheduleShift(
+                          scheduleId,
+                          mode,
+                          newStartDate,
+                          newStartTime
+                        );
+                        scheduleShiftPendingRef.current += 1;
                         try {
                           await shiftScheduleAction?.(scheduleId, mode, newStartDate, newStartTime);
                           setScheduleCreatePrefill(null);
                           setScheduleCreateSelection(null);
                           setSelectedScheduleId(null);
                         } catch {
+                          if (optimistic.applied) optimistic.rollback();
                           showToast("移動に失敗しました");
+                        } finally {
+                          scheduleShiftPendingRef.current = Math.max(
+                            0,
+                            scheduleShiftPendingRef.current - 1
+                          );
+                          if (scheduleShiftPendingRef.current === 0) {
+                            setLocalSchedules(latestSchedulesRef.current);
+                          }
                         }
                       }}
                       onPointerDown={(e) => {
