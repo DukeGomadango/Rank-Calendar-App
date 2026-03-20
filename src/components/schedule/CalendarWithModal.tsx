@@ -232,6 +232,39 @@ export function CalendarWithModal({
   }, [schedules]);
 
   useEffect(() => {
+    if (view !== "week") return;
+    const headerEl = weekHeaderScrollRef.current;
+    const bodyEl = weekBodyScrollRef.current;
+    if (!headerEl || !bodyEl) return;
+
+    const syncFromHeader = () => {
+      if (weekScrollSyncingRef.current) return;
+      weekScrollSyncingRef.current = true;
+      bodyEl.scrollLeft = headerEl.scrollLeft;
+      requestAnimationFrame(() => {
+        weekScrollSyncingRef.current = false;
+      });
+    };
+
+    const syncFromBody = () => {
+      if (weekScrollSyncingRef.current) return;
+      weekScrollSyncingRef.current = true;
+      headerEl.scrollLeft = bodyEl.scrollLeft;
+      requestAnimationFrame(() => {
+        weekScrollSyncingRef.current = false;
+      });
+    };
+
+    headerEl.addEventListener("scroll", syncFromHeader, { passive: true });
+    bodyEl.addEventListener("scroll", syncFromBody, { passive: true });
+
+    return () => {
+      headerEl.removeEventListener("scroll", syncFromHeader);
+      bodyEl.removeEventListener("scroll", syncFromBody);
+    };
+  }, [view]);
+
+  useEffect(() => {
     if (!selectedDate || !isDayEditModalOpen) {
       setSheetEntered(false);
       return;
@@ -425,6 +458,10 @@ export function CalendarWithModal({
   >(null);
   const scheduleDragDurationMsRef = useRef(0);
   const weekTimeGridRef = useRef<HTMLDivElement | null>(null);
+  /** 週ビュー: 横スクロール（ヘッダーとボディの位置を同期するため） */
+  const weekHeaderScrollRef = useRef<HTMLDivElement | null>(null);
+  const weekBodyScrollRef = useRef<HTMLDivElement | null>(null);
+  const weekScrollSyncingRef = useRef(false);
 
   const selectedSchedule =
     selectedScheduleId && selectedDate
@@ -1734,12 +1771,15 @@ export function CalendarWithModal({
         onKeyDown={handleWeekGridKeyDown}
         className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-zinc-800 dark:bg-zinc-900/80"
       >
-        <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden [scrollbar-gutter:stable]">
+        <div
+          ref={weekHeaderScrollRef}
+          className="mt-1 flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden [scrollbar-gutter:stable]"
+        >
           <div className="flex min-h-0 flex-col gap-2 shrink-0">
             <div className="shrink-0 space-y-2 bg-white/95 pb-2 backdrop-blur-md dark:bg-zinc-900/95">
-              <div className="flex rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+              <div className="flex w-max rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
                 {/* Corner: 左の時刻軸幅を予約 */}
-                <div className="sticky left-0 z-0 flex w-14 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                   曜日
                 </div>
                 {weekDays.map((day, idx) => {
@@ -1759,7 +1799,7 @@ export function CalendarWithModal({
                   return (
                     <div
                       key={day.date}
-                      className={`${base} ${weekend} ${borderRight} flex min-w-[180px] flex-1 flex-col items-center justify-center`}
+                      className={`${base} ${weekend} ${borderRight} flex-none w-[180px] flex flex-col items-center justify-center`}
                     >
                       <div>{WEEKDAYS[idx]}</div>
                       <div className="text-[10px]">{dateObj.format("M/D")}</div>
@@ -1769,8 +1809,8 @@ export function CalendarWithModal({
               </div>
           {/* ランク帯（簡略版） */}
           {permissions.canViewRank && currentRankCycle && (
-            <div className="flex rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              <div className="sticky left-0 z-0 flex w-14 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                 イベント
               </div>
               {weekDays.map((day, idx) => {
@@ -1789,7 +1829,7 @@ export function CalendarWithModal({
                 return (
                   <div
                     key={day.date}
-                    className={`${bg} relative flex min-w-[180px] flex-1 items-center justify-center px-1 py-0.5 text-[10px] ${borderRight}`}
+                    className={`${bg} relative flex-none w-[180px] flex items-center justify-center px-1 py-0.5 text-[10px] ${borderRight}`}
                   >
                     {cycle && (() => {
                       const showBracket = true;
@@ -1821,8 +1861,8 @@ export function CalendarWithModal({
 
           {/* イベント帯（ランク帯とタイムラインの間。月ビューと同様の複数日帯） */}
           {permissions.canViewEvents && (
-            <div className="flex rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              <div className="sticky left-0 z-0 flex w-14 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                 終日
               </div>
               {weekDays.map((day, idx) => {
@@ -1838,7 +1878,7 @@ export function CalendarWithModal({
                 return (
                   <div
                     key={`week-events-${day.date}`}
-                    className={`${cellBg} min-h-[2.75rem] min-w-[180px] flex-1 px-1 py-1 ${borderRight}`}
+                    className={`${cellBg} min-h-[2.75rem] flex-none w-[180px] px-1 py-1 ${borderRight}`}
                   >
                     {eventsOnDay.length > 0 && (
                       <div className="flex flex-col gap-px">
@@ -1868,8 +1908,8 @@ export function CalendarWithModal({
             </div>
           )}
 
-            <div className="flex rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              <div className="sticky left-0 z-0 w-14 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+            <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              <div className="sticky left-0 z-0 w-14 shrink-0 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
               {weekDays.map((day, idx) => {
                 const rawList = schedulesByDate.get(day.date) ?? [];
                 const allDaySchedules = rawList.filter(scheduleShowsInWeekAllDayRow);
@@ -1885,7 +1925,7 @@ export function CalendarWithModal({
                 return (
                   <div
                     key={`week-allday-${day.date}`}
-                    className={`${cellBg} flex min-h-[2.5rem] min-w-[180px] flex-1 flex-col gap-px px-1 py-1 ${borderRight}`}
+                    className={`${cellBg} flex-none w-[180px] flex min-h-[2.5rem] flex-col gap-px px-1 py-1 ${borderRight}`}
                     onDragOver={(e) => {
                       if (!canShift) return;
                       e.preventDefault();
@@ -2014,9 +2054,12 @@ export function CalendarWithModal({
             </div>
 
           {/* 時間グリッド本体 */}
-          <div className="flex flex-1 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
+          <div
+            ref={weekBodyScrollRef}
+            className="flex flex-1 min-h-0 overflow-y-auto overflow-x-auto [scrollbar-gutter:stable] rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900"
+          >
             {/* 時刻軸 */}
-            <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            <div className="sticky left-0 z-10 flex w-14 shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               {hours.map((h) => (
                 <div key={h} className="h-12 px-1 text-right leading-none">
                   {`${h.toString().padStart(2, "0")}:00`}
@@ -2042,11 +2085,14 @@ export function CalendarWithModal({
                 const axisLengthMs = totalMinutes * msPerMinute;
 
                 return (
-                  <div key={day.date} className="relative flex min-w-[180px] flex-1 flex-col border-r border-zinc-200 last:border-r-0 dark:border-zinc-800">
+                  <div
+                    key={day.date}
+                    className="relative flex-none w-[180px] flex flex-col border-r border-zinc-200 last:border-r-0 dark:border-zinc-800"
+                  >
                     {/* 時間スロット */}
                     <div
                       data-week-day-grid
-                      className={`${bg} relative min-h-[1152px] flex-1`}
+                      className={`${bg} relative h-[1152px]`}
                       onDragOver={(e) => {
                         if (!canShift) return;
                         e.preventDefault();
@@ -2197,15 +2243,24 @@ export function CalendarWithModal({
                         if (canCreate) setScheduleCreateSelection(null);
                       }}
                     >
-                      <div
-                        className="pointer-events-none absolute inset-0 opacity-[0.28] dark:opacity-20"
-                        style={{
-                          backgroundImage:
-                            "repeating-linear-gradient(to bottom, transparent 0, transparent 11px, rgba(113,113,122,0.45) 11px, rgba(113,113,122,0.45) 12px)",
-                        }}
-                        aria-hidden
-                      />
-                      <div className="relative z-[1] h-full min-h-[1152px] w-full">
+                      {/* 15分刻みの補助線（予定ブロックと同じ%基準で描画してズレを防止） */}
+                      {Array.from(
+                        { length: totalMinutes / WEEK_VIEW_SLOT_MINUTES },
+                        (_, i) => i
+                      )
+                        .filter((i) => i % 4 !== 0) // 0,60分はメジャー線（hours.map）側に任せる
+                        .map((i) => {
+                          const minutes = i * WEEK_VIEW_SLOT_MINUTES;
+                          const topPct = (minutes / totalMinutes) * 100;
+                          return (
+                            <div
+                              key={`minor-${i}`}
+                              className="pointer-events-none absolute left-0 right-0 border-t border-zinc-300/60 dark:border-zinc-600/45"
+                              style={{ top: `${topPct}%` }}
+                            />
+                          );
+                        })}
+                      <div className="relative z-[1] h-full w-full">
                       {/* 範囲選択（新規登録）プレビュー */}
                       {daySelection && (() => {
                         const startOffset = Math.min(daySelection.startOffsetMinutes, daySelection.endOffsetMinutes);
