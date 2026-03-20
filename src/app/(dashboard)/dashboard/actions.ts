@@ -21,10 +21,15 @@ import {
   type SaveScheduleEntryResult,
 } from "@/lib/validations/schedule";
 import {
-  upsertScheduleForCalendar,
-  deleteScheduleById,
   getScheduleByIdInCalendar,
 } from "@/lib/data/schedules";
+import type { CalendarScheduleUpsertInput } from "@/lib/data/schedules";
+import {
+  rpcCalendarScheduleApplyDeleteUndo,
+  rpcCalendarScheduleApplyUpsertUndo,
+  rpcCalendarScheduleRedo,
+  rpcCalendarScheduleUndo,
+} from "@/lib/data/calendar-schedule-rpc";
 
 export async function saveScheduleEntry(
   formData: FormData
@@ -191,7 +196,7 @@ export async function saveCalendarSchedule(
   const startTime = isAllDay ? null : (startTimeRaw ? `${startTimeRaw}:00` : null);
   const endTime = isAllDay ? null : (endTimeRaw ? `${endTimeRaw}:00` : null);
 
-  await upsertScheduleForCalendar(calendarId, {
+  const upsertPayload: CalendarScheduleUpsertInput = {
     id: idRaw || undefined,
     date,
     end_date: endDate || null,
@@ -203,8 +208,19 @@ export async function saveCalendarSchedule(
     visibility: null,
     color_id: colorId,
     memo,
-  });
+  };
 
+  let before: Awaited<ReturnType<typeof getScheduleByIdInCalendar>> = null;
+  if (idRaw) {
+    before = await getScheduleByIdInCalendar(calendarId, idRaw);
+    if (!before) {
+      return { ok: false, errors: { id: ["予定が見つかりません"] } };
+    }
+  }
+
+  await rpcCalendarScheduleApplyUpsertUndo(calendarId, before, upsertPayload);
+
+  revalidatePath("/dashboard/calendar");
   return { ok: true };
 }
 
@@ -300,7 +316,7 @@ export async function shiftCalendarSchedule(
     const computedEndDate = formatYMD(newEndMs);
     const endDateForRow = computedEndDate === newStartDate ? null : computedEndDate;
 
-    await upsertScheduleForCalendar(calendarId, {
+    const allDayPayload: CalendarScheduleUpsertInput = {
       id: mode === "move" ? existing.id : undefined,
       date: newStartDate,
       end_date: endDateForRow,
@@ -312,7 +328,16 @@ export async function shiftCalendarSchedule(
       visibility: existing.visibility ?? null,
       color_id: existing.color_id,
       memo: existing.memo,
-    });
+    };
+    if (mode === "copy") {
+      await rpcCalendarScheduleApplyUpsertUndo(calendarId, null, {
+        ...allDayPayload,
+        id: undefined,
+      });
+    } else {
+      await rpcCalendarScheduleApplyUpsertUndo(calendarId, existing, allDayPayload);
+    }
+    revalidatePath("/dashboard/calendar");
     return;
   }
 
@@ -331,7 +356,7 @@ export async function shiftCalendarSchedule(
   const endDateForRow = computedEndDate === newStartDate ? null : computedEndDate;
   const computedEndTime = formatHHMM(newEndMs);
 
-  await upsertScheduleForCalendar(calendarId, {
+  const timedPayload: CalendarScheduleUpsertInput = {
     id: mode === "move" ? existing.id : undefined,
     date: newStartDate,
     end_date: endDateForRow,
@@ -343,15 +368,134 @@ export async function shiftCalendarSchedule(
     visibility: existing.visibility ?? null,
     color_id: existing.color_id,
     memo: existing.memo,
-  });
+  };
+  if (mode === "copy") {
+    await rpcCalendarScheduleApplyUpsertUndo(calendarId, null, {
+      ...timedPayload,
+      id: undefined,
+    });
+  } else {
+    await rpcCalendarScheduleApplyUpsertUndo(calendarId, existing, timedPayload);
+  }
+  revalidatePath("/dashboard/calendar");
+}
+
+export async function resizeCalendarSchedule(
+  calendarId: string,
+  scheduleId: string,
+  edge: "start" | "end",
+  newDate: string,
+  newTime: string
+): Promise<void> {
+  "use server";
+
+  if (!calendarId || !scheduleId) return;
+  if (edge !== "start" && edge !== "end") return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) return;
+  if (!/^\d{2}:\d{2}$/.test(newTime)) return;
+
+  await ensureUserCanEditCalendar(calendarId);
+
+  const existing = await getScheduleByIdInCalendar(calendarId, scheduleId);
+  if (!existing || existing.is_all_day) return;
+  if (!existing.start_time || !existing.end_time) return;
+
+  const parseYMD = (d: string): { y: number; mo: number; da: number } => {
+    const [y, mo, da] = d.split("-").map((v) => Number(v));
+    return { y, mo, da };
+  };
+
+  const parseHHMM = (t: string): { hh: number; mm: number } => {
+    const [hh, mm] = t.split(":").map((v) => Number(v));
+    return { hh, mm };
+  };
+
+  const toUtcMs = (dateStr: string, timeStr: string): number => {
+    const { y, mo, da } = parseYMD(dateStr);
+    const { hh, mm } = parseHHMM(timeStr);
+    return Date.UTC(y, mo - 1, da, hh, mm, 0);
+  };
+
+  const formatYMD = (ms: number): string => {
+    const dt = new Date(ms);
+    const y = dt.getUTCFullYear();
+    const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
+    const da = String(dt.getUTCDate()).padStart(2, "0");
+    return `${y}-${mo}-${da}`;
+  };
+
+  const formatHHMM = (ms: number): string => {
+    const dt = new Date(ms);
+    const hh = String(dt.getUTCHours()).padStart(2, "0");
+    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
+
+  const startDate = existing.date;
+  const endDate = existing.end_date ?? existing.date;
+  const existingStartMs = toUtcMs(startDate, existing.start_time);
+  const existingEndMs = toUtcMs(endDate, existing.end_time);
+  if (existingEndMs <= existingStartMs) return;
+
+  const minDurationMs = 15 * 60 * 1000;
+
+  let newStartMs = existingStartMs;
+  let newEndMs = existingEndMs;
+
+  if (edge === "start") {
+    newStartMs = toUtcMs(newDate, `${newTime}:00`);
+    if (newStartMs >= existingEndMs || existingEndMs - newStartMs < minDurationMs) return;
+  } else {
+    newEndMs = toUtcMs(newDate, `${newTime}:00`);
+    if (newEndMs <= existingStartMs || newEndMs - existingStartMs < minDurationMs) return;
+  }
+
+  const newDateStart = formatYMD(newStartMs);
+  const newDateEnd = formatYMD(newEndMs);
+  const endDateForRow = newDateEnd === newDateStart ? null : newDateEnd;
+
+  const payload: CalendarScheduleUpsertInput = {
+    id: existing.id,
+    date: newDateStart,
+    end_date: endDateForRow,
+    is_all_day: false,
+    start_time: `${formatHHMM(newStartMs)}:00`,
+    end_time: `${formatHHMM(newEndMs)}:00`,
+    title: existing.title,
+    kind: existing.kind,
+    visibility: existing.visibility ?? null,
+    color_id: existing.color_id,
+    memo: existing.memo,
+  };
+
+  await rpcCalendarScheduleApplyUpsertUndo(calendarId, existing, payload);
+  revalidatePath("/dashboard/calendar");
 }
 
 export async function deleteCalendarSchedule(
+  calendarId: string,
   scheduleId: string
 ): Promise<void> {
   "use server";
-  if (!scheduleId) return;
-  await deleteScheduleById(scheduleId);
+  if (!calendarId || !scheduleId) return;
+  await ensureUserCanEditCalendar(calendarId);
+  await rpcCalendarScheduleApplyDeleteUndo(calendarId, scheduleId);
+  revalidatePath("/dashboard/calendar");
+}
+
+export async function undoCalendarScheduleChange(calendarId: string): Promise<void> {
+  "use server";
+  if (!calendarId) return;
+  await ensureUserCanEditCalendar(calendarId);
+  await rpcCalendarScheduleUndo(calendarId);
+  revalidatePath("/dashboard/calendar");
+}
+
+export async function redoCalendarScheduleChange(calendarId: string): Promise<void> {
+  "use server";
+  if (!calendarId) return;
+  await ensureUserCanEditCalendar(calendarId);
+  await rpcCalendarScheduleRedo(calendarId);
   revalidatePath("/dashboard/calendar");
 }
 
