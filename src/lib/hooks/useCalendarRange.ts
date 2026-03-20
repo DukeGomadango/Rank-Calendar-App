@@ -9,6 +9,7 @@ type CalendarRangeResponse = {
   rankCycleHistory: unknown[];
   schedules: unknown[];
   events: unknown[];
+  skipPassSnapshots?: unknown[];
 };
 
 export type { CalendarRangeResponse };

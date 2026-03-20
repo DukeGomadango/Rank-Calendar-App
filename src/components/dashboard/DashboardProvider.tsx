@@ -46,6 +46,7 @@ type DashboardContextValue = {
         entries: ScheduleEntryRow[];
         schedules: CalendarScheduleRow[];
         events: EventRow[];
+        skipPassSnapshots?: { as_of_date: string; remaining: number }[];
         rankState:
           | {
               rank_cycle_start_date: string;
@@ -141,11 +142,16 @@ export function DashboardProvider({
 
     const schedules = (data.schedules ?? []) as CalendarScheduleRow[];
     const events = (data.events ?? []) as EventRow[];
+    const skipPassSnapshots = (data.skipPassSnapshots ?? []) as {
+      as_of_date: string;
+      remaining: number;
+    }[];
 
     const rangeData = {
       entries,
       schedules,
       events,
+      skipPassSnapshots,
       rankState,
       rankCycleHistory,
     };

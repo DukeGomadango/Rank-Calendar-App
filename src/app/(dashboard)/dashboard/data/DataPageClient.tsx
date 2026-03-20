@@ -51,6 +51,17 @@ export function DataPageClient({
     const rankState = rangeData?.rankState ?? null;
     const rankCycleHistory = rangeData?.rankCycleHistory ?? [];
     const events = (rangeData?.events ?? []) as EventRow[];
+    const skipPassSnapshots = (rangeData?.skipPassSnapshots ?? []) as {
+      as_of_date: string;
+      remaining: number;
+    }[];
+    const skipPassSnapshotsSorted = skipPassSnapshots
+      .slice()
+      .sort((a, b) => a.as_of_date.localeCompare(b.as_of_date));
+    let skipPassSnapshotIdx = 0;
+    let latestSkipPassRemaining: number | null = null;
+    const baseRemaining: number | null =
+      rankState?.skip_pass_remaining ?? null;
 
     const entriesByDate = new Map(entries.map((e) => [e.date, e]));
 
@@ -125,6 +136,17 @@ export function DataPageClient({
 
       const rankForDay = rankByDate.get(dateStr) ?? null;
 
+      // 「その日の時点」の残り枚数は、該当日以前の最新スナップショットを採用する。
+      // スナップショットが無い場合は calendar_rank_state の初期値にフォールバック。
+      while (
+        skipPassSnapshotIdx < skipPassSnapshotsSorted.length &&
+        skipPassSnapshotsSorted[skipPassSnapshotIdx].as_of_date <= dateStr
+      ) {
+        latestSkipPassRemaining =
+          skipPassSnapshotsSorted[skipPassSnapshotIdx].remaining;
+        skipPassSnapshotIdx++;
+      }
+
       rows.push({
         date: dateStr,
         weekday,
@@ -137,7 +159,7 @@ export function DataPageClient({
           permissions.canViewRank && rankState
             ? (cumulativeByDate[dateStr] ?? null)
             : undefined,
-        skip_pass_remaining_as_of: undefined,
+        skip_pass_remaining_as_of: latestSkipPassRemaining ?? baseRemaining,
       });
 
       cursor = cursor.add(1, "day");

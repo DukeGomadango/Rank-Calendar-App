@@ -7,6 +7,7 @@ import {
   getOrCreateCalendarRankState,
   getRankCycleHistory,
   ensureSkipPassIncrementForLastWeek,
+  getSkipPassSnapshotsBefore,
 } from "@/lib/data/calendar-rank-state";
 import { getSchedulesInRange } from "@/lib/data/schedules";
 import {
@@ -53,8 +54,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  // `skip_pass_remaining` を表示/利用するのはカレンダー側なので、データタブ(`includeEvents=false`)では GET のたびに不要な計算を走らせない。
-  if (includeEvents && permissions.canViewRank) {
+  // データタブでも「スキパ枚数」を表示するため、最新化（自動+1）を反映する。
+  if ((includeEvents || mode === "data") && permissions.canViewRank) {
     await ensureSkipPassIncrementForLastWeek(calendarId);
   }
 
@@ -80,13 +81,22 @@ export async function GET(req: NextRequest) {
       ? listEventsForCalendarOverlappingRange(calendarId, from, to)
       : Promise.resolve([]);
 
-  const [entries, rankState, rankCycleHistory, schedules, events] = await Promise.all([
-    entriesPromise,
-    rankStatePromise,
-    rankCycleHistoryPromise,
-    includeSchedules ? getSchedulesInRange(calendarId, from, to) : Promise.resolve([]),
-    eventsPromise,
-  ]);
+  const skipPassSnapshotsPromise =
+    permissions.canViewRank && mode === "data"
+      ? getSkipPassSnapshotsBefore(calendarId, to)
+      : Promise.resolve([]);
+
+  const [entries, rankState, rankCycleHistory, schedules, events, skipPassSnapshots] =
+    await Promise.all([
+      entriesPromise,
+      rankStatePromise,
+      rankCycleHistoryPromise,
+      includeSchedules
+        ? getSchedulesInRange(calendarId, from, to)
+        : Promise.resolve([]),
+      eventsPromise,
+      skipPassSnapshotsPromise,
+    ]);
 
   if (process.env.NODE_ENV !== "production") {
     console.info("[perf] api_calendar_range", {
@@ -107,6 +117,7 @@ export async function GET(req: NextRequest) {
     rankCycleHistory,
     schedules,
     events,
+    skipPassSnapshots,
   });
 }
 
