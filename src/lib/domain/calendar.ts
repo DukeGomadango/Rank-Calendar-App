@@ -68,21 +68,24 @@ export function addDays(date: JstDateString, n: number): JstDateString {
 }
 
 /**
- * 周期の終了日を返す。基準7日間にスキップが N 日あれば終了日は開始日 + 6 + N 日。
+ * 周期の終了日を返す。
+ * 基準7日間を起点に、周期内で skip_pass_used=true の日があればその都度1日延長する。
+ * （延長して増えた日がさらにスキップなら、さらに延長される）
  * 表示・applyRankUp で共通利用。
  */
 export function getCycleEndDateIncludingSkips(
   cycleStart: JstDateString,
   entriesByDate: Map<string, { skip_pass_used?: boolean }>
 ): JstDateString {
-  let skipCount = 0;
   let c = cycleStart;
-  const baseEnd = addDays(cycleStart, 6);
-  while (c <= baseEnd) {
+  let dynamicEnd = addDays(cycleStart, 6);
+  while (c <= dynamicEnd) {
     const entry = entriesByDate.get(c);
-    if (entry?.skip_pass_used) skipCount += 1;
+    if (entry?.skip_pass_used) {
+      dynamicEnd = addDays(dynamicEnd, 1);
+    }
     c = addDays(c, 1);
   }
-  return addDays(cycleStart, 6 + skipCount);
+  return dynamicEnd;
 }
 

@@ -100,6 +100,40 @@ export async function extendRankResetDate(
   }
 }
 
+/**
+ * 現在周期のスキップ実績から rank_reset_date を再計算して更新する。
+ * スキップ解除（ON→OFF）時の巻き戻しに使用。
+ */
+export async function recalculateRankResetDateFromCurrentCycle(
+  calendarId: string
+): Promise<void> {
+  const state = await getOrCreateCalendarRankState(calendarId);
+  const entries = await getScheduleEntriesInRange(
+    calendarId,
+    state.rank_cycle_start_date,
+    state.rank_reset_date
+  );
+  const entriesByDate = new Map(
+    entries.map((e) => [e.date, { skip_pass_used: e.skip_pass_used }])
+  );
+  const nextResetDate = getCycleEndDateIncludingSkips(
+    state.rank_cycle_start_date,
+    entriesByDate
+  );
+  if (nextResetDate === state.rank_reset_date) return;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .schema("iriam")
+    .from("calendar_rank_state")
+    .update({ rank_reset_date: nextResetDate })
+    .eq("calendar_id", calendarId);
+  if (error) {
+    throwDataLayerError(new Error(
+      `calendar_rank_state update (recalculate reset) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    ));
+  }
+}
+
 const SKIP_PASS_MAX = 10;
 
 export type SkipPassSnapshotRow = { as_of_date: string; remaining: number };
@@ -163,13 +197,15 @@ export async function setSkipPassSnapshot(
   const clamped = Math.min(SKIP_PASS_MAX, Math.max(0, Math.floor(remaining)));
   await insertSkipPassSnapshot(calendarId, asOfDate, clamped);
   const todayJst = toJstDateString(new Date());
-  if (asOfDate !== todayJst) return;
+  const snapshots = await getSkipPassSnapshotsBefore(calendarId, todayJst);
+  const latestRemaining = snapshots[0]?.remaining;
+  if (latestRemaining == null) return;
   await getOrCreateCalendarRankState(calendarId);
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .schema("iriam")
     .from("calendar_rank_state")
-    .update({ skip_pass_remaining: clamped })
+    .update({ skip_pass_remaining: latestRemaining })
     .eq("calendar_id", calendarId);
   if (error) {
     throwDataLayerError(new Error(
@@ -243,6 +279,34 @@ export async function decrementSkipPassRemaining(
     ));
   }
   await insertSkipPassSnapshot(calendarId, usedOnDate, next);
+}
+
+/**
+ * スキパ使用を取り消したとき、その日の残り枚数を「前日と同じ値」に戻す。
+ * unusedOnDate にその日のスナップショットを保存する。
+ */
+export async function restoreSkipPassRemaining(
+  calendarId: string,
+  unusedOnDate: string
+): Promise<void> {
+  const state = await getOrCreateCalendarRankState(calendarId);
+  const prevDay = addDays(unusedOnDate, -1);
+  const snapshotsBefore = await getSkipPassSnapshotsBefore(calendarId, prevDay);
+  const restored =
+    snapshotsBefore[0]?.remaining ?? (state.skip_pass_remaining ?? 0);
+  const next = Math.min(SKIP_PASS_MAX, Math.max(0, restored));
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .schema("iriam")
+    .from("calendar_rank_state")
+    .update({ skip_pass_remaining: next })
+    .eq("calendar_id", calendarId);
+  if (error) {
+    throwDataLayerError(new Error(
+      `calendar_rank_state update (skip_pass restore) failed: ${error.message ?? ""} (code=${error.code ?? "unknown"})`
+    ));
+  }
+  await insertSkipPassSnapshot(calendarId, unusedOnDate, next);
 }
 
 /**

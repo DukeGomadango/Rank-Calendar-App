@@ -64,12 +64,22 @@ describe("calendar domain (JST)", () => {
       );
     });
 
-    it("ignores skip outside the 7-day window", () => {
+    it("ignores isolated skip outside the 7-day window", () => {
       const entriesByDate = new Map<string, { skip_pass_used?: boolean }>([
         ["2024-01-29", { skip_pass_used: true }], // 22+6=28 より後
       ]);
       expect(getCycleEndDateIncludingSkips("2024-01-22", entriesByDate)).toBe(
         "2024-01-28"
+      );
+    });
+
+    it("extends again when skip exists on extended day", () => {
+      const entriesByDate = new Map<string, { skip_pass_used?: boolean }>([
+        ["2024-01-23", { skip_pass_used: true }], // まず +1 で 29 まで
+        ["2024-01-29", { skip_pass_used: true }], // 延長で追加された日も skip なのでさらに +1
+      ]);
+      expect(getCycleEndDateIncludingSkips("2024-01-22", entriesByDate)).toBe(
+        "2024-01-30"
       );
     });
   });

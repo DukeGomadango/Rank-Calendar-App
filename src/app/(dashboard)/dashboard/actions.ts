@@ -7,7 +7,9 @@ import {
 import {
   getOrCreateCalendarRankState,
   extendRankResetDate,
+  recalculateRankResetDateFromCurrentCycle,
   decrementSkipPassRemaining,
+  restoreSkipPassRemaining,
   updateSkipPassRemaining as updateSkipPassRemainingState,
   setSkipPassSnapshot,
   ensureSkipPassIncrementForLastWeek,
@@ -68,6 +70,8 @@ export async function saveScheduleEntry(
   } = parsed.data;
 
   await ensureUserCanEditCalendar(calendarId);
+  const [existing] = await getScheduleEntriesInRange(calendarId, date, date);
+  const previousSkipPassUsed = existing?.skip_pass_used ?? false;
 
   await upsertScheduleEntryForDate(calendarId, {
     date,
@@ -84,7 +88,7 @@ export async function saveScheduleEntry(
     stream_content_color: streamContentColor,
   });
 
-  if (skipPassUsed) {
+  if (!previousSkipPassUsed && skipPassUsed) {
     const state = await getOrCreateCalendarRankState(calendarId);
     if (
       compareJstDate(date, state.rank_cycle_start_date) >= 0 &&
@@ -98,6 +102,9 @@ export async function saveScheduleEntry(
       );
     }
     await decrementSkipPassRemaining(calendarId, date);
+  } else if (previousSkipPassUsed && !skipPassUsed) {
+    await recalculateRankResetDateFromCurrentCycle(calendarId);
+    await restoreSkipPassRemaining(calendarId, date);
   }
 
   await ensureSkipPassIncrementForLastWeek(calendarId);
@@ -667,7 +674,9 @@ export async function updateScheduleEntryField(
     stream_content_color: base.stream_content_color ?? null,
   });
 
-  if (field === "skip_pass_used" && bool(value)) {
+  const nextSkipPassUsed =
+    field === "skip_pass_used" ? bool(value) : base.skip_pass_used;
+  if (field === "skip_pass_used" && !base.skip_pass_used && nextSkipPassUsed) {
     const state = await getOrCreateCalendarRankState(calendarId);
     if (
       compareJstDate(date, state.rank_cycle_start_date) >= 0 &&
@@ -681,6 +690,13 @@ export async function updateScheduleEntryField(
       );
     }
     await decrementSkipPassRemaining(calendarId, date);
+  } else if (
+    field === "skip_pass_used" &&
+    base.skip_pass_used &&
+    !nextSkipPassUsed
+  ) {
+    await recalculateRankResetDateFromCurrentCycle(calendarId);
+    await restoreSkipPassRemaining(calendarId, date);
   }
 
   await ensureSkipPassIncrementForLastWeek(calendarId);

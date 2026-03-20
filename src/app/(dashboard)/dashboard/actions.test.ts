@@ -5,20 +5,28 @@ const mockUpsert = vi.fn();
 const mockRevalidatePath = vi.fn();
 const mockGetOrCreateCalendarRankState = vi.fn();
 const mockExtendRankResetDate = vi.fn();
+const mockRecalculateRankResetDateFromCurrentCycle = vi.fn();
 const mockDecrementSkipPassRemaining = vi.fn();
+const mockRestoreSkipPassRemaining = vi.fn();
 const mockEnsureSkipPassIncrementForLastWeek = vi.fn();
+const mockGetScheduleEntriesInRange = vi.fn();
 
 vi.mock("@/lib/data/schedule-entries", () => ({
   upsertScheduleEntryForDate: (...args: unknown[]) => mockUpsert(...args),
-  getScheduleEntriesInRange: vi.fn(),
+  getScheduleEntriesInRange: (...args: unknown[]) =>
+    mockGetScheduleEntriesInRange(...args),
 }));
 
 vi.mock("@/lib/data/calendar-rank-state", () => ({
   getOrCreateCalendarRankState: (...args: unknown[]) =>
     mockGetOrCreateCalendarRankState(...args),
   extendRankResetDate: (...args: unknown[]) => mockExtendRankResetDate(...args),
+  recalculateRankResetDateFromCurrentCycle: (...args: unknown[]) =>
+    mockRecalculateRankResetDateFromCurrentCycle(...args),
   decrementSkipPassRemaining: (...args: unknown[]) =>
     mockDecrementSkipPassRemaining(...args),
+  restoreSkipPassRemaining: (...args: unknown[]) =>
+    mockRestoreSkipPassRemaining(...args),
   ensureSkipPassIncrementForLastWeek: (...args: unknown[]) =>
     mockEnsureSkipPassIncrementForLastWeek(...args),
 }));
@@ -39,8 +47,11 @@ describe("dashboard actions", () => {
       rank_cycle_start_date: "2024-01-08",
       rank_reset_date: "2024-01-21",
     });
+    mockGetScheduleEntriesInRange.mockResolvedValue([]);
     mockExtendRankResetDate.mockResolvedValue(undefined);
+    mockRecalculateRankResetDateFromCurrentCycle.mockResolvedValue(undefined);
     mockDecrementSkipPassRemaining.mockResolvedValue(undefined);
+    mockRestoreSkipPassRemaining.mockResolvedValue(undefined);
     mockEnsureSkipPassIncrementForLastWeek.mockResolvedValue(undefined);
   });
 
