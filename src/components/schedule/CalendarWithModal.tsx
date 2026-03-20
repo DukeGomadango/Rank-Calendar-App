@@ -1734,7 +1734,7 @@ export function CalendarWithModal({
         onKeyDown={handleWeekGridKeyDown}
         className="flex min-h-[calc(100vh-220px)] flex-col overflow-x-auto [scrollbar-gutter:stable] rounded-xl border border-zinc-200 bg-white/80 px-0 py-3 text-xs shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-zinc-800 dark:bg-zinc-900/80"
       >
-        <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-y-hidden">
+        <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-y-hidden min-w-max">
           <div className="flex min-h-0 flex-col gap-2 shrink-0">
             <div className="shrink-0 space-y-2 bg-white/95 pb-2 backdrop-blur-md dark:bg-zinc-900/95">
               <div className="flex w-max rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
