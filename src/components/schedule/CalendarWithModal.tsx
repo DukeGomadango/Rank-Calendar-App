@@ -1734,10 +1734,10 @@ export function CalendarWithModal({
         onKeyDown={handleWeekGridKeyDown}
         className="flex min-h-[calc(100vh-220px)] flex-col overflow-x-auto [scrollbar-gutter:stable] rounded-xl border border-zinc-200 bg-white/80 px-0 py-3 text-xs shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-zinc-800 dark:bg-zinc-900/80"
       >
-        <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-y-hidden min-w-0">
+        <div className="mt-1 flex min-h-0 flex-none flex-col overflow-y-hidden w-max shrink-0">
           <div className="flex min-h-0 flex-col gap-2 shrink-0">
             <div className="shrink-0 space-y-2 bg-white/95 pb-2 backdrop-blur-md dark:bg-zinc-900/95">
-              <div className="flex w-full rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+              <div className="flex w-max rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
                 {/* Corner: 左の時刻軸幅を予約 */}
                 <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                   曜日
@@ -1759,7 +1759,7 @@ export function CalendarWithModal({
                   return (
                     <div
                       key={day.date}
-                      className={`${base} ${weekend} ${borderRight} flex-1 min-w-[180px] flex flex-col items-center justify-center`}
+                      className={`${base} ${weekend} ${borderRight} flex-none w-[180px] flex flex-col items-center justify-center`}
                     >
                       <div>{WEEKDAYS[idx]}</div>
                       <div className="text-[10px]">{dateObj.format("M/D")}</div>
@@ -1769,7 +1769,7 @@ export function CalendarWithModal({
               </div>
           {/* ランク帯（簡略版） */}
           {permissions.canViewRank && currentRankCycle && (
-            <div className="flex w-full rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+            <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
               <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                 ランク
               </div>
@@ -1789,7 +1789,7 @@ export function CalendarWithModal({
                 return (
                   <div
                     key={day.date}
-                    className={`${bg} relative flex-1 min-w-[180px] flex items-center justify-center px-1 py-0.5 text-[10px] ${borderRight}`}
+                    className={`${bg} relative flex-none w-[180px] flex items-center justify-center px-1 py-0.5 text-[10px] ${borderRight}`}
                   >
                     {cycle && (() => {
                       const showBracket = true;
@@ -1821,7 +1821,7 @@ export function CalendarWithModal({
 
           {/* イベント帯（ランク帯とタイムラインの間。月ビューと同様の複数日帯） */}
           {permissions.canViewEvents && (
-            <div className="flex w-full rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+            <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
               <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                 イベント
               </div>
@@ -1838,7 +1838,7 @@ export function CalendarWithModal({
                 return (
                   <div
                     key={`week-events-${day.date}`}
-                    className={`${cellBg} min-h-[2.75rem] flex-1 min-w-[180px] px-1 py-1 ${borderRight}`}
+                    className={`${cellBg} min-h-[2.75rem] flex-none w-[180px] px-1 py-1 ${borderRight}`}
                   >
                     {eventsOnDay.length > 0 && (
                       <div className="flex flex-col gap-px">
@@ -1868,7 +1868,7 @@ export function CalendarWithModal({
             </div>
           )}
 
-            <div className="flex w-full rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+            <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
               <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                 終日
               </div>
@@ -1887,7 +1887,7 @@ export function CalendarWithModal({
                 return (
                   <div
                     key={`week-allday-${day.date}`}
-                    className={`${cellBg} flex-1 min-w-[180px] flex min-h-[2.5rem] flex-col gap-px px-1 py-1 ${borderRight}`}
+                    className={`${cellBg} flex-none w-[180px] flex min-h-[2.5rem] flex-col gap-px px-1 py-1 ${borderRight}`}
                     onDragOver={(e) => {
                       if (!canShift) return;
                       e.preventDefault();
