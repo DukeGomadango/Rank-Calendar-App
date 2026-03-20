@@ -32,7 +32,9 @@ export function WeekScheduleBlockPopover({
       <Popover
         opened={opened}
         onChange={onOpenChange}
-        position="right-start"
+        // クリックした予定の「すぐ右」に出すため、右向きかつ（横方向）オフセットを固定する
+        position="right"
+        offset={0}
         shadow="md"
         radius="md"
         trapFocus={false}
