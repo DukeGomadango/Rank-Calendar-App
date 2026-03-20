@@ -116,6 +116,9 @@ export function DataPageClient({
         d = dayjs(d, "YYYY-MM-DD").add(1, "day").format("YYYY-MM-DD");
       }
     }
+    const forecastRankForFuture = (futureCycles?.[0]?.rank ?? null) as
+      | string
+      | null;
 
     const cumulativeByDate =
       rankState && permissions.canViewRank
@@ -179,7 +182,12 @@ export function DataPageClient({
         ...(entry ?? {}),
         current_rank:
           permissions.canViewRank
-            ? (rankForDay ?? rankState?.current_rank ?? null)
+            ? dateStr >= todayStr
+              ? (forecastRankForFuture ??
+                rankForDay ??
+                rankState?.current_rank ??
+                null)
+              : (rankForDay ?? rankState?.current_rank ?? null)
             : undefined,
         rank_cycle_boundary:
           permissions.canViewRank && cycleMeta
