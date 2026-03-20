@@ -2056,8 +2056,9 @@ export function CalendarWithModal({
                                   ev.stopPropagation();
                                   setSelectedDate(day.date);
                                   setSelectedScheduleId(s.id);
-                                  setIsDayEditModalOpen(false);
-                                  setWeekSchedulePreviewOpen(true);
+                                  // 予定を1クリックで編集モーダルへ（プレビューは表示しない）
+                                  setIsDayEditModalOpen(true);
+                                  setWeekSchedulePreviewOpen(false);
                                   setModalTab("schedule");
                                   setScheduleCreatePrefill(null);
                                   setScheduleCreateSelection(null);
@@ -2614,8 +2615,9 @@ export function CalendarWithModal({
                                       e.stopPropagation();
                                       setSelectedDate(day.date);
                                       setSelectedScheduleId(s.id);
-                                      setIsDayEditModalOpen(false);
-                                      setWeekSchedulePreviewOpen(true);
+                                      // 予定を1クリックで編集モーダルへ（プレビューは表示しない）
+                                      setIsDayEditModalOpen(true);
+                                      setWeekSchedulePreviewOpen(false);
                                       setModalTab("schedule");
                                       setScheduleCreatePrefill(null);
                                       setScheduleCreateSelection(null);
