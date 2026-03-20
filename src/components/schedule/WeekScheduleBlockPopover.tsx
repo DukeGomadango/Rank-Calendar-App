@@ -32,7 +32,7 @@ export function WeekScheduleBlockPopover({
       <Popover
         opened={opened}
         onChange={onOpenChange}
-        position="bottom"
+        position="right"
         shadow="md"
         radius="md"
         withinPortal
