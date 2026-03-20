@@ -1737,7 +1737,7 @@ export function CalendarWithModal({
         <div className="mt-1 flex min-h-0 flex-col overflow-y-hidden w-full">
           <div className="flex min-h-0 flex-col gap-2 shrink-0">
             <div className="shrink-0 space-y-2 bg-white/95 pb-2 backdrop-blur-md dark:bg-zinc-900/95">
-              <div className="flex w-full rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+              <div className="flex w-full min-w-[1316px] rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
                 {/* Corner: 左の時刻軸幅を予約 */}
                 <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                   曜日
@@ -1769,7 +1769,7 @@ export function CalendarWithModal({
               </div>
           {/* ランク帯（簡略版） */}
           {permissions.canViewRank && currentRankCycle && (
-            <div className="flex w-full rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+            <div className="flex w-full min-w-[1316px] rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
               <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                 ランク
               </div>
@@ -1821,7 +1821,7 @@ export function CalendarWithModal({
 
           {/* イベント帯（ランク帯とタイムラインの間。月ビューと同様の複数日帯） */}
           {permissions.canViewEvents && (
-            <div className="flex w-full rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+            <div className="flex w-full min-w-[1316px] rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
               <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                 イベント
               </div>
@@ -1868,7 +1868,7 @@ export function CalendarWithModal({
             </div>
           )}
 
-            <div className="flex w-full rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+            <div className="flex w-full min-w-[1316px] rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
               <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                 終日
               </div>
@@ -2016,7 +2016,7 @@ export function CalendarWithModal({
             </div>
 
           {/* 時間グリッド本体 */}
-          <div className="flex flex-1 min-h-0 overflow-y-auto overflow-x-visible rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
             {/* 時刻軸 */}
             <div className="sticky left-0 z-10 flex w-14 shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               {hours.map((h) => (
@@ -2030,7 +2030,7 @@ export function CalendarWithModal({
             </div>
 
             {/* 日別カラム */}
-            <div className="flex w-full">
+            <div className="flex w-full min-w-[1316px]">
               {weekDays.map((day) => {
                 const daySchedulesRaw = schedulesByDate.get(day.date) ?? [];
                 const daySchedules = daySchedulesRaw.filter(scheduleShowsInWeekTimeGrid);
