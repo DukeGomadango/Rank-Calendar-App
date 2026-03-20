@@ -1739,7 +1739,9 @@ export function CalendarWithModal({
             <div className="shrink-0 space-y-2 bg-white/95 pb-2 backdrop-blur-md dark:bg-zinc-900/95">
               <div className="flex rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
                 {/* Corner: 左の時刻軸幅を予約 */}
-                <div className="sticky left-0 z-0 w-14 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+                <div className="sticky left-0 z-0 flex w-14 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                  曜日
+                </div>
                 {weekDays.map((day, idx) => {
                   const isSun = idx === 0;
                   const isSat = idx === 6;
@@ -1768,7 +1770,9 @@ export function CalendarWithModal({
           {/* ランク帯（簡略版） */}
           {permissions.canViewRank && currentRankCycle && (
             <div className="flex rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              <div className="sticky left-0 z-0 w-14 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+              <div className="sticky left-0 z-0 flex w-14 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                イベント
+              </div>
               {weekDays.map((day, idx) => {
                 const cycle = getCycleForDate(day.date);
                 const weekRowDates = weekDates;
@@ -1818,7 +1822,9 @@ export function CalendarWithModal({
           {/* イベント帯（ランク帯とタイムラインの間。月ビューと同様の複数日帯） */}
           {permissions.canViewEvents && (
             <div className="flex rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              <div className="sticky left-0 z-0 w-14 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+              <div className="sticky left-0 z-0 flex w-14 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                終日
+              </div>
               {weekDays.map((day, idx) => {
                 const eventsOnDay = eventsByDate.get(day.date) ?? [];
                 const cycle = getCycleForDate(day.date);
