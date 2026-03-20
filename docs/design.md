@@ -69,7 +69,11 @@
 | **invite_links** | 招待リンク。`calendar_id`, `role_id`, トークン、有効期限など。 |
 | **invite_redemptions** | 招待の利用履歴。誰がどの招待で参加したか。 |
 | **shares** | ユーザーとカレンダーの共有関係。`user_id`, `calendar_id`, `role_id`。 |
-| **calendar_rank_state** | カレンダーごとのランク状態。`current_rank`, `rank_cycle_start_date`, `rank_reset_date`。スキップでリセット日延長、ランクアップで新周期。 |
+| **calendar_rank_state** | カレンダーごとのランク状態。`current_rank`, `target_rank`, `rank_cycle_start_date`, `rank_reset_date`, `skip_pass_remaining`, `skip_pass_last_increment_week_start`。スキップでリセット日延長、ランクアップで新周期。 |
+| **calendar_schedules** | 時間付きの予定（カレンダー予定）。`date/end_date`、`start_time/end_time`、全日フラグ、`kind(stream/personal/secret)`、`visibility`、色、メモ等。 |
+| **calendar_schedule_undo_stack** | 予定の変更履歴（create/update/delete の before/after スナップショット）。オーナーのみ RPC 経由で書き込み。Undo/Redo は PostgreSQL の関数（`calendar_schedule_undo` / `calendar_schedule_redo`）を 1 トランザクションで適用。新規変更時は `undone_at IS NOT NULL` の行（やり直し枝）を削除してからスタックに push。 |
+| **skip_pass_snapshots** | スキップ残り枚数のスナップショット。`as_of_date` 時点の `remaining` を保存する。 |
+| **calendar_rank_cycle_history** | ランク周期の履歴。`cycle_start_date〜cycle_end_date` と、その周期のランク（`rank_during`）を保存する。 |
 
 ### schedule_entries の主なカラム
 
@@ -85,6 +89,8 @@
 | border_plus2, border_plus4, border_plus6 | integer? | ボーダー値（0〜9,999万まで対応） |
 | event_id | uuid? | 紐づくイベント |
 | memo | text? | メモ |
+| stream_content | text? | リスナー向けの配信内容（`view_schedule_stream` により表示制御） |
+| stream_content_color | text? | 配信内容色（色ドット表示用。`stream_content` とセットで扱う） |
 
 ### 権限（CalendarPermissionFlags）
 
@@ -97,14 +103,23 @@
 - **canViewTargetActual**: 目標+・実績+表示
 - **canViewRank**: ランク情報表示
 - **canViewEvents**: イベント表示
+- **canViewScheduleStream**: 配信スケジュール（kind=`stream`、および `schedule_entries.stream_content` 相当）の閲覧
+- **canViewSchedulePersonal**: 個人スケジュール（kind=`personal`）の閲覧
+- **canViewScheduleSecret**: 秘密スケジュール（kind=`secret`）の閲覧
 
-共有ユーザーは `shares` → `role_id` → `role_permissions` から上記の「View*」系フラグが決まる。編集はオーナーのみ。
+共有ユーザーは `shares` → `role_id` → `role_permissions` から上記の「View*」系フラグ（カレンダー/データ表/ボーダー/メモ/目標実績/ランク/イベント/配信・個人・秘密の予定）が決まる。編集はオーナーのみ。
 
 ---
+
+## カレンダー予定（calendar_schedules）の変更と Undo
+
+- オーナーによる作成・更新・削除は Server Actions（`src/app/(dashboard)/dashboard/actions.ts`）から Supabase RPC `iriam.calendar_schedule_apply_upsert_undo` / `iriam.calendar_schedule_apply_delete_undo` を呼び出し、**行の変更と `calendar_schedule_undo_stack` への記録を同一トランザクション**で行う。
+- Undo / Redo は RPC `iriam.calendar_schedule_undo` / `iriam.calendar_schedule_redo`（カレンダー ID ＋ `auth.uid()` 単位のスタック）。
 
 ## ドメインロジック
 
 - **`lib/domain/calendar.ts`**: JST 日付文字列（`JstDateString`）、`toJstDateString`, `getJstWeekStart`, `compareJstDate`。
+- **`lib/domain/week-view-layout.ts`**: 週ビュー用の 15 分スナップと重なり列割当（連結成分）。`week-view-layout.test.ts` で検証。
 - **`lib/domain/rank.ts`**: `RankEntry`, `WeeklyRankProgress`, `RankJudgement`。`calculateWeeklyRankProgress`（月曜週ベースの後方互換用）、`calculateCycleCumulativeByDate`（集計周期内の日別累計）、`judgeCycleRank`（+18 ランクアップ / +12 キープ / 未満ダウン）。**集計周期**は `calendar_rank_state` の `rank_cycle_start_date` 〜 `rank_reset_date`。スキップ日は集計から除外。ランクアップで翌日がゼロ日目（新周期開始）。
 
 ---
@@ -143,7 +158,7 @@ src/
 ├── lib/
 │   ├── supabase/                  # server.ts（createSupabaseServerClient, createSupabaseRouteHandlerClient, createSupabaseServiceRoleClient）, client.ts
 │   ├── auth/                      # permission.ts, mock-role-cookie.ts
-│   ├── data/                      # calendars, schedule-entries, events, calendar-rank-state, roles, permissions, shares, invite-links, invite-redemptions, data-range.ts
+│   ├── data/                      # calendars, schedule-entries, schedules, events, calendar-rank-state, roles, permissions, shares, invite-links, invite-redemptions, data-range.ts
 │   ├── domain/                    # calendar.ts, rank.ts（＋テスト）
 │   ├── theme-context.tsx
 │   ├── mock-schedule-context.tsx
