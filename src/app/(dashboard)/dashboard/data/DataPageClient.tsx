@@ -7,8 +7,14 @@ import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { EnsureCalendarIdInUrl } from "@/components/dashboard/EnsureCalendarIdInUrl";
 import { DataTable } from "@/components/data/DataTable";
 import { DataRangeSelect } from "@/components/data/DataRangeSelect";
-import { toJstDateString } from "@/lib/domain/calendar";
-import { calculateCycleCumulativeByDate } from "@/lib/domain/rank";
+import { addDays, getCycleEndDateIncludingSkips, toJstDateString } from "@/lib/domain/calendar";
+import {
+  calculateCycleCumulativeByDate,
+  getNextRank,
+  getPreviousRank,
+  judgeCycleRank,
+  type RankLabel,
+} from "@/lib/domain/rank";
 import type { EventRow } from "@/lib/data/events";
 
 type UpdateFieldAction = (
@@ -84,6 +90,64 @@ export function DataPageClient({
     }
     for (const fc of futureCycles ?? []) {
       rankCycles.push({ start: fc.start, end: fc.end, rank: fc.rank });
+    }
+    if (permissions.canViewRank && rankState) {
+      const entriesByDateForForecast = new Map(
+        entries.map((e) => [e.date, e] as const),
+      );
+      const sortedByEnd = rankCycles
+        .slice()
+        .sort((a, b) => a.end.localeCompare(b.end));
+      const lastCycle = sortedByEnd[sortedByEnd.length - 1];
+      let periodStart = lastCycle ? addDays(lastCycle.end, 1) : addDays(rankState.rank_reset_date, 1);
+      let rankForThisPeriod = (lastCycle?.rank ??
+        rankState.current_rank) as RankLabel | null;
+
+      while (periodStart <= toStr && rankForThisPeriod != null) {
+        const periodEnd = getCycleEndDateIncludingSkips(
+          periodStart,
+          entriesByDateForForecast,
+        );
+        let projectedTotal = 0;
+        let c = periodStart;
+        while (c <= periodEnd) {
+          const entry = entriesByDateForForecast.get(c);
+          if (c < todayStr) {
+            const plus =
+              entry?.skip_pass_used || entry?.actual_plus == null
+                ? 0
+                : Math.max(0, entry.actual_plus);
+            if (!entry?.skip_pass_used) projectedTotal += plus;
+          } else {
+            const target = entry?.target_plus ?? entry?.actual_plus ?? 0;
+            if (!entry?.skip_pass_used) {
+              projectedTotal += Math.max(0, target);
+            }
+          }
+          c = addDays(c, 1);
+        }
+
+        rankCycles.push({
+          start: periodStart,
+          end: periodEnd,
+          rank: rankForThisPeriod,
+        });
+
+        const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
+        if (canRankUp) {
+          rankForThisPeriod =
+            getNextRank(rankForThisPeriod as RankLabel) ??
+            (rankForThisPeriod as RankLabel);
+        } else if (isKeep) {
+          // keep
+        } else {
+          rankForThisPeriod =
+            (getPreviousRank(
+              rankForThisPeriod as RankLabel,
+            ) as RankLabel | null) ?? rankForThisPeriod;
+        }
+        periodStart = addDays(periodEnd, 1);
+      }
     }
     const rankByDate = new Map<string, string | null>();
     const rankCycleMetaByDate = new Map<
