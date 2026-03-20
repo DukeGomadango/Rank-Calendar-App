@@ -176,15 +176,16 @@ export function DashboardProvider({
       let cursorForecast = cycleStartForForecast;
       while (cursorForecast <= cycleEndForForecast) {
         const entry = entriesByDateForForecast.get(cursorForecast);
-        if (cursorForecast <= todayJst) {
+        if (cursorForecast < todayJst) {
           const plus =
             entry?.skip_pass_used || entry?.actual_plus == null
               ? 0
               : Math.max(0, entry.actual_plus);
           if (!entry?.skip_pass_used) projectedTotal += plus;
         } else {
-          const target = entry?.target_plus ?? 0;
-          // スキップ（将来日含む）は集計から除外する
+          const target = entry?.target_plus ?? entry?.actual_plus ?? 0;
+          // 今日以降は目標+ベース（未設定時は実績+へフォールバック）
+          // スキップ（今日・将来日含む）は集計から除外する
           if (!entry?.skip_pass_used) {
             projectedTotal += Math.max(0, target);
           }
@@ -229,15 +230,16 @@ export function DashboardProvider({
         let c = periodStart;
         while (c <= periodEnd) {
           const entry = entriesByDateForForecast.get(c);
-          if (c <= todayJst) {
+          if (c < todayJst) {
             const plus =
               entry?.skip_pass_used || entry?.actual_plus == null
                 ? 0
                 : Math.max(0, entry.actual_plus);
             if (!entry?.skip_pass_used) projectedTotal += plus;
           } else {
-            const target = entry?.target_plus ?? 0;
-            // スキップ（将来日含む）は集計から除外する
+            const target = entry?.target_plus ?? entry?.actual_plus ?? 0;
+            // 今日以降は目標+ベース（未設定時は実績+へフォールバック）
+            // スキップ（今日・将来日含む）は集計から除外する
             if (!entry?.skip_pass_used) {
               projectedTotal += Math.max(0, target);
             }
