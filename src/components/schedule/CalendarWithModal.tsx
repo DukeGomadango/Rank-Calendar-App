@@ -1732,7 +1732,7 @@ export function CalendarWithModal({
         ref={weekTimeGridRef}
         tabIndex={0}
         onKeyDown={handleWeekGridKeyDown}
-        className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-zinc-800 dark:bg-zinc-900/80"
+        className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 px-0 py-3 text-xs shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-zinc-800 dark:bg-zinc-900/80"
       >
         <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden [scrollbar-gutter:stable]">
           <div className="flex min-h-0 flex-col gap-2 shrink-0">
@@ -2014,7 +2014,7 @@ export function CalendarWithModal({
             </div>
 
           {/* 時間グリッド本体 */}
-          <div className="flex flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex flex-1 min-h-0 overflow-y-auto overflow-x-visible rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
             {/* 時刻軸 */}
             <div className="sticky left-0 z-10 flex w-14 shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               {hours.map((h) => (
@@ -2025,7 +2025,7 @@ export function CalendarWithModal({
             </div>
 
             {/* 日別カラム */}
-            <div className="flex min-w-0 flex-1">
+            <div className="flex w-max">
               {weekDays.map((day) => {
                 const daySchedulesRaw = schedulesByDate.get(day.date) ?? [];
                 const daySchedules = daySchedulesRaw.filter(scheduleShowsInWeekTimeGrid);
