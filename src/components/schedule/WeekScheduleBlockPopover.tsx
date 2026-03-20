@@ -32,10 +32,9 @@ export function WeekScheduleBlockPopover({
       <Popover
         opened={opened}
         onChange={onOpenChange}
-        position="right"
+        position="right-start"
         shadow="md"
         radius="md"
-        withinPortal
         trapFocus={false}
       >
         <Popover.Target>{children}</Popover.Target>
