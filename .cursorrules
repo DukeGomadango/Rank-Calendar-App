@@ -1,0 +1,17 @@
+# 日本語で回答
+英語で思考し、返信は必ず日本語で行う。
+
+# 実装優先
+変更提案は「現状の実装（コード）」と整合していることを優先する（仕様だけで進めない）。
+
+# 破壊的操作をしない
+既存の未関連変更は戻さない（原因不明の revert はしない）。
+`git commit` / `git push` はユーザーが明示的に依頼したときだけ実行する。
+`git reset --hard` 等の破壊的コマンドは、ユーザーの明示的な指示がない限り実行しない。
+
+# セキュリティ/機密
+`.env` / `.env.*` / `SUPABASE_SERVICE_ROLE_KEY` / `E2E_TEST_SECRET` などの機密値を本文やコードに埋め込まない。
+生成物（`coverage/`, `.next/`, `playwright-report/`, `test-results/`, `e2e/.auth/` 等）に触れない。
+
+# ドキュメント整合
+`docs/` を更新する場合は、該当箇所が `package.json`、`vitest.config.mts`、`playwright.config.ts`、CI設定（`.github/workflows/ci.yml`）と一致するようにする。

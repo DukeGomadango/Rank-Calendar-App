@@ -37,3 +37,9 @@ yarn-error.log*
 .DS_Store
 *.pem
 .git/
+
+# バイナリ/学習データ（AIコンテキスト不要）
+*.traineddata
+
+# Supabase ローカル一時ディレクトリ
+supabase/.temp/
