@@ -101,7 +101,10 @@ export function DataPageClient({
         ? calculateCycleCumulativeByDate(
             entries.map((e) => ({
               date: e.date,
-              actual_plus: e.actual_plus,
+              actual_plus:
+                e.date >= todayStr
+                  ? (e.target_plus ?? e.actual_plus)
+                  : e.actual_plus,
               skip_pass_used: e.skip_pass_used,
             })),
             rankState.rank_cycle_start_date,
