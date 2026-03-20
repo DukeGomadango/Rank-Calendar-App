@@ -18,7 +18,7 @@ type Props = {
     toDate: string,
   ) => Promise<void>;
   saveScheduleAction: (formData: FormData) => Promise<SaveCalendarScheduleResult>;
-  deleteScheduleAction: (scheduleId: string) => Promise<void>;
+  deleteScheduleAction: (calendarId: string, scheduleId: string) => Promise<void>;
   shiftScheduleAction: (
     calendarId: string,
     scheduleId: string,
@@ -26,6 +26,15 @@ type Props = {
     newStartDate: string,
     newStartTime: string | null
   ) => Promise<void>;
+  resizeScheduleAction: (
+    calendarId: string,
+    scheduleId: string,
+    edge: "start" | "end",
+    newDate: string,
+    newTime: string
+  ) => Promise<void>;
+  undoScheduleAction: (calendarId: string) => Promise<void>;
+  redoScheduleAction: (calendarId: string) => Promise<void>;
 };
 
 export function CalendarPageClient({
@@ -36,6 +45,9 @@ export function CalendarPageClient({
   saveScheduleAction,
   deleteScheduleAction,
   shiftScheduleAction,
+  resizeScheduleAction,
+  undoScheduleAction,
+  redoScheduleAction,
 }: Props) {
   const { calendarId, calendarName, permissions, setBaseMonth } =
     useDashboardCalendar();
@@ -75,6 +87,9 @@ export function CalendarPageClient({
         saveScheduleAction={saveScheduleAction}
         deleteScheduleAction={deleteScheduleAction}
         shiftScheduleAction={shiftScheduleAction}
+        resizeScheduleAction={resizeScheduleAction}
+        undoScheduleAction={undoScheduleAction}
+        redoScheduleAction={redoScheduleAction}
       />
     </div>
   );

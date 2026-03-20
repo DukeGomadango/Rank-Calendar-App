@@ -34,7 +34,7 @@ type Props = {
   /** 時間付き予定保存用 Server Action */
   saveScheduleAction?: (formData: FormData) => Promise<SaveCalendarScheduleResult>;
   /** 時間付き予定削除用 Server Action */
-  deleteScheduleAction?: (scheduleId: string) => Promise<void>;
+  deleteScheduleAction?: (calendarId: string, scheduleId: string) => Promise<void>;
   /** 予定（calendar_schedules）移動/コピー用 Server Action */
   shiftScheduleAction?: (
     calendarId: string,
@@ -43,6 +43,15 @@ type Props = {
     newStartDate: string,
     newStartTime: string | null
   ) => Promise<void>;
+  resizeScheduleAction?: (
+    calendarId: string,
+    scheduleId: string,
+    edge: "start" | "end",
+    newDate: string,
+    newTime: string
+  ) => Promise<void>;
+  undoScheduleAction?: (calendarId: string) => Promise<void>;
+  redoScheduleAction?: (calendarId: string) => Promise<void>;
 };
 
 export function CalendarWithDataProvider({
@@ -56,6 +65,9 @@ export function CalendarWithDataProvider({
   saveScheduleAction,
   deleteScheduleAction,
   shiftScheduleAction,
+  resizeScheduleAction,
+  undoScheduleAction,
+  redoScheduleAction,
 }: Props) {
   const [displayMonth, setDisplayMonth] = useState(dayjs(`${initialMonth}-15`, "YYYY-MM-DD"));
   const [displayWeekStart, setDisplayWeekStart] = useState(initialWeekStart);
@@ -205,7 +217,14 @@ export function CalendarWithDataProvider({
               }
             : undefined
         }
-        deleteScheduleAction={deleteScheduleAction}
+        deleteScheduleAction={
+          deleteScheduleAction
+            ? async (scheduleId) => {
+                await deleteScheduleAction(calendarId, scheduleId);
+                refreshRange();
+              }
+            : undefined
+        }
         shiftScheduleAction={
           shiftScheduleAction
             ? async (scheduleId, mode, newStartDate, newStartTime) => {
@@ -216,6 +235,36 @@ export function CalendarWithDataProvider({
                   newStartDate,
                   newStartTime
                 );
+                refreshRange();
+              }
+            : undefined
+        }
+        resizeScheduleAction={
+          resizeScheduleAction
+            ? async (scheduleId, edge, newDate, newTime) => {
+                await resizeScheduleAction(
+                  calendarId,
+                  scheduleId,
+                  edge,
+                  newDate,
+                  newTime
+                );
+                refreshRange();
+              }
+            : undefined
+        }
+        undoScheduleAction={
+          undoScheduleAction
+            ? async () => {
+                await undoScheduleAction(calendarId);
+                refreshRange();
+              }
+            : undefined
+        }
+        redoScheduleAction={
+          redoScheduleAction
+            ? async () => {
+                await redoScheduleAction(calendarId);
                 refreshRange();
               }
             : undefined

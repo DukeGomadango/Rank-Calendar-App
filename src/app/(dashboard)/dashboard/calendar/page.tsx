@@ -6,9 +6,12 @@ import { CalendarPageClient } from "./CalendarPageClient";
 import {
   deleteCalendarSchedule,
   moveScheduleEntry,
+  redoCalendarScheduleChange,
+  resizeCalendarSchedule,
   shiftCalendarSchedule,
   saveCalendarSchedule,
   saveScheduleEntry,
+  undoCalendarScheduleChange,
 } from "../actions";
 
 function parseMonthParam(month?: string | string[]): dayjs.Dayjs {
@@ -56,6 +59,9 @@ export default async function CalendarPage(props: PageProps) {
       saveScheduleAction={saveCalendarSchedule}
       deleteScheduleAction={deleteCalendarSchedule}
       shiftScheduleAction={shiftCalendarSchedule}
+      resizeScheduleAction={resizeCalendarSchedule}
+      undoScheduleAction={undoCalendarScheduleChange}
+      redoScheduleAction={redoCalendarScheduleChange}
     />
   );
 }

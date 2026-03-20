@@ -17,6 +17,13 @@ import { useToast } from "@/lib/toast-context";
 import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
 import { EVENT_PALETTE, getEventColorClasses, getEventColorDotClass } from "@/lib/event-colors";
 import { toJstDateString } from "@/lib/domain/calendar";
+import {
+  assignWeekColumnLayout,
+  MINUTES_PER_DAY,
+  snapMinutesToSlot,
+  WEEK_VIEW_SLOT_MINUTES,
+  type WeekViewSegment,
+} from "@/lib/domain/week-view-layout";
 import { useViewMode } from "@/lib/view-mode-context";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { SparklesIcon, NoteIcon, TrashIcon } from "@/components/icons/DashboardIcons";
@@ -177,6 +184,16 @@ type Props = {
     newStartDate: string,
     newStartTime: string | null
   ) => Promise<void>;
+  /** 週ビュー: 予定の上下リサイズ */
+  resizeScheduleAction?: (
+    scheduleId: string,
+    edge: "start" | "end",
+    newDate: string,
+    newTime: string
+  ) => Promise<void>;
+  /** 週ビュー: Undo / Redo（Server + DB スタック） */
+  undoScheduleAction?: () => Promise<void>;
+  redoScheduleAction?: () => Promise<void>;
 };
 
 /** 日付が周期範囲内か判定 */
@@ -220,6 +237,9 @@ export function CalendarWithModal({
   saveScheduleAction,
   deleteScheduleAction,
   shiftScheduleAction,
+  resizeScheduleAction,
+  undoScheduleAction,
+  redoScheduleAction,
 }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -401,6 +421,18 @@ export function CalendarWithModal({
   useEffect(() => {
     scheduleCreateSelectionRef.current = scheduleCreateSelection;
   }, [scheduleCreateSelection]);
+
+  /** 週ビュー: HTML5 ドラッグ中のドロップ先プレビュー */
+  const [scheduleDragPreview, setScheduleDragPreview] = useState<
+    | null
+    | {
+        columnDate: string;
+        startTime: string;
+        endTime: string;
+      }
+  >(null);
+  const scheduleDragDurationMsRef = useRef(0);
+  const weekTimeGridRef = useRef<HTMLDivElement | null>(null);
 
   const selectedSchedule =
     selectedScheduleId && selectedDate
@@ -760,6 +792,55 @@ export function CalendarWithModal({
               : prevSchedules.map((s) => (s.id === source.id ? shifted : s));
 
           return { ...current, schedules: nextSchedules };
+        },
+        { revalidate: false, populateCache: true }
+      );
+
+      const rollback = () => {
+        if (snapshotLocal) setLocalSchedules(snapshotLocal);
+        if (snapshotCache) {
+          void mutateRange(
+            (current) => {
+              if (!current) return current;
+              return { ...current, schedules: snapshotCache as CalendarScheduleRow[] };
+            },
+            { revalidate: false, populateCache: true }
+          );
+        } else {
+          void mutateRange();
+        }
+      };
+
+      return { applied, rollback };
+    },
+    [mutateRange]
+  );
+
+  const applyOptimisticSchedulePatch = useCallback(
+    (scheduleId: string, next: CalendarScheduleRow): { applied: boolean; rollback: () => void } => {
+      let snapshotLocal: CalendarScheduleRow[] | null = null;
+      let snapshotCache: CalendarScheduleRow[] | null = null;
+      let applied = false;
+
+      setLocalSchedules((prev) => {
+        const source = prev.find((s) => s.id === scheduleId);
+        if (!source) return prev;
+        snapshotLocal = prev;
+        applied = true;
+        return prev.map((s) => (s.id === scheduleId ? next : s));
+      });
+
+      void mutateRange(
+        (current) => {
+          if (!current) return current;
+          const prevSchedules = (current.schedules ?? []) as unknown as CalendarScheduleRow[];
+          if (!prevSchedules.some((s) => s.id === scheduleId)) return current;
+          snapshotCache = prevSchedules;
+          applied = true;
+          return {
+            ...current,
+            schedules: prevSchedules.map((s) => (s.id === scheduleId ? next : s)),
+          };
         },
         { revalidate: false, populateCache: true }
       );
@@ -1446,6 +1527,102 @@ export function CalendarWithModal({
     </section>
   );
 
+  const scheduleClipboardRef = useRef<CalendarScheduleRow | null>(null);
+
+  const handleWeekGridKeyDown = useCallback(
+    async (e: React.KeyboardEvent<HTMLElement>) => {
+      if (view !== "week") return;
+      if ((e.target as HTMLElement).closest("input, textarea, [contenteditable=true]")) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!permissions.canEditSchedule) return;
+
+      const sel =
+        selectedDate && selectedScheduleId
+          ? (schedulesByDate.get(selectedDate) ?? []).find((x) => x.id === selectedScheduleId)
+          : undefined;
+
+      if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        try {
+          await undoScheduleAction?.();
+          void mutateRange();
+        } catch {
+          showToast("元に戻せませんでした");
+        }
+        return;
+      }
+      if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) {
+        e.preventDefault();
+        try {
+          await redoScheduleAction?.();
+          void mutateRange();
+        } catch {
+          showToast("やり直せませんでした");
+        }
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "c" && sel) {
+        e.preventDefault();
+        scheduleClipboardRef.current = sel;
+        showToast("コピーしました");
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "x" && sel && deleteScheduleAction) {
+        e.preventDefault();
+        scheduleClipboardRef.current = sel;
+        try {
+          await deleteScheduleAction(sel.id);
+          showToast("切り取りました");
+          void mutateRange();
+        } catch {
+          showToast("削除に失敗しました");
+        }
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "v" && scheduleClipboardRef.current && shiftScheduleAction) {
+        e.preventDefault();
+        const src = scheduleClipboardRef.current;
+        const pasteDate = selectedDate ?? weekDays[0]?.date;
+        if (!pasteDate) return;
+        try {
+          if (src.is_all_day) {
+            await shiftScheduleAction(src.id, "copy", pasteDate, null);
+          } else {
+            const t = src.start_time ? src.start_time.slice(0, 5) : "09:00";
+            await shiftScheduleAction(src.id, "copy", pasteDate, t);
+          }
+          showToast("貼り付けました");
+          void mutateRange();
+        } catch {
+          showToast("貼り付けに失敗しました");
+        }
+      }
+    },
+    [
+      view,
+      permissions.canEditSchedule,
+      selectedDate,
+      selectedScheduleId,
+      schedulesByDate,
+      undoScheduleAction,
+      redoScheduleAction,
+      deleteScheduleAction,
+      shiftScheduleAction,
+      mutateRange,
+      showToast,
+      weekDays,
+    ]
+  );
+
+  useEffect(() => {
+    const clear = () => {
+      setScheduleDragPreview(null);
+      scheduleDragDurationMsRef.current = 0;
+    };
+    window.addEventListener("dragend", clear);
+    return () => window.removeEventListener("dragend", clear);
+  }, []);
+
   const renderWeekGrid = () => {
     // 各列は「カレンダー日 D の 0:00 〜 翌日 0:00（24h）」。
     // 旧: 5:00〜翌3:00 の22h軸だと、翌日未明の部分が前日列に吸い込まれ水曜列に出ない・帯が不自然になる。
@@ -1453,6 +1630,7 @@ export function CalendarWithModal({
     const msPerMinute = 60 * 1000;
     const canCreate = permissions.canEditSchedule && !!saveScheduleAction;
     const canShift = permissions.canEditSchedule && !!shiftScheduleAction;
+    const canResize = canShift && !!resizeScheduleAction;
 
     const parseYMD = (d: string): { y: number; mo: number; da: number } => {
       const [y, mo, da] = d.split("-").map((v) => Number(v));
@@ -1487,6 +1665,27 @@ export function CalendarWithModal({
       return `${h}:${m}`;
     };
 
+    const formatYMDFromUtcMs = (ms: number): string => {
+      const dt = new Date(ms);
+      const y = dt.getUTCFullYear();
+      const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
+      const da = String(dt.getUTCDate()).padStart(2, "0");
+      return `${y}-${mo}-${da}`;
+    };
+
+    const pointerYToSnappedMinutes = (rect: DOMRect, clientY: number): number => {
+      const y = clientY - rect.top;
+      const clampedY = Math.max(0, Math.min(rect.height, y));
+      const raw = (clampedY / rect.height) * totalMinutes;
+      const snapped = snapMinutesToSlot(raw, WEEK_VIEW_SLOT_MINUTES);
+      return Math.min(snapped, MINUTES_PER_DAY - WEEK_VIEW_SLOT_MINUTES);
+    };
+
+    const snapDeltaMinutesFromDrag = (rect: DOMRect, deltaY: number): number => {
+      const raw = (deltaY / rect.height) * MINUTES_PER_DAY;
+      return Math.round(raw / WEEK_VIEW_SLOT_MINUTES) * WEEK_VIEW_SLOT_MINUTES;
+    };
+
     /** 予定の絶対開始・終了（深夜跨ぎは end_date または 終了時刻が開始より前なら翌日に補正） */
     const getScheduleSpanMs = (
       s: CalendarScheduleRow
@@ -1504,14 +1703,19 @@ export function CalendarWithModal({
     };
 
     const hours: number[] = [];
-    for (let h = 0; h < 24; h += 2) {
+    for (let h = 0; h < 24; h += 1) {
       hours.push(h);
     }
 
     const weekDates = weekDays.map((d) => d.date);
 
     return (
-      <section className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+      <section
+        ref={weekTimeGridRef}
+        tabIndex={0}
+        onKeyDown={handleWeekGridKeyDown}
+        className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-zinc-800 dark:bg-zinc-900/80"
+      >
         {/* 上段: 曜日ヘッダー */}
         <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
           {weekDays.map((day, idx) => {
@@ -1714,6 +1918,7 @@ export function CalendarWithModal({
                               draggable={canShift}
                               onDragStart={(e) => {
                                 if (!canShift) return;
+                                scheduleDragDurationMsRef.current = 0;
                                 const mode = e.ctrlKey || e.metaKey ? "copy" : "move";
                                 e.dataTransfer.setData("calendar/scheduleId", s.id);
                                 e.dataTransfer.setData("calendar/mode", mode);
@@ -1740,36 +1945,49 @@ export function CalendarWithModal({
 
                     {/* 時間スロット */}
                     <div
-                      className={`${bg} relative flex-1`}
+                      data-week-day-grid
+                      className={`${bg} relative min-h-[1152px] flex-1`}
                       onDragOver={(e) => {
                         if (!canShift) return;
                         e.preventDefault();
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const m = pointerYToSnappedMinutes(rect, e.clientY);
+                        const dur = scheduleDragDurationMsRef.current;
+                        if (dur <= 0) return;
+                        const hh = Math.floor(m / 60);
+                        const mm = m % 60;
+                        const startTime = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+                        const startMs = toUtcMs(day.date, `${startTime}:00`);
+                        const endMs = startMs + dur;
+                        const endTime = formatHHMMFromUtcMs(endMs);
+                        setScheduleDragPreview({
+                          columnDate: day.date,
+                          startTime,
+                          endTime,
+                        });
+                      }}
+                      onDragLeave={() => {
+                        setScheduleDragPreview((prev) =>
+                          prev?.columnDate === day.date ? null : prev
+                        );
                       }}
                       onDrop={async (e) => {
                         if (!canShift) return;
                         e.preventDefault();
+                        setScheduleDragPreview(null);
                         const scheduleId = e.dataTransfer.getData("calendar/scheduleId");
                         const modeRaw = e.dataTransfer.getData("calendar/mode");
                         const isAllDayRaw = e.dataTransfer.getData("calendar/isAllDay");
                         if (!scheduleId) return;
-                        if (isAllDayRaw === "1") return; // time grid は time 予定のみ
+                        if (isAllDayRaw === "1") return;
                         const mode = modeRaw === "copy" ? "copy" : "move";
 
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const clampedY = Math.max(0, Math.min(rect.height, y));
-                        const offsetMinutes = (clampedY / rect.height) * totalMinutes;
-
-                        const absTotalMinutes = offsetMinutes;
-                        const dateOffsetDays = Math.floor(absTotalMinutes / (24 * 60));
-                        const timeMinutes = Math.floor(absTotalMinutes - dateOffsetDays * 24 * 60);
-
-                        const newStartDate = dayjs(day.date)
-                          .add(dateOffsetDays, "day")
-                          .format("YYYY-MM-DD");
-                        const hh = String(Math.floor(timeMinutes / 60)).padStart(2, "0");
-                        const mm = String(timeMinutes % 60).padStart(2, "0");
-                        const newStartTime = `${hh}:${mm}`;
+                        const m = pointerYToSnappedMinutes(rect, e.clientY);
+                        const hh = Math.floor(m / 60);
+                        const mm = m % 60;
+                        const newStartTime = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+                        const newStartDate = day.date;
 
                         const optimistic = applyOptimisticScheduleShift(
                           scheduleId,
@@ -1799,11 +2017,10 @@ export function CalendarWithModal({
                       onPointerDown={(e) => {
                         if (!canCreate) return;
                         if ((e.target as HTMLElement | null)?.closest?.("[data-schedule-block]")) return;
+                        if ((e.target as HTMLElement | null)?.closest?.("[data-resize-handle]")) return;
 
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const clampedY = Math.max(0, Math.min(rect.height, y));
-                        const offsetMinutes = (clampedY / rect.height) * totalMinutes;
+                        const offsetMinutes = pointerYToSnappedMinutes(rect, e.clientY);
 
                         setSelectedScheduleId(null);
                         setScheduleCreatePrefill(null);
@@ -1817,9 +2034,7 @@ export function CalendarWithModal({
                       onPointerMove={(e) => {
                         if (!canCreate) return;
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const clampedY = Math.max(0, Math.min(rect.height, y));
-                        const offsetMinutes = (clampedY / rect.height) * totalMinutes;
+                        const offsetMinutes = pointerYToSnappedMinutes(rect, e.clientY);
                         setScheduleCreateSelection((prev) => {
                           if (!prev || prev.dayDate !== day.date) return prev;
                           return { ...prev, endOffsetMinutes: offsetMinutes };
@@ -1831,38 +2046,31 @@ export function CalendarWithModal({
                         if (!sel || sel.dayDate !== day.date) return;
 
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const clampedY = Math.max(0, Math.min(rect.height, y));
-                        const offsetMinutes = (clampedY / rect.height) * totalMinutes;
+                        const offsetMinutes = pointerYToSnappedMinutes(rect, e.clientY);
 
                         const startOffset = Math.min(sel.startOffsetMinutes, offsetMinutes);
                         const endOffset = Math.max(sel.startOffsetMinutes, offsetMinutes);
                         setScheduleCreateSelection(null);
 
-                        // 短い操作は「日付選択（従来挙動）」として扱う
-                        if (endOffset - startOffset < 6) {
+                        if (endOffset - startOffset < WEEK_VIEW_SLOT_MINUTES) {
                           setSelectedDate(day.date);
                           setModalTab("rank");
                           setScheduleCreatePrefill(null);
                           return;
                         }
 
-                        const axisStartMinutes = startOffset;
-                        const axisEndMinutes = endOffset;
-
-                        const startDateOffsetDays = Math.floor(axisStartMinutes / (24 * 60));
-                        const endDateOffsetDays = Math.floor(axisEndMinutes / (24 * 60));
-                        const startTimeMinutes = Math.floor(axisStartMinutes - startDateOffsetDays * 24 * 60);
-                        const endTimeMinutes = Math.floor(axisEndMinutes - endDateOffsetDays * 24 * 60);
-
-                        const startDate = dayjs(day.date).add(startDateOffsetDays, "day").format("YYYY-MM-DD");
-                        const endDate = dayjs(day.date).add(endDateOffsetDays, "day").format("YYYY-MM-DD");
+                        const startTimeMinutes = startOffset;
+                        const endTimeMinutes = Math.max(
+                          endOffset,
+                          startOffset + WEEK_VIEW_SLOT_MINUTES
+                        );
+                        const startDate = day.date;
+                        const endDate = day.date;
                         const startHh = String(Math.floor(startTimeMinutes / 60)).padStart(2, "0");
                         const startMm = String(startTimeMinutes % 60).padStart(2, "0");
                         const endHh = String(Math.floor(endTimeMinutes / 60)).padStart(2, "0");
                         const endMm = String(endTimeMinutes % 60).padStart(2, "0");
 
-                        // モーダルが描ける範囲（localDays 内）に限定
                         const localDateSet = new Set(localDays.map((d) => d.date));
                         if (!localDateSet.has(startDate) || !localDateSet.has(endDate)) {
                           showToast("範囲が表示範囲外です");
@@ -1883,6 +2091,15 @@ export function CalendarWithModal({
                         if (canCreate) setScheduleCreateSelection(null);
                       }}
                     >
+                      <div
+                        className="pointer-events-none absolute inset-0 opacity-[0.28] dark:opacity-20"
+                        style={{
+                          backgroundImage:
+                            "repeating-linear-gradient(to bottom, transparent 0, transparent 11px, rgba(113,113,122,0.45) 11px, rgba(113,113,122,0.45) 12px)",
+                        }}
+                        aria-hidden
+                      />
+                      <div className="relative z-[1] h-full min-h-[1152px] w-full">
                       {/* 範囲選択（新規登録）プレビュー */}
                       {daySelection && (() => {
                         const startOffset = Math.min(daySelection.startOffsetMinutes, daySelection.endOffsetMinutes);
@@ -1896,85 +2113,240 @@ export function CalendarWithModal({
                           />
                         );
                       })()}
-                      {/* ガイドライン */}
-                      {hours.map((h, idx) => (
+                      {hours.map((h) => (
                         <div
-                          key={h}
-                          className={`pointer-events-none absolute left-0 right-0 border-t border-dashed border-zinc-200 dark:border-zinc-800 ${idx === 0 ? "border-t-0" : ""}`}
-                          style={{ top: `${(idx / (hours.length - 1)) * 100}%` }}
+                          key={`gh-${h}`}
+                          className="pointer-events-none absolute left-0 right-0 border-t border-zinc-300/80 dark:border-zinc-600/70"
+                          style={{ top: `${(h / 24) * 100}%` }}
                         />
                       ))}
 
-                      {/* 予定ブロック */}
-                      {daySchedules.map((s) => {
-                        if (!s.start_time || !s.end_time) return null;
-
-                        const span = getScheduleSpanMs(s);
-                        if (!span) return null;
-                        const { startMs: scheduleStartMs, endMs: scheduleEndMs } = span;
-
-                        const segStartMs = Math.max(axisStartMs, scheduleStartMs);
-                        const segEndMs = Math.min(axisEndMs, scheduleEndMs);
-                        if (segEndMs <= segStartMs) return null;
-
-                        const segMinutes = (segEndMs - segStartMs) / msPerMinute;
-                        const displayMinutes = Math.max(30, segMinutes);
-                        const displayEndMs = Math.min(
-                          axisEndMs,
-                          segStartMs + displayMinutes * msPerMinute
-                        );
-
-                        const top = ((segStartMs - axisStartMs) / axisLengthMs) * 100;
-                        const height =
-                          ((displayEndMs - segStartMs) / axisLengthMs) * 100;
-
-                        const color = getEventColorClasses(s.color_id ?? null);
-                        const labelTime =
-                          segStartMs > scheduleStartMs
-                            ? formatHHMMFromUtcMs(segStartMs)
-                            : (wallClockHHMM(s.start_time) ?? formatHHMMFromUtcMs(segStartMs));
-
-                        return (
-                          <div
-                            key={s.id}
-                            data-schedule-block="1"
-                            draggable={canShift}
-                            className={`absolute left-1 right-1 overflow-hidden rounded-md border text-[10px] shadow-sm ${color.bg} ${color.text} ${color.leftBar}`}
-                            style={{
-                              top: `${top}%`,
-                              height: `${height}%`,
-                            }}
-                            title={s.title}
-                            onDragStart={(e) => {
-                              if (!canShift) return;
-                              const mode = e.ctrlKey || e.metaKey ? "copy" : "move";
-                              e.dataTransfer.setData("calendar/scheduleId", s.id);
-                              e.dataTransfer.setData("calendar/mode", mode);
-                              e.dataTransfer.setData("calendar/isAllDay", "0");
-                              e.dataTransfer.effectAllowed = mode === "copy" ? "copy" : "move";
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedDate(day.date);
-                              setSelectedScheduleId(s.id);
-                              setModalTab("schedule");
-                              setScheduleCreatePrefill(null);
-                              setScheduleCreateSelection(null);
-                            }}
-                            onPointerDown={(e) => {
-                              // 範囲選択の開始を防ぐ
-                              e.stopPropagation();
-                            }}
-                          >
-                            <div className="flex items-center gap-1 px-1 py-0.5">
-                              <span className="shrink-0 tabular-nums">{labelTime}</span>
-                              <span className="min-w-0 truncate">{s.title}</span>
+                      {scheduleDragPreview &&
+                        scheduleDragPreview.columnDate === day.date &&
+                        (() => {
+                          const dur = scheduleDragDurationMsRef.current;
+                          if (dur <= 0) return null;
+                          const startMs = toUtcMs(day.date, `${scheduleDragPreview.startTime}:00`);
+                          const endMs = startMs + dur;
+                          const top = ((startMs - axisStartMs) / axisLengthMs) * 100;
+                          const height = ((endMs - startMs) / axisLengthMs) * 100;
+                          return (
+                            <div
+                              className="pointer-events-none absolute left-1 right-1 rounded-md border border-dashed border-accent-500/70 bg-accent-400/15 dark:bg-accent-500/10"
+                              style={{ top: `${top}%`, height: `${Math.max(height, 1.2)}%` }}
+                            >
+                              <div className="px-1 py-0.5 text-[9px] font-medium text-accent-900 dark:text-accent-100">
+                                {scheduleDragPreview.startTime} – {scheduleDragPreview.endTime}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })()}
+
+                      {(() => {
+                        const layoutSegments: WeekViewSegment[] = [];
+                        for (const s of daySchedules) {
+                          if (!s.start_time || !s.end_time) continue;
+                          const span = getScheduleSpanMs(s);
+                          if (!span) continue;
+                          const segStartMs = Math.max(axisStartMs, span.startMs);
+                          const segEndMs = Math.min(axisEndMs, span.endMs);
+                          if (segEndMs <= segStartMs) continue;
+                          layoutSegments.push({ id: s.id, startMs: segStartMs, endMs: segEndMs });
+                        }
+                        const layoutMap = assignWeekColumnLayout(layoutSegments);
+
+                        return daySchedules.map((s) => {
+                          if (!s.start_time || !s.end_time) return null;
+
+                          const span = getScheduleSpanMs(s);
+                          if (!span) return null;
+                          const { startMs: scheduleStartMs, endMs: scheduleEndMs } = span;
+
+                          const segStartMs = Math.max(axisStartMs, scheduleStartMs);
+                          const segEndMs = Math.min(axisEndMs, scheduleEndMs);
+                          if (segEndMs <= segStartMs) return null;
+
+                          const segMinutes = (segEndMs - segStartMs) / msPerMinute;
+                          const displayMinutes = Math.max(30, segMinutes);
+                          const displayEndMs = Math.min(
+                            axisEndMs,
+                            segStartMs + displayMinutes * msPerMinute
+                          );
+
+                          const top = ((segStartMs - axisStartMs) / axisLengthMs) * 100;
+                          const height =
+                            ((displayEndMs - segStartMs) / axisLengthMs) * 100;
+
+                          const layout = layoutMap.get(s.id);
+                          const col = layout?.column ?? 0;
+                          const colCount = Math.max(1, layout?.columnCount ?? 1);
+                          const gapPx = 2;
+                          const leftPct = (col / colCount) * 100;
+                          const widthPct = 100 / colCount;
+                          const zBase = 8 + col;
+                          const isSelected = selectedScheduleId === s.id;
+                          const zFinal = isSelected ? 32 : zBase;
+
+                          const color = getEventColorClasses(s.color_id ?? null);
+                          const labelTime =
+                            segStartMs > scheduleStartMs
+                              ? formatHHMMFromUtcMs(segStartMs)
+                              : (wallClockHHMM(s.start_time) ?? formatHHMMFromUtcMs(segStartMs));
+
+                          const runResize = (edge: "start" | "end") => (ev: React.PointerEvent) => {
+                            ev.stopPropagation();
+                            ev.preventDefault();
+                            if (!canResize || !resizeScheduleAction) return;
+                            const gridEl = (ev.currentTarget as HTMLElement).closest(
+                              "[data-week-day-grid]"
+                            ) as HTMLDivElement | null;
+                            if (!gridEl) return;
+                            const rect = gridEl.getBoundingClientRect();
+                            const fullSpan = getScheduleSpanMs(s);
+                            if (!fullSpan) return;
+                            const startY = ev.clientY;
+
+                            const onMove = () => {};
+                            const onUp = async (pe: PointerEvent) => {
+                              window.removeEventListener("pointermove", onMove);
+                              window.removeEventListener("pointerup", onUp);
+                              const deltaY = pe.clientY - startY;
+                              const dMin = snapDeltaMinutesFromDrag(rect, deltaY);
+                              let newStartMs = fullSpan.startMs;
+                              let newEndMs = fullSpan.endMs;
+                              if (edge === "start") {
+                                newStartMs = fullSpan.startMs + dMin * msPerMinute;
+                              } else {
+                                newEndMs = fullSpan.endMs + dMin * msPerMinute;
+                              }
+                              if (newEndMs - newStartMs < WEEK_VIEW_SLOT_MINUTES * msPerMinute) {
+                                showToast("範囲が短すぎます");
+                                return;
+                              }
+                              if (newStartMs >= newEndMs) {
+                                showToast("時刻が不正です");
+                                return;
+                              }
+
+                              const ndS = formatYMDFromUtcMs(newStartMs);
+                              const ntS = formatHHMMFromUtcMs(newStartMs);
+                              const ndE = formatYMDFromUtcMs(newEndMs);
+                              const ntE = formatHHMMFromUtcMs(newEndMs);
+
+                              const nextRow: CalendarScheduleRow = {
+                                ...s,
+                                date: ndS,
+                                end_date: ndE === ndS ? null : ndE,
+                                start_time: `${ntS}:00`,
+                                end_time: `${ntE}:00`,
+                              };
+
+                              const optimistic = applyOptimisticSchedulePatch(s.id, nextRow);
+                              scheduleShiftPendingRef.current += 1;
+                              try {
+                                if (edge === "start") {
+                                  await resizeScheduleAction(s.id, "start", ndS, ntS);
+                                } else {
+                                  await resizeScheduleAction(s.id, "end", ndE, ntE);
+                                }
+                                setScheduleCreatePrefill(null);
+                                setScheduleCreateSelection(null);
+                              } catch {
+                                if (optimistic.applied) optimistic.rollback();
+                                showToast("リサイズに失敗しました");
+                              } finally {
+                                scheduleShiftPendingRef.current = Math.max(
+                                  0,
+                                  scheduleShiftPendingRef.current - 1
+                                );
+                                if (scheduleShiftPendingRef.current === 0) {
+                                  void mutateRange();
+                                }
+                              }
+                            };
+                            window.addEventListener("pointermove", onMove);
+                            window.addEventListener("pointerup", onUp);
+                          };
+
+                          return (
+                            <div
+                              key={s.id}
+                              data-schedule-block="1"
+                              draggable={canShift}
+                              className={`group absolute overflow-hidden rounded-md border text-[10px] shadow-sm transition-[box-shadow,z-index] ${color.bg} ${color.text} ${color.leftBar} ${
+                                isSelected
+                                  ? "z-[32] ring-2 ring-accent-500 ring-offset-1 ring-offset-white dark:ring-offset-zinc-950"
+                                  : "hover:z-[28] hover:ring-2 hover:ring-zinc-400/60 dark:hover:ring-zinc-500/50"
+                              }`}
+                              style={{
+                                top: `${top}%`,
+                                height: `${height}%`,
+                                left: `calc(${leftPct}% + ${gapPx}px)`,
+                                width: `calc(${widthPct}% - ${gapPx * 2}px)`,
+                                zIndex: zFinal,
+                              }}
+                              title={s.title}
+                              onDragStart={(e) => {
+                                if (!canShift) return;
+                                const mode = e.ctrlKey || e.metaKey ? "copy" : "move";
+                                e.dataTransfer.setData("calendar/scheduleId", s.id);
+                                e.dataTransfer.setData("calendar/mode", mode);
+                                e.dataTransfer.setData("calendar/isAllDay", "0");
+                                e.dataTransfer.effectAllowed = mode === "copy" ? "copy" : "move";
+                                const sp = getScheduleSpanMs(s);
+                                scheduleDragDurationMsRef.current = sp
+                                  ? sp.endMs - sp.startMs
+                                  : 0;
+                              }}
+                              onDragEnd={() => {
+                                scheduleDragDurationMsRef.current = 0;
+                                setScheduleDragPreview(null);
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedDate(day.date);
+                                setSelectedScheduleId(s.id);
+                                setModalTab("schedule");
+                                setScheduleCreatePrefill(null);
+                                setScheduleCreateSelection(null);
+                              }}
+                              onPointerDown={(e) => {
+                                if ((e.target as HTMLElement | null)?.closest?.("[data-resize-handle]"))
+                                  return;
+                                e.stopPropagation();
+                              }}
+                            >
+                              {canResize ? (
+                                <button
+                                  type="button"
+                                  data-resize-handle="1"
+                                  draggable={false}
+                                  className="absolute left-0 right-0 top-0 z-10 h-1 cursor-ns-resize border-0 bg-transparent p-0 after:absolute after:-top-2 after:left-0 after:right-0 after:h-8 after:content-['']"
+                                  aria-label="開始時刻を変更"
+                                  onPointerDown={runResize("start")}
+                                />
+                              ) : null}
+                              <div className="flex items-center gap-1 px-1 py-0.5 pt-1.5">
+                                <span className="shrink-0 tabular-nums">{labelTime}</span>
+                                <span className="min-w-0 truncate">{s.title}</span>
+                              </div>
+                              {canResize ? (
+                                <button
+                                  type="button"
+                                  data-resize-handle="1"
+                                  draggable={false}
+                                  className="absolute bottom-0 left-0 right-0 z-10 h-1 cursor-ns-resize border-0 bg-transparent p-0 after:absolute after:-bottom-2 after:left-0 after:right-0 after:h-8 after:content-['']"
+                                  aria-label="終了時刻を変更"
+                                  onPointerDown={runResize("end")}
+                                />
+                              ) : null}
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
+                    </div>
                 );
               })}
             </div>
@@ -2297,7 +2669,7 @@ export function CalendarWithModal({
                                 </p>
                               )}
                             </div>
-                            {permissions.isOwner && deleteScheduleAction && (
+                            {permissions.canEditSchedule && deleteScheduleAction && (
                               <button
                                 type="button"
                                 onClick={(e) => {
