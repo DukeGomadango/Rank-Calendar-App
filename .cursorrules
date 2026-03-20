@@ -12,6 +12,10 @@
 # PowerShell のコマンド連結
 PowerShell（Windows標準）では `&&` が解釈できず失敗することがあるため、複数コマンドは `;` 区切りにする（または Shell ツールを分けて実行する）。
 
+# 日本語コミットのUTF-8メッセージ作成
+日本語コミット用のメッセージUTF-8一時ファイル作成で、`Set-Content -Encoding utf8NoBOM` が未対応/失敗する環境がある。
+その場合はフォールバックとして `WriteAllText` + `[System.Text.UTF8Encoding]::new($false)`（無BOM）で書き出して `git commit -F` を実行する。
+
 # セキュリティ/機密
 `.env` / `.env.*` / `SUPABASE_SERVICE_ROLE_KEY` / `E2E_TEST_SECRET` などの機密値を本文やコードに埋め込まない。
 生成物（`coverage/`, `.next/`, `playwright-report/`, `test-results/`, `e2e/.auth/` 等）に触れない。

@@ -52,5 +52,16 @@ git config --local core.quotepath false
 ## 注意
 
 - `git commit -m "日本語"` をシェルで直接実行すると、環境によっては文字化けする。日本語メッセージでは **-F** を使う。
+- PowerShell で `Set-Content -Encoding utf8NoBOM` が使えない/失敗する環境がある。
+  - その場合は **フォールバック**として、UTF-8（無BOM相当）で一時ファイルを書き出す：
+    ```powershell
+    $msgPath = ".git-commit-msg-utf8.txt"
+    [System.IO.File]::WriteAllText(
+      $msgPath,
+      "コミットメッセージ本文",
+      [System.Text.UTF8Encoding]::new($false) # false=無BOM
+    )
+    git commit -F $msgPath
+    ```
 - 一時ファイル名は `.git-commit-msg-utf8.txt` や `msg.txt` など、プロジェクトで共有しない名前がよい。
 - PowerShell では複数コマンドを `&&` でつなぐと解釈されず失敗することがあるため、区切りは `;`（または Shell ツールを分けて実行）を推奨する。
