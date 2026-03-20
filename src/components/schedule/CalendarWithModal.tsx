@@ -2022,9 +2022,9 @@ export function CalendarWithModal({
               {hours.map((h) => (
                 <div
                   key={h}
-                  className="relative h-12 px-1 flex items-center justify-end leading-none"
+                  className="h-12 px-1 text-right leading-none"
                 >
-                  <span className="leading-none">{`${h.toString().padStart(2, "0")}:00`}</span>
+                  {`${h.toString().padStart(2, "0")}:00`}
                 </div>
               ))}
             </div>
