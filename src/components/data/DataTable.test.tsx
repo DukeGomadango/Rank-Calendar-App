@@ -35,6 +35,7 @@ const baseRow = {
   actual_plus: 2,
   skip_pass_used: false,
   current_rank: "C1",
+  rank_cycle_boundary: null,
   rank_score_cumulative: 5,
   skip_pass_remaining_as_of: 3,
   memo: "メモ",

@@ -35,6 +35,7 @@ type Row = {
   actual_plus?: number | null;
   skip_pass_used?: boolean;
   current_rank?: string | null;
+  rank_cycle_boundary?: "start" | "end" | null;
   rank_score_cumulative?: number | null;
   skip_pass_remaining_as_of?: number | null;
   memo?: string | null;
@@ -709,6 +710,9 @@ export function DataTable({
           {visibleRows.map((row) => {
             const isToday = row.original.date === todayStr;
             const isSkip = !!row.original.skip_pass_used;
+            const cycleBoundary = permissions.canViewRank
+              ? row.original.rank_cycle_boundary
+              : null;
             const rowClass = [
               "hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60 transition-colors",
               isToday && "border-l-4 border-l-accent-500 bg-accent-50/60 dark:bg-accent-950/40 dark:border-l-accent-400",
@@ -728,6 +732,12 @@ export function DataTable({
                   const colId = cell.column.id;
                   const isDateCol = colId === "date";
                   const isWeekdayCol = colId === "weekday";
+                  const cycleLineClass =
+                    cycleBoundary === "start"
+                      ? "border-t-2 border-t-emerald-400 dark:border-t-emerald-600"
+                      : cycleBoundary === "end"
+                        ? "border-b-2 border-b-amber-400 dark:border-b-amber-600"
+                        : "";
                   const stickyClass = isDateCol
                     ? `sticky left-0 z-30 min-w-[8.5rem] ${stickyBg} ${stickyShadow}`
                     : isWeekdayCol
@@ -736,7 +746,7 @@ export function DataTable({
                   return (
                     <td
                       key={cell.id}
-                      className={`px-3 py-1.5 align-top ${stickyClass}`}
+                      className={`px-3 py-1.5 align-top ${stickyClass} ${cycleLineClass}`}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,

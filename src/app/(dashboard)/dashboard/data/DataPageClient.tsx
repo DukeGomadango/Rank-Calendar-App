@@ -86,12 +86,33 @@ export function DataPageClient({
       rankCycles.push({ start: fc.start, end: fc.end, rank: fc.rank });
     }
     const rankByDate = new Map<string, string | null>();
+    const rankCycleMetaByDate = new Map<
+      string,
+      {
+        dayIndex: number;
+        totalDays: number;
+        isCycleStart: boolean;
+        isCycleEnd: boolean;
+      }
+    >();
     for (const c of rankCycles) {
+      const totalDays =
+        dayjs(c.end, "YYYY-MM-DD").diff(dayjs(c.start, "YYYY-MM-DD"), "day") + 1;
+      let dayIndex = 1;
       let d = c.start;
       while (d <= c.end) {
         if (!rankByDate.has(d)) {
           rankByDate.set(d, c.rank);
         }
+        if (!rankCycleMetaByDate.has(d)) {
+          rankCycleMetaByDate.set(d, {
+            dayIndex,
+            totalDays,
+            isCycleStart: d === c.start,
+            isCycleEnd: d === c.end,
+          });
+        }
+        dayIndex += 1;
         d = dayjs(d, "YYYY-MM-DD").add(1, "day").format("YYYY-MM-DD");
       }
     }
@@ -124,6 +145,7 @@ export function DataPageClient({
       actual_plus?: number | null;
       skip_pass_used?: boolean;
       current_rank?: string | null;
+      rank_cycle_boundary?: "start" | "end" | null;
       rank_score_cumulative?: number | null;
       skip_pass_remaining_as_of?: number | null;
       memo?: string | null;
@@ -138,6 +160,7 @@ export function DataPageClient({
       const entry = entriesByDate.get(dateStr);
 
       const rankForDay = rankByDate.get(dateStr) ?? null;
+      const cycleMeta = rankCycleMetaByDate.get(dateStr);
 
       // 「その日の時点」の残り枚数は、該当日以前の最新スナップショットを採用する。
       // スナップショットが無い場合は calendar_rank_state の初期値にフォールバック。
@@ -157,6 +180,14 @@ export function DataPageClient({
         current_rank:
           permissions.canViewRank
             ? (rankForDay ?? rankState?.current_rank ?? null)
+            : undefined,
+        rank_cycle_boundary:
+          permissions.canViewRank && cycleMeta
+            ? cycleMeta.isCycleStart
+              ? "start"
+              : cycleMeta.isCycleEnd
+                ? "end"
+                : null
             : undefined,
         rank_score_cumulative:
           permissions.canViewRank && rankState
