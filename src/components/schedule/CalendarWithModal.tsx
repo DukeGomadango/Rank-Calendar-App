@@ -1734,7 +1734,7 @@ export function CalendarWithModal({
         onKeyDown={handleWeekGridKeyDown}
         className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-zinc-800 dark:bg-zinc-900/80"
       >
-        <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden">
+        <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden [scrollbar-gutter:stable]">
           <div className="flex min-h-0 flex-col gap-2 shrink-0">
             <div className="shrink-0 space-y-2 bg-white/95 pb-2 backdrop-blur-md dark:bg-zinc-900/95">
               <div className="flex rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
@@ -2008,7 +2008,7 @@ export function CalendarWithModal({
             </div>
 
           {/* 時間グリッド本体 */}
-          <div className="flex flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex flex-1 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
             {/* 時刻軸 */}
             <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               {hours.map((h) => (
