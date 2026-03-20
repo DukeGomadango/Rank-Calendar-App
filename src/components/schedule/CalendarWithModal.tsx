@@ -2014,7 +2014,7 @@ export function CalendarWithModal({
             </div>
 
           {/* 時間グリッド本体 */}
-          <div className="flex flex-1 min-h-0 overflow-y-auto overflow-x-visible [scrollbar-gutter:stable] rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
             {/* 時刻軸 */}
             <div className="sticky left-0 z-10 flex w-14 shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               {hours.map((h) => (
