@@ -202,7 +202,7 @@ export function CalendarWithModal({
 }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
-  const { mutateRange } = useDashboardCalendar();
+  const { mutateRange, refreshRange } = useDashboardCalendar();
   const { viewMode, setViewMode } = useViewMode();
   const todayStr = todayJst ?? toJstDateString(new Date());
 
@@ -521,6 +521,9 @@ export function CalendarWithModal({
       Promise.resolve(saveAction(formData))
         .then(() => {
           showToast("保存しました");
+          // スキップ使用時は `calendar_rank_state`（周期のリセット日や残り枚数）が更新されるため、
+          // 楽観的に `entries` だけ更新している間でも、ランク表示（周期バンド等）は必ず再検証する。
+          void refreshRange({ modes: ["calendar", "data"] });
         })
         .catch(() => {
           if (prevLocalDaysRef.current) {

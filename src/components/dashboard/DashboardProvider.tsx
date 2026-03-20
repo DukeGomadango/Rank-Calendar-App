@@ -9,7 +9,7 @@ import {
 } from "react";
 import dayjs from "dayjs";
 import { usePathname } from "next/navigation";
-import type { KeyedMutator } from "swr";
+import { mutate as globalMutate, type KeyedMutator } from "swr";
 
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import {
@@ -39,7 +39,7 @@ type DashboardContextValue = {
   fromInvite: boolean;
   baseMonth: string;
   setBaseMonth: (month: string) => void;
-  refreshRange: () => void;
+  refreshRange: (options?: { modes?: CalendarRangeMode[] }) => void;
   mutateRange: KeyedMutator<CalendarRangeResponse>;
   rangeData:
     | {
@@ -269,8 +269,29 @@ export function DashboardProvider({
     return { rangeData, futureCycles, forecastLabel };
   }, [data, permissions.canViewRank, baseMonth, todayJst]);
 
-  const refreshRange = () => {
-    void mutate();
+  const refreshRange = (options?: { modes?: CalendarRangeMode[] }) => {
+    const modes = options?.modes;
+    if (!modes || modes.length === 0) {
+      void mutate();
+      return;
+    }
+
+    const encodedCalendarId = encodeURIComponent(calendarId);
+    const modeSet = new Set<CalendarRangeMode>(modes);
+    void globalMutate((key) => {
+      if (typeof key !== "string") return false;
+      if (!key.startsWith("/api/calendar-range?")) return false;
+      if (!key.includes(`calendarId=${encodedCalendarId}`)) return false;
+      const matched = key.match(/[?&]mode=([^&]+)/);
+      if (!matched?.[1]) return false;
+      const mode = decodeURIComponent(matched[1]) as CalendarRangeMode;
+      return modeSet.has(mode);
+    });
+
+    // 現在画面のキーはローカルmutateでも即時再検証しておく。
+    if (modeSet.has(rangeMode)) {
+      void mutate();
+    }
   };
 
   const value: DashboardContextValue = {
