@@ -2024,11 +2024,6 @@ export function CalendarWithModal({
                   key={h}
                   className="relative h-12 px-1 flex items-center justify-end leading-none"
                 >
-                  {h === 0 && (
-                    <span className="absolute right-1 top-0.5 text-[10px] font-medium leading-none pointer-events-none">
-                      時間軸
-                    </span>
-                  )}
                   <span className="leading-none">{`${h.toString().padStart(2, "0")}:00`}</span>
                 </div>
               ))}
