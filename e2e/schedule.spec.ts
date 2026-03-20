@@ -10,6 +10,31 @@ test.describe("スケジュール・カレンダー（認証済み）", () => {
     ).toBeVisible();
   });
 
+  test("週ビュー: 予定クリックは即モーダルにせずプレビューから編集できる", async ({
+    page,
+  }) => {
+    await page.goto("/dashboard/calendar");
+    await expect(page).toHaveURL(/\/dashboard\/calendar/);
+
+    await page.getByRole("button", { name: "週" }).click();
+
+    const block = page.locator('[data-schedule-block="1"]').first();
+    if (!(await block.isVisible().catch(() => false))) {
+      test.skip();
+      return;
+    }
+
+    await block.click();
+    await expect(
+      page.getByRole("heading", { name: "日別スケジュールの編集" })
+    ).not.toBeVisible();
+
+    await page.getByRole("button", { name: "予定を編集" }).click();
+    await expect(
+      page.getByRole("heading", { name: "日別スケジュールの編集" })
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
   test("データ表ページが表示される", async ({ page }) => {
     await page.goto("/dashboard/data");
     await expect(page).toHaveURL(/\/dashboard\/data/);
