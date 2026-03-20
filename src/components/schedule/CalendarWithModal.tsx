@@ -1771,7 +1771,7 @@ export function CalendarWithModal({
           {permissions.canViewRank && currentRankCycle && (
             <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
               <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                イベント
+                ランク
               </div>
               {weekDays.map((day, idx) => {
                 const cycle = getCycleForDate(day.date);
@@ -1823,7 +1823,7 @@ export function CalendarWithModal({
           {permissions.canViewEvents && (
             <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
               <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                終日
+                イベント
               </div>
               {weekDays.map((day, idx) => {
                 const eventsOnDay = eventsByDate.get(day.date) ?? [];
@@ -1869,7 +1869,9 @@ export function CalendarWithModal({
           )}
 
             <div className="flex w-max rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              <div className="sticky left-0 z-0 w-14 shrink-0 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+              <div className="sticky left-0 z-0 flex w-14 shrink-0 items-center justify-center border-r border-zinc-200 bg-zinc-100 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                終日
+              </div>
               {weekDays.map((day, idx) => {
                 const rawList = schedulesByDate.get(day.date) ?? [];
                 const allDaySchedules = rawList.filter(scheduleShowsInWeekAllDayRow);
@@ -2018,8 +2020,18 @@ export function CalendarWithModal({
             {/* 時刻軸 */}
             <div className="sticky left-0 z-10 flex w-14 shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               {hours.map((h) => (
-                <div key={h} className="h-12 px-1 text-right leading-none">
-                  {`${h.toString().padStart(2, "0")}:00`}
+                <div
+                  key={h}
+                  className="h-12 px-1 flex flex-col items-end justify-center leading-none"
+                >
+                  {h === 0 ? (
+                    <>
+                      <span className="text-[10px] font-medium leading-none">時間軸</span>
+                      <span className="leading-none">{`${h.toString().padStart(2, "0")}:00`}</span>
+                    </>
+                  ) : (
+                    <span className="leading-none">{`${h.toString().padStart(2, "0")}:00`}</span>
+                  )}
                 </div>
               ))}
             </div>
