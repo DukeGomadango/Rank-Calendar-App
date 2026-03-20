@@ -1793,10 +1793,14 @@ export function CalendarWithModal({
         <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden">
           <div className="flex min-h-0 flex-col gap-2 shrink-0">
             <div className="shrink-0 space-y-2 bg-white/95 pb-2 backdrop-blur-md dark:bg-zinc-900/95">
-              <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+              <div className="flex rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+                {/* Corner: 左の時刻軸幅を予約 */}
+                <div className="sticky left-0 z-0 w-14 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
                 {weekDays.map((day, idx) => {
                   const isSun = idx === 0;
                   const isSat = idx === 6;
+                  const borderRight =
+                    idx === 6 ? "" : "border-r border-zinc-200 dark:border-zinc-800";
                   const base =
                     "py-1 text-center font-medium tracking-tight bg-zinc-50 dark:bg-zinc-900";
                   const weekend =
@@ -1807,7 +1811,10 @@ export function CalendarWithModal({
                       : "text-zinc-600 dark:text-zinc-300";
                   const dateObj = dayjs(day.date);
                   return (
-                    <div key={day.date} className={`${base} ${weekend}`}>
+                    <div
+                      key={day.date}
+                      className={`${base} ${weekend} ${borderRight} flex min-w-[180px] flex-1 flex-col items-center justify-center`}
+                    >
                       <div>{WEEKDAYS[idx]}</div>
                       <div className="text-[10px]">{dateObj.format("M/D")}</div>
                     </div>
@@ -1816,8 +1823,9 @@ export function CalendarWithModal({
               </div>
           {/* ランク帯（簡略版） */}
           {permissions.canViewRank && currentRankCycle && (
-            <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              {weekDays.map((day) => {
+            <div className="flex rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              <div className="sticky left-0 z-0 w-14 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+              {weekDays.map((day, idx) => {
                 const cycle = getCycleForDate(day.date);
                 const weekRowDates = weekDates;
                 const rounded = cycle
@@ -1829,10 +1837,11 @@ export function CalendarWithModal({
                     : day.isToday
                       ? "bg-accent-50 dark:bg-accent-950/40"
                       : "bg-white dark:bg-zinc-900";
+                const borderRight = idx === 6 ? "" : "border-r border-zinc-200 dark:border-zinc-800";
                 return (
                   <div
                     key={day.date}
-                    className={`${bg} relative flex items-center justify-center border border-zinc-200/80 px-1 py-0.5 text-[10px] dark:border-zinc-800/80`}
+                    className={`${bg} relative flex min-w-[180px] flex-1 items-center justify-center px-1 py-0.5 text-[10px] ${borderRight}`}
                   >
                     {cycle && (() => {
                       const showBracket = true;
@@ -1864,8 +1873,9 @@ export function CalendarWithModal({
 
           {/* イベント帯（ランク帯とタイムラインの間。月ビューと同様の複数日帯） */}
           {permissions.canViewEvents && (
-            <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              {weekDays.map((day) => {
+            <div className="flex rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              <div className="sticky left-0 z-0 w-14 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+              {weekDays.map((day, idx) => {
                 const eventsOnDay = eventsByDate.get(day.date) ?? [];
                 const cycle = getCycleForDate(day.date);
                 const cellBg =
@@ -1874,10 +1884,11 @@ export function CalendarWithModal({
                     : day.isToday
                       ? "bg-accent-50/40 dark:bg-accent-950/30"
                       : "bg-white dark:bg-zinc-900";
+                const borderRight = idx === 6 ? "" : "border-r border-zinc-200 dark:border-zinc-800";
                 return (
                   <div
                     key={`week-events-${day.date}`}
-                    className={`${cellBg} min-h-[2.75rem] border border-zinc-200/80 px-1 py-1 dark:border-zinc-800/80`}
+                    className={`${cellBg} min-h-[2.75rem] min-w-[180px] flex-1 px-1 py-1 ${borderRight}`}
                   >
                     {eventsOnDay.length > 0 && (
                       <div className="flex flex-col gap-px">
@@ -1907,8 +1918,9 @@ export function CalendarWithModal({
             </div>
           )}
 
-            <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
-              {weekDays.map((day) => {
+            <div className="flex rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              <div className="sticky left-0 z-0 w-14 border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+              {weekDays.map((day, idx) => {
                 const rawList = schedulesByDate.get(day.date) ?? [];
                 const allDaySchedules = rawList.filter(scheduleShowsInWeekAllDayRow);
                 const cycle = getCycleForDate(day.date);
@@ -1918,11 +1930,12 @@ export function CalendarWithModal({
                     : day.isToday
                       ? "bg-accent-50/40 dark:bg-accent-950/30"
                       : "bg-white dark:bg-zinc-900";
+                const borderRight = idx === 6 ? "" : "border-r border-zinc-200 dark:border-zinc-800";
 
                 return (
                   <div
                     key={`week-allday-${day.date}`}
-                    className={`${cellBg} flex min-h-[2.5rem] flex-col gap-px border border-zinc-200/80 px-1 py-1 dark:border-zinc-800/80`}
+                    className={`${cellBg} flex min-h-[2.5rem] min-w-[180px] flex-1 flex-col gap-px px-1 py-1 ${borderRight}`}
                     onDragOver={(e) => {
                       if (!canShift) return;
                       e.preventDefault();
