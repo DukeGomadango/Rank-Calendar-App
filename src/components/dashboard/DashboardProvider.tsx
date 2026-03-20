@@ -184,7 +184,10 @@ export function DashboardProvider({
           if (!entry?.skip_pass_used) projectedTotal += plus;
         } else {
           const target = entry?.target_plus ?? 0;
-          projectedTotal += Math.max(0, target);
+          // スキップ（将来日含む）は集計から除外する
+          if (!entry?.skip_pass_used) {
+            projectedTotal += Math.max(0, target);
+          }
         }
         cursorForecast = addDays(cursorForecast, 1);
       }
@@ -234,7 +237,10 @@ export function DashboardProvider({
             if (!entry?.skip_pass_used) projectedTotal += plus;
           } else {
             const target = entry?.target_plus ?? 0;
-            projectedTotal += Math.max(0, target);
+            // スキップ（将来日含む）は集計から除外する
+            if (!entry?.skip_pass_used) {
+              projectedTotal += Math.max(0, target);
+            }
           }
           c = addDays(c, 1);
         }
