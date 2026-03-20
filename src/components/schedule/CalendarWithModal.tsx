@@ -5,7 +5,6 @@ import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/ja";
-import Link from "next/link";
 import { MantineProvider } from "@mantine/core";
 import { TimeInput } from "@mantine/dates";
 
@@ -38,50 +37,6 @@ import {
 dayjs.locale("ja");
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
-
-/** 目標 vs 実績で達成バッジ（フラット・絵文字なし）。未来日は点線枠で「予定」を示す。 */
-function getAchievementBadge(
-  target: number | null | undefined,
-  actual: number | null | undefined,
-  isFuture?: boolean
-): { type: "achieved" | "not_achieved" | "neutral"; label: string; className: string } {
-  const t = target ?? null;
-  const a = actual ?? null;
-  const futureBorder = isFuture
-    ? " border border-dashed border-zinc-400 dark:border-zinc-500"
-    : "";
-  if (t === null && a === null)
-    return {
-      type: "neutral",
-      label: "—",
-      className:
-        "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400" +
-        futureBorder,
-    };
-  if (t === null)
-    return {
-      type: "neutral",
-      label: `+${a}`,
-      className:
-        "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300" +
-        futureBorder,
-    };
-  const actualVal = a ?? 0;
-  if (actualVal >= t)
-    return {
-      type: "achieved",
-      label: `+${actualVal}`,
-      className:
-        "rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200",
-    };
-  return {
-    type: "not_achieved",
-    label: `+${actualVal}`,
-    className:
-      "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-400" +
-      futureBorder,
-  };
-}
 
 /** 目標と実績を並べて表示する用（目標ラベル＋実績ラベル、実績は達成/未達で色分け） */
 function getTargetActualDisplay(
@@ -234,7 +189,6 @@ export function CalendarWithModal({
   events,
   currentRankCycle = null,
   rankCycleHistory = [],
-  forecastLabel = null,
   futureCycles = [],
   todayJst,
   skipPassRemaining,
@@ -250,7 +204,6 @@ export function CalendarWithModal({
   const { showToast } = useToast();
   const { mutateRange } = useDashboardCalendar();
   const { viewMode, setViewMode } = useViewMode();
-  const useSimpleView = !permissions.isOwner && viewMode === "simple";
   const todayStr = todayJst ?? toJstDateString(new Date());
 
   const [localDays, setLocalDays] = useState<DayData[]>(days);
@@ -539,15 +492,6 @@ export function CalendarWithModal({
       setLocalDays((prev) =>
         prev.map((day) => {
           if (day.date !== date) return day;
-          const parseNumber = (name: string): number | null => {
-            const raw = formData.get(name);
-            if (raw == null) return null;
-            const s = String(raw).trim();
-            if (!s) return null;
-            const n = Number(s);
-            return Number.isNaN(n) ? null : n;
-          };
-
           return {
             ...day,
             entries: [nextEntry],
@@ -679,7 +623,7 @@ export function CalendarWithModal({
           setMoveError(err?.message ?? "移動に失敗しました");
         });
     },
-    [calendarId, localDays, moveEntry, router, showToast]
+    [calendarId, localDays, moveEntry, showToast]
   );
 
   const applyOptimisticScheduleShift = useCallback(

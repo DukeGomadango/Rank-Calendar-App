@@ -19,7 +19,6 @@ const RANK_UP_SKIP_INDEX = 5;
 export function getMockSeedEntries(todayStr?: string): Record<string, MockEntry> {
   const today = todayStr ?? toJstDateString(new Date());
   const cycleStart = getJstWeekStart(today);
-  const cycleEnd = addDays(cycleStart, 6);
 
   const result: Record<string, MockEntry> = {};
   const start = dayjs(today).subtract(31, "day").format("YYYY-MM-DD");

@@ -4,7 +4,6 @@ import { useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import dynamic from "next/dynamic";
 
-import { EVENT_PALETTE } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 import { MAX_BORDER_VALUE } from "@/lib/border-constants";
 

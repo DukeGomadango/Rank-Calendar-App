@@ -61,7 +61,7 @@ export default async function DashboardShellLayout({
     return children;
   }
 
-  let currentCalendar = await getCurrentCalendarForUser(
+  const currentCalendar = await getCurrentCalendarForUser(
     user.id,
     urlCalendarId,
   );

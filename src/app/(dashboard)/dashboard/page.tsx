@@ -4,9 +4,7 @@ import { applyRankUp, saveScheduleEntry } from "./actions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/data/profiles";
 
-type PageProps = { searchParams?: Promise<{ fromInvite?: string; calendarId?: string }> };
-
-export default async function DashboardHomePage({ searchParams }: PageProps) {
+export default async function DashboardHomePage() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

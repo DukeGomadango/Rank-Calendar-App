@@ -599,6 +599,9 @@ export function DataTable({
     ]
   );
 
+  // TanStack TableのAPIはReact Compilerの制約でmemo化できないため、ここは明示的に警告だけ抑制する
+  // （動作自体はそのまま）
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: rows,
     columns,

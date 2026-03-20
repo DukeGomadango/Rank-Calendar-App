@@ -36,11 +36,13 @@ export async function createEvent(formData: FormData) {
 /** 開発用モック表示用。何もしないサーバーアクション。 */
 export async function noopCreateEvent(_formData: FormData) {
   "use server";
+  void _formData;
 }
 
 /** 開発用モック表示用。何もしないサーバーアクション。 */
 export async function noopDeleteEventAction(_formData: FormData) {
   "use server";
+  void _formData;
 }
 
 export async function deleteEventAction(formData: FormData) {

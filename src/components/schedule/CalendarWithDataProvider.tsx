@@ -89,9 +89,9 @@ export function CalendarWithDataProvider({
     const nextMonth = initialMonth;
     const nextWeekStart = initialWeekStart;
 
+    // URL 由来の初期値をUI表示状態へ反映するため、同期更新として抑制する
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayMonth(dayjs(`${nextMonth}-15`, "YYYY-MM-DD"));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayWeekStart(nextWeekStart);
     setBaseMonth(nextMonth);
   }, [initialMonth, initialWeekStart, setBaseMonth]);

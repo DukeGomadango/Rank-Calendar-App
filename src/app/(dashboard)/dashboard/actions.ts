@@ -720,6 +720,9 @@ export async function noopMoveEntry(
   _toDate: string
 ) {
   "use server";
+  void _calendarId;
+  void _fromDate;
+  void _toDate;
 }
 
 /**
@@ -727,6 +730,7 @@ export async function noopMoveEntry(
  */
 export async function noopSaveEntry(_formData: FormData) {
   "use server";
+  void _formData;
 }
 
 /** 開発用モック表示用。データタブのセル編集で使用。 */
@@ -737,11 +741,16 @@ export async function noopUpdateScheduleEntryField(
   _value: string | number | boolean
 ) {
   "use server";
+  void _calendarId;
+  void _date;
+  void _field;
+  void _value;
 }
 
 /** 開発用モック表示用。ランクアップ・ランク変更は何もしない。 */
 export async function noopApplyRankUp(_calendarId: string) {
   "use server";
+  void _calendarId;
 }
 
 /** 開発用モック表示用。ランク変更は何もしない。 */
@@ -750,6 +759,8 @@ export async function noopUpdateCurrentRank(
   _newRank: string | null
 ) {
   "use server";
+  void _calendarId;
+  void _newRank;
 }
 
 /** 開発用モック表示用。リセット日変更は何もしない。 */
@@ -758,6 +769,8 @@ export async function noopUpdateRankResetDate(
   _newResetDate: string
 ) {
   "use server";
+  void _calendarId;
+  void _newResetDate;
 }
 
 /**

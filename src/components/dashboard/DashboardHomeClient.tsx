@@ -1,7 +1,5 @@
 "use client";
 
-import dayjs from "dayjs";
-
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { CurrentRankBadge } from "@/components/dashboard/CurrentRankBadge";
 import { WeeklyPlusSummary } from "@/components/dashboard/WeeklyPlusSummary";
@@ -17,7 +15,6 @@ type Props = {
 export function DashboardHomeClient({ saveScheduleEntry, applyRankUp }: Props) {
   const {
     calendarId,
-    calendarName,
     rangeData,
     todayJst,
   } = useDashboardCalendar();

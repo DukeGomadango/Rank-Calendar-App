@@ -53,8 +53,9 @@ export function SharingManagementClient({
     setBusyInviteDeleteIds((prev) => ({ ...prev, [id]: true }));
     fn().finally(() => {
       setBusyInviteDeleteIds((prev) => {
-        const { [id]: _omit, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[id];
+        return next;
       });
     });
   };
@@ -63,8 +64,9 @@ export function SharingManagementClient({
     setBusyMemberIds((prev) => ({ ...prev, [id]: true }));
     fn().finally(() => {
       setBusyMemberIds((prev) => {
-        const { [id]: _omit, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[id];
+        return next;
       });
     });
   };

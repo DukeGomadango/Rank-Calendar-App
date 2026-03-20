@@ -61,7 +61,7 @@ export function DangerZoneSection({ calendarId, isMock }: Props) {
       await supabase.auth.signOut();
       router.push("/login");
       router.refresh();
-    } catch (e) {
+    } catch {
       alert("エラーが発生しました");
       setDeletePending(false);
       setShowDeleteModal(false);
