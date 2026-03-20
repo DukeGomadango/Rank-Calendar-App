@@ -1408,7 +1408,10 @@ export function CalendarWithModal({
                   : [];
                 const showBordersInCell = permissions.canViewBorders && viewMode === "detailed";
 
-                const daySchedules = schedulesByDate.get(day.date) ?? [];
+                // 月ビューのセル表示は「予定の開始日」に限定する（跨ぎ予定の重複表示を防ぐ）
+                const daySchedules = (schedulesByDate.get(day.date) ?? []).filter(
+                  (s) => s.date === day.date
+                );
                 const streamSchedules = daySchedules.filter((s) => s.kind === "stream");
                 const streamToDisplay = streamSchedules.slice(0, 2);
                 const remainingStreamCount = streamSchedules.length - streamToDisplay.length;
