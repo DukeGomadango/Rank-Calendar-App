@@ -1231,8 +1231,114 @@ export function CalendarWithModal({
     return chunks;
   }, [localDays]);
 
+  const formatMinutesAsHoursMinutes = (minutes: number): string => {
+    const m = Math.max(0, Math.floor(minutes));
+    const h = Math.floor(m / 60);
+    const r = m % 60;
+    return h > 0 ? `${h}時間${r}分` : `${r}分`;
+  };
+
+  const streamTimeTotals = useMemo(() => {
+    // 月ビュー上部の集計表示（stream のみ）
+    const canSeeStream = permissions.isOwner || permissions.canViewScheduleStream;
+    if (!canSeeStream) {
+      return { plannedMinutes: 0, actualMinutes: 0 };
+    }
+
+    const msPerMinute = 60 * 1000;
+
+    const parseYMD = (d: string): { y: number; mo: number; da: number } => {
+      const [y, mo, da] = d.split("-").map((v) => Number(v));
+      return { y, mo, da };
+    };
+
+    /** DB の time 文字列（HH:MM / HH:MM:SS 等）から HH:MM を抽出 */
+    const wallClockHHMM = (t: string | null | undefined): string | null => {
+      if (t == null) return null;
+      const m = String(t).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?/);
+      if (!m) return null;
+      const hh = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+      const mm = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+      return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+    };
+
+    const parseHHMM = (hhmm: string): { hh: number; mm: number } => {
+      const [hh, mm] = hhmm.split(":").map((v) => Number(v));
+      return { hh, mm };
+    };
+
+    const toUtcMs = (dateStr: string, timeStr: string): number => {
+      const { y, mo, da } = parseYMD(dateStr);
+      const { hh, mm } = parseHHMM(timeStr);
+      return Date.UTC(y, mo - 1, da, hh, mm, 0);
+    };
+
+    /** 予定の絶対開始・終了（深夜跨ぎは end_date または 終了時刻が開始より前なら翌日に補正） */
+    const getScheduleSpanMs = (s: CalendarScheduleRow): { startMs: number; endMs: number } | null => {
+      // いま必要なのは時間付き stream なので、is_all_day は呼び出し側で弾く
+      const st = wallClockHHMM(s.start_time);
+      const et = wallClockHHMM(s.end_time);
+      if (!st || !et) return null;
+
+      const startMs = toUtcMs(s.date, st);
+      const endDay = s.end_date ?? s.date;
+      let endMs = toUtcMs(endDay, et);
+      if (endMs <= startMs) {
+        endMs = toUtcMs(dayjs(s.date).add(1, "day").format("YYYY-MM-DD"), et);
+      }
+      return { startMs, endMs };
+    };
+
+    const monthStart = dayjs(`${currentMonthParam}-01`, "YYYY-MM-DD", true).startOf("month");
+    const monthStartYMD = monthStart.format("YYYY-MM-DD");
+    const monthEndExclusiveYMD = monthStart.add(1, "month").startOf("month").format("YYYY-MM-DD");
+
+    const monthStartMs = toUtcMs(monthStartYMD, "00:00");
+    const monthEndExclusiveMs = toUtcMs(monthEndExclusiveYMD, "00:00");
+
+    // 実績＝「今月の過去」：日付基準で今日（当日 00:00〜）は除外
+    const todayStartMs = toUtcMs(todayStr, "00:00");
+
+    let plannedMinutes = 0;
+    let actualMinutes = 0;
+
+    for (const s of localSchedules) {
+      if (s.kind !== "stream") continue;
+      if (s.is_all_day) continue; // 終日配信はカウントしない
+
+      const span = getScheduleSpanMs(s);
+      if (!span) continue;
+
+      // planned：月内スパンを切り取って合算
+      const plannedStart = Math.max(span.startMs, monthStartMs);
+      const plannedEnd = Math.min(span.endMs, monthEndExclusiveMs);
+      if (plannedEnd > plannedStart) {
+        plannedMinutes += Math.round((plannedEnd - plannedStart) / msPerMinute);
+      }
+
+      // actual：月内かつ「今日開始以前」まで切り取って合算（今日分は除外）
+      const actualStart = Math.max(span.startMs, monthStartMs);
+      const actualEnd = Math.min(span.endMs, monthEndExclusiveMs, todayStartMs);
+      if (actualEnd > actualStart) {
+        actualMinutes += Math.round((actualEnd - actualStart) / msPerMinute);
+      }
+    }
+
+    return { plannedMinutes, actualMinutes };
+  }, [localSchedules, currentMonthParam, todayStr, permissions.isOwner, permissions.canViewScheduleStream]);
+
   const renderMonthGrid = () => (
     <section className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+      {(permissions.isOwner || permissions.canViewScheduleStream) && (
+        <div className="mb-1 flex flex-col gap-0.5">
+          <div className="text-[10px] font-medium text-zinc-700 dark:text-zinc-200">
+            配信予定時間合計：{formatMinutesAsHoursMinutes(streamTimeTotals.plannedMinutes)}
+          </div>
+          <div className="text-[10px] font-medium text-zinc-700 dark:text-zinc-200">
+            配信時間実績合計：{formatMinutesAsHoursMinutes(streamTimeTotals.actualMinutes)}
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
         {WEEKDAYS.map((label, idx) => {
           const isSun = idx === 0;
