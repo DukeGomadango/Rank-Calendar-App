@@ -431,6 +431,16 @@ export function CalendarWithModal({
         endTime: string;
       }
   >(null);
+  /** 週ビュー: リサイズドラッグ中のゴースト（絶対時刻 ms） */
+  const [scheduleResizePreview, setScheduleResizePreview] = useState<
+    | null
+    | {
+        columnDate: string;
+        scheduleId: string;
+        startMs: number;
+        endMs: number;
+      }
+  >(null);
   const scheduleDragDurationMsRef = useRef(0);
   const weekTimeGridRef = useRef<HTMLDivElement | null>(null);
 
@@ -1448,9 +1458,11 @@ export function CalendarWithModal({
                             {streamToDisplay.map((s) => {
                               const labelTime = s.is_all_day
                                 ? "終日"
-                                : s.start_time
-                                  ? s.start_time.slice(0, 5)
-                                  : "--:--";
+                                : s.start_time && s.end_time
+                                  ? `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}`
+                                  : s.start_time
+                                    ? s.start_time.slice(0, 5)
+                                    : "--:--";
                               const color = getEventColorClasses(s.color_id ?? null);
                               return (
                                 <div
@@ -1618,6 +1630,7 @@ export function CalendarWithModal({
     const clear = () => {
       setScheduleDragPreview(null);
       scheduleDragDurationMsRef.current = 0;
+      setScheduleResizePreview(null);
     };
     window.addEventListener("dragend", clear);
     return () => window.removeEventListener("dragend", clear);
@@ -2142,6 +2155,29 @@ export function CalendarWithModal({
                           );
                         })()}
 
+                      {scheduleResizePreview &&
+                        scheduleResizePreview.columnDate === day.date &&
+                        (() => {
+                          const p = scheduleResizePreview;
+                          const segStartMs = Math.max(axisStartMs, p.startMs);
+                          const segEndMs = Math.min(axisEndMs, p.endMs);
+                          if (segEndMs <= segStartMs) return null;
+                          const top = ((segStartMs - axisStartMs) / axisLengthMs) * 100;
+                          const height = ((segEndMs - segStartMs) / axisLengthMs) * 100;
+                          const startLabel = formatHHMMFromUtcMs(p.startMs);
+                          const endLabel = formatHHMMFromUtcMs(p.endMs);
+                          return (
+                            <div
+                              className="pointer-events-none absolute left-1 right-1 z-[40] rounded-md border border-dashed border-violet-500/80 bg-violet-400/20 dark:border-violet-400/70 dark:bg-violet-500/15"
+                              style={{ top: `${top}%`, height: `${Math.max(height, 1.2)}%` }}
+                            >
+                              <div className="px-1 py-0.5 text-[9px] font-medium text-violet-950 dark:text-violet-100">
+                                {startLabel} – {endLabel}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                       {(() => {
                         const layoutSegments: WeekViewSegment[] = [];
                         for (const s of daySchedules) {
@@ -2188,10 +2224,15 @@ export function CalendarWithModal({
                           const zFinal = isSelected ? 32 : zBase;
 
                           const color = getEventColorClasses(s.color_id ?? null);
-                          const labelTime =
+                          const labelStart =
                             segStartMs > scheduleStartMs
                               ? formatHHMMFromUtcMs(segStartMs)
                               : (wallClockHHMM(s.start_time) ?? formatHHMMFromUtcMs(segStartMs));
+                          const labelEnd =
+                            segEndMs < scheduleEndMs
+                              ? formatHHMMFromUtcMs(segEndMs)
+                              : (wallClockHHMM(s.end_time) ?? formatHHMMFromUtcMs(segEndMs));
+                          const labelRange = `${labelStart} – ${labelEnd}`;
 
                           const runResize = (edge: "start" | "end") => (ev: React.PointerEvent) => {
                             ev.stopPropagation();
@@ -2205,11 +2246,54 @@ export function CalendarWithModal({
                             const fullSpan = getScheduleSpanMs(s);
                             if (!fullSpan) return;
                             const startY = ev.clientY;
+                            const minDurMs = WEEK_VIEW_SLOT_MINUTES * msPerMinute;
 
-                            const onMove = () => {};
-                            const onUp = async (pe: PointerEvent) => {
+                            const applyDelta = (deltaY: number) => {
+                              const dMin = snapDeltaMinutesFromDrag(rect, deltaY);
+                              let newStartMs = fullSpan.startMs;
+                              let newEndMs = fullSpan.endMs;
+                              if (edge === "start") {
+                                newStartMs = fullSpan.startMs + dMin * msPerMinute;
+                              } else {
+                                newEndMs = fullSpan.endMs + dMin * msPerMinute;
+                              }
+                              if (newEndMs - newStartMs < minDurMs) {
+                                if (edge === "start") {
+                                  newStartMs = newEndMs - minDurMs;
+                                } else {
+                                  newEndMs = newStartMs + minDurMs;
+                                }
+                              }
+                              return { newStartMs, newEndMs };
+                            };
+
+                            const onMove = (pe: PointerEvent) => {
+                              const { newStartMs, newEndMs } = applyDelta(pe.clientY - startY);
+                              if (newStartMs >= newEndMs) {
+                                setScheduleResizePreview(null);
+                                return;
+                              }
+                              setScheduleResizePreview({
+                                columnDate: day.date,
+                                scheduleId: s.id,
+                                startMs: newStartMs,
+                                endMs: newEndMs,
+                              });
+                            };
+
+                            const cleanup = () => {
                               window.removeEventListener("pointermove", onMove);
                               window.removeEventListener("pointerup", onUp);
+                              window.removeEventListener("pointercancel", onCancel);
+                              setScheduleResizePreview(null);
+                            };
+
+                            const onCancel = () => {
+                              cleanup();
+                            };
+
+                            const onUp = async (pe: PointerEvent) => {
+                              cleanup();
                               const deltaY = pe.clientY - startY;
                               const dMin = snapDeltaMinutesFromDrag(rect, deltaY);
                               let newStartMs = fullSpan.startMs;
@@ -2219,7 +2303,7 @@ export function CalendarWithModal({
                               } else {
                                 newEndMs = fullSpan.endMs + dMin * msPerMinute;
                               }
-                              if (newEndMs - newStartMs < WEEK_VIEW_SLOT_MINUTES * msPerMinute) {
+                              if (newEndMs - newStartMs < minDurMs) {
                                 showToast("範囲が短すぎます");
                                 return;
                               }
@@ -2264,8 +2348,10 @@ export function CalendarWithModal({
                                 }
                               }
                             };
+                            onMove(ev.nativeEvent);
                             window.addEventListener("pointermove", onMove);
                             window.addEventListener("pointerup", onUp);
+                            window.addEventListener("pointercancel", onCancel);
                           };
 
                           return (
@@ -2273,7 +2359,11 @@ export function CalendarWithModal({
                               key={s.id}
                               data-schedule-block="1"
                               draggable={canShift}
-                              className={`group absolute overflow-hidden rounded-md border text-[10px] shadow-sm transition-[box-shadow,z-index] ${color.bg} ${color.text} ${color.leftBar} ${
+                              className={`group absolute overflow-hidden rounded-md border text-[10px] shadow-sm transition-[box-shadow,z-index,opacity] ${color.bg} ${color.text} ${color.leftBar} ${
+                                scheduleResizePreview?.scheduleId === s.id
+                                  ? "opacity-45"
+                                  : ""
+                              } ${
                                 isSelected
                                   ? "z-[32] ring-2 ring-accent-500 ring-offset-1 ring-offset-white dark:ring-offset-zinc-950"
                                   : "hover:z-[28] hover:ring-2 hover:ring-zinc-400/60 dark:hover:ring-zinc-500/50"
@@ -2285,7 +2375,7 @@ export function CalendarWithModal({
                                 width: `calc(${widthPct}% - ${gapPx * 2}px)`,
                                 zIndex: zFinal,
                               }}
-                              title={s.title}
+                              title={`${labelRange} ${s.title}`}
                               onDragStart={(e) => {
                                 if (!canShift) return;
                                 const mode = e.ctrlKey || e.metaKey ? "copy" : "move";
@@ -2327,7 +2417,7 @@ export function CalendarWithModal({
                                 />
                               ) : null}
                               <div className="flex items-center gap-1 px-1 py-0.5 pt-1.5">
-                                <span className="shrink-0 tabular-nums">{labelTime}</span>
+                                <span className="shrink-0 tabular-nums">{labelRange}</span>
                                 <span className="min-w-0 truncate">{s.title}</span>
                               </div>
                               {canResize ? (
@@ -2588,9 +2678,11 @@ export function CalendarWithModal({
                       const isLast = index === selectedSchedules.length - 1;
                       const startLabel = s.is_all_day
                         ? "終日"
-                        : s.start_time
-                          ? s.start_time.slice(0, 5)
-                          : "--:--";
+                        : s.start_time && s.end_time
+                          ? `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}`
+                          : s.start_time
+                            ? s.start_time.slice(0, 5)
+                            : "--:--";
                       return (
                         <li
                           key={s.id}
@@ -2602,7 +2694,7 @@ export function CalendarWithModal({
                         >
                           {/* 左側: 時刻 + タイムライン */}
                           <div className="flex flex-col items-center">
-                            <div className="w-10 text-right text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400 pr-1">
+                            <div className="w-[5.75rem] shrink-0 text-right text-[9px] leading-tight tabular-nums text-zinc-500 dark:text-zinc-400 pr-1">
                               {startLabel}
                             </div>
                             <div className="relative flex-1">
