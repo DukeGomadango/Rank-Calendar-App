@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useId } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useId } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
@@ -28,7 +28,12 @@ import { useViewMode } from "@/lib/view-mode-context";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { SparklesIcon, NoteIcon, TrashIcon } from "@/components/icons/DashboardIcons";
 import { ScheduleForm } from "./ScheduleForm";
+import { WeekScheduleBlockPopover } from "./WeekScheduleBlockPopover";
 import { DayDetailModal, type DayDetailRow } from "@/components/data/DayDetailModal";
+import {
+  scheduleShowsInWeekAllDayRow,
+  scheduleShowsInWeekTimeGrid,
+} from "@/lib/domain/schedule-week-display";
 
 dayjs.locale("ja");
 
@@ -256,6 +261,10 @@ export function CalendarWithModal({
   const scheduleShiftPendingRef = useRef(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
+  /** 日別編集シートを開くか（週ビューは予定クリックだけでは false のまま） */
+  const [isDayEditModalOpen, setIsDayEditModalOpen] = useState(false);
+  /** 週ビュー: 予定プレビュー Popover */
+  const [weekSchedulePreviewOpen, setWeekSchedulePreviewOpen] = useState(false);
   /** モバイルでボトムシートを下からせり上がらせる用。開いた直後に true にして transition をかける */
   const [sheetEntered, setSheetEntered] = useState(false);
 
@@ -270,7 +279,7 @@ export function CalendarWithModal({
   }, [schedules]);
 
   useEffect(() => {
-    if (!selectedDate) {
+    if (!selectedDate || !isDayEditModalOpen) {
       setSheetEntered(false);
       return;
     }
@@ -278,21 +287,41 @@ export function CalendarWithModal({
       requestAnimationFrame(() => setSheetEntered(true));
     });
     return () => cancelAnimationFrame(id);
-  }, [selectedDate]);
+  }, [selectedDate, isDayEditModalOpen]);
 
   useEffect(() => {
-    if (!selectedDate) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key !== "Escape") return;
+      if (weekSchedulePreviewOpen) {
+        e.preventDefault();
+        setWeekSchedulePreviewOpen(false);
+        return;
+      }
+      if (isDayEditModalOpen && selectedDate) {
+        e.preventDefault();
+        setSelectedDate(null);
+        setSelectedScheduleId(null);
+        setScheduleCreatePrefill(null);
+        setScheduleCreateSelection(null);
+        setIsDayEditModalOpen(false);
+        return;
+      }
+      if (selectedDate) {
+        e.preventDefault();
         setSelectedDate(null);
         setSelectedScheduleId(null);
         setScheduleCreatePrefill(null);
         setScheduleCreateSelection(null);
       }
     };
+    if (!selectedDate && !weekSchedulePreviewOpen) return;
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedDate]);
+  }, [selectedDate, weekSchedulePreviewOpen, isDayEditModalOpen]);
+
+  useEffect(() => {
+    if (view === "month") setWeekSchedulePreviewOpen(false);
+  }, [view]);
 
   const selectedDay = selectedDate
     ? localDays.find((d) => d.date === selectedDate) ?? null
@@ -527,6 +556,8 @@ export function CalendarWithModal({
       );
 
       setSelectedDate(null);
+      setIsDayEditModalOpen(false);
+      setWeekSchedulePreviewOpen(false);
 
       // SWR cache（rangeData.entries）も同じ内容で楽観更新し、再検証中の「巻き戻り」を見せない。
       void mutateRange(
@@ -1333,7 +1364,13 @@ export function CalendarWithModal({
                   <button
                     key={day.date}
                     type="button"
-                    onClick={() => setSelectedDate(day.date)}
+                    onClick={() => {
+                      setSelectedDate(day.date);
+                      if (permissions.canEditSchedule) {
+                        setIsDayEditModalOpen(true);
+                        setWeekSchedulePreviewOpen(false);
+                      }
+                    }}
                     onDragOver={(e) => {
                       if (canDrop) e.preventDefault();
                     }}
@@ -1584,7 +1621,27 @@ export function CalendarWithModal({
         scheduleClipboardRef.current = sel;
         try {
           await deleteScheduleAction(sel.id);
+          setWeekSchedulePreviewOpen(false);
+          setSelectedScheduleId(null);
           showToast("切り取りました");
+          void mutateRange();
+        } catch {
+          showToast("削除に失敗しました");
+        }
+        return;
+      }
+      if (
+        !mod &&
+        (e.key === "Delete" || e.key === "Backspace") &&
+        sel &&
+        deleteScheduleAction
+      ) {
+        e.preventDefault();
+        try {
+          await deleteScheduleAction(sel.id);
+          setWeekSchedulePreviewOpen(false);
+          setSelectedScheduleId(null);
+          showToast("削除しました");
           void mutateRange();
         } catch {
           showToast("削除に失敗しました");
@@ -1623,6 +1680,7 @@ export function CalendarWithModal({
       mutateRange,
       showToast,
       weekDays,
+      setWeekSchedulePreviewOpen,
     ]
   );
 
@@ -1722,6 +1780,9 @@ export function CalendarWithModal({
 
     const weekDates = weekDays.map((d) => d.date);
 
+    const weekAlldayTimeLabel = (s: CalendarScheduleRow) =>
+      s.end_date && s.end_date !== s.date ? `終日〜${s.end_date.slice(5)}` : "終日";
+
     return (
       <section
         ref={weekTimeGridRef}
@@ -1729,31 +1790,30 @@ export function CalendarWithModal({
         onKeyDown={handleWeekGridKeyDown}
         className="flex min-h-[calc(100vh-220px)] flex-col rounded-xl border border-zinc-200 bg-white/80 p-3 text-xs shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-zinc-800 dark:bg-zinc-900/80"
       >
-        {/* 上段: 曜日ヘッダー */}
-        <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
-          {weekDays.map((day, idx) => {
-            const isSun = idx === 0;
-            const isSat = idx === 6;
-            const base =
-              "py-1 text-center font-medium tracking-tight bg-zinc-50 dark:bg-zinc-900";
-            const weekend =
-              isSun || isSat
-                ? isSun
-                  ? "text-red-500"
-                  : "text-blue-500"
-                : "text-zinc-600 dark:text-zinc-300";
-            const dateObj = dayjs(day.date);
-            return (
-              <div key={day.date} className={`${base} ${weekend}`}>
-                <div>{WEEKDAYS[idx]}</div>
-                <div className="text-[10px]">{dateObj.format("M/D")}</div>
+        <div className="mt-1 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto [scrollbar-gutter:stable]">
+            <div className="sticky top-0 z-20 shrink-0 space-y-2 bg-white/95 pb-2 backdrop-blur-md dark:bg-zinc-900/95">
+              <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[11px] dark:bg-zinc-800">
+                {weekDays.map((day, idx) => {
+                  const isSun = idx === 0;
+                  const isSat = idx === 6;
+                  const base =
+                    "py-1 text-center font-medium tracking-tight bg-zinc-50 dark:bg-zinc-900";
+                  const weekend =
+                    isSun || isSat
+                      ? isSun
+                        ? "text-red-500"
+                        : "text-blue-500"
+                      : "text-zinc-600 dark:text-zinc-300";
+                  const dateObj = dayjs(day.date);
+                  return (
+                    <div key={day.date} className={`${base} ${weekend}`}>
+                      <div>{WEEKDAYS[idx]}</div>
+                      <div className="text-[10px]">{dateObj.format("M/D")}</div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-
-        {/* 下段: ランク帯 + 時間グリッド */}
-        <div className="mt-1 flex min-h-0 flex-1 flex-col gap-2">
           {/* ランク帯（簡略版） */}
           {permissions.canViewRank && currentRankCycle && (
             <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
@@ -1847,8 +1907,151 @@ export function CalendarWithModal({
             </div>
           )}
 
+            <div className="grid grid-cols-7 gap-px rounded-lg bg-zinc-200 text-[10px] dark:bg-zinc-800">
+              {weekDays.map((day) => {
+                const rawList = schedulesByDate.get(day.date) ?? [];
+                const allDaySchedules = rawList.filter(scheduleShowsInWeekAllDayRow);
+                const cycle = getCycleForDate(day.date);
+                const cellBg =
+                  cycle
+                    ? getPeriodCellClass(cycle.periodType, day.isToday)
+                    : day.isToday
+                      ? "bg-accent-50/40 dark:bg-accent-950/30"
+                      : "bg-white dark:bg-zinc-900";
+
+                return (
+                  <div
+                    key={`week-allday-${day.date}`}
+                    className={`${cellBg} flex min-h-[2.5rem] flex-col gap-px border border-zinc-200/80 px-1 py-1 dark:border-zinc-800/80`}
+                    onDragOver={(e) => {
+                      if (!canShift) return;
+                      e.preventDefault();
+                    }}
+                    onDrop={async (e) => {
+                      if (!canShift) return;
+                      e.preventDefault();
+                      const scheduleId = e.dataTransfer.getData("calendar/scheduleId");
+                      const modeRaw = e.dataTransfer.getData("calendar/mode");
+                      const isAllDayRaw = e.dataTransfer.getData("calendar/isAllDay");
+                      if (!scheduleId) return;
+                      if (isAllDayRaw !== "1") return;
+                      const mode = modeRaw === "copy" ? "copy" : "move";
+
+                      const optimistic = applyOptimisticScheduleShift(
+                        scheduleId,
+                        mode,
+                        day.date,
+                        null
+                      );
+                      scheduleShiftPendingRef.current += 1;
+                      try {
+                        await shiftScheduleAction?.(scheduleId, mode, day.date, null);
+                        setScheduleCreatePrefill(null);
+                        setScheduleCreateSelection(null);
+                        setSelectedScheduleId(null);
+                        setWeekSchedulePreviewOpen(false);
+                      } catch {
+                        if (optimistic.applied) optimistic.rollback();
+                        showToast("移動に失敗しました");
+                      } finally {
+                        scheduleShiftPendingRef.current = Math.max(
+                          0,
+                          scheduleShiftPendingRef.current - 1
+                        );
+                        if (scheduleShiftPendingRef.current === 0) {
+                          void mutateRange();
+                        }
+                      }
+                    }}
+                  >
+                    {allDaySchedules.map((s) => {
+                      const color = getEventColorClasses(s.color_id ?? null);
+                      const inner = (
+                        <div
+                          data-schedule-block="1"
+                          draggable={canShift}
+                          onDragStart={(e) => {
+                            if (!canShift) return;
+                            scheduleDragDurationMsRef.current = 0;
+                            const mode = e.ctrlKey || e.metaKey ? "copy" : "move";
+                            e.dataTransfer.setData("calendar/scheduleId", s.id);
+                            e.dataTransfer.setData("calendar/mode", mode);
+                            e.dataTransfer.setData("calendar/isAllDay", "1");
+                            e.dataTransfer.effectAllowed = mode === "copy" ? "copy" : "move";
+                          }}
+                          onClick={
+                            permissions.canEditSchedule
+                              ? (ev) => {
+                                  ev.stopPropagation();
+                                  setSelectedDate(day.date);
+                                  setSelectedScheduleId(s.id);
+                                  setIsDayEditModalOpen(false);
+                                  setWeekSchedulePreviewOpen(true);
+                                  setModalTab("schedule");
+                                  setScheduleCreatePrefill(null);
+                                  setScheduleCreateSelection(null);
+                                  void weekTimeGridRef.current?.focus();
+                                }
+                              : undefined
+                          }
+                          className={`${color.bg} ${color.text} mb-px w-full cursor-pointer rounded-l py-px pl-1 text-left text-[9px] font-medium line-clamp-2 ${color.leftBar}`}
+                          title={s.title}
+                        >
+                          <span className="block truncate">{s.title}</span>
+                        </div>
+                      );
+
+                      return (
+                        <Fragment key={s.id}>
+                          {permissions.canEditSchedule ? (
+                            <WeekScheduleBlockPopover
+                              opened={
+                                selectedScheduleId === s.id && weekSchedulePreviewOpen
+                              }
+                              onOpenChange={(open) => {
+                                if (!open) setWeekSchedulePreviewOpen(false);
+                              }}
+                              schedule={s}
+                              timeLabel={weekAlldayTimeLabel(s)}
+                              memoPreview={
+                                s.memo?.trim() ? s.memo.trim().slice(0, 120) : null
+                              }
+                              canDelete={!!deleteScheduleAction}
+                              onEdit={() => {
+                                setWeekSchedulePreviewOpen(false);
+                                setIsDayEditModalOpen(true);
+                                setModalTab("schedule");
+                                setScheduleCreatePrefill(null);
+                              }}
+                              onDelete={async () => {
+                                if (!deleteScheduleAction) return;
+                                try {
+                                  await deleteScheduleAction(s.id);
+                                  setWeekSchedulePreviewOpen(false);
+                                  setSelectedScheduleId(null);
+                                  showToast("削除しました");
+                                  void mutateRange();
+                                } catch {
+                                  showToast("削除に失敗しました");
+                                }
+                              }}
+                            >
+                              {inner}
+                            </WeekScheduleBlockPopover>
+                          ) : (
+                            inner
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            </div>
+
           {/* 時間グリッド本体 */}
-          <div className="flex min-h-0 flex-1 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex min-h-[1152px] shrink-0 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100 text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
             {/* 時刻軸 */}
             <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-zinc-200 bg-zinc-100 text-[10px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               {hours.map((h) => (
@@ -1862,8 +2065,7 @@ export function CalendarWithModal({
             <div className="flex min-w-0 flex-1">
               {weekDays.map((day) => {
                 const daySchedulesRaw = schedulesByDate.get(day.date) ?? [];
-                const daySchedules = daySchedulesRaw.filter((s) => !s.is_all_day);
-                const allDaySchedules = daySchedulesRaw.filter((s) => s.is_all_day);
+                const daySchedules = daySchedulesRaw.filter(scheduleShowsInWeekTimeGrid);
                 const daySelection =
                   scheduleCreateSelection?.dayDate === day.date
                     ? scheduleCreateSelection
@@ -1878,84 +2080,6 @@ export function CalendarWithModal({
 
                 return (
                   <div key={day.date} className="relative flex min-w-[180px] flex-1 flex-col border-r border-zinc-200 last:border-r-0 dark:border-zinc-800">
-                    {/* 終日帯 */}
-                    {allDaySchedules.length > 0 && (
-                      <div
-                        className="flex flex-wrap gap-1 border-b border-zinc-200 bg-zinc-50 px-1.5 py-1 text-[10px] dark:border-zinc-800 dark:bg-zinc-900"
-                        onDragOver={(e) => {
-                          if (!canShift) return;
-                          e.preventDefault();
-                        }}
-                        onDrop={async (e) => {
-                          if (!canShift) return;
-                          e.preventDefault();
-                          const scheduleId = e.dataTransfer.getData("calendar/scheduleId");
-                          const modeRaw = e.dataTransfer.getData("calendar/mode");
-                          const isAllDayRaw = e.dataTransfer.getData("calendar/isAllDay");
-                          if (!scheduleId) return;
-                          if (isAllDayRaw !== "1") return; // 終日帯は all-day のみ
-                          const mode = modeRaw === "copy" ? "copy" : "move";
-
-                          const optimistic = applyOptimisticScheduleShift(
-                            scheduleId,
-                            mode,
-                            day.date,
-                            null
-                          );
-                          scheduleShiftPendingRef.current += 1;
-                          try {
-                            await shiftScheduleAction?.(scheduleId, mode, day.date, null);
-                            setScheduleCreatePrefill(null);
-                            setScheduleCreateSelection(null);
-                            setSelectedScheduleId(null);
-                          } catch {
-                            if (optimistic.applied) optimistic.rollback();
-                            showToast("移動に失敗しました");
-                          } finally {
-                            scheduleShiftPendingRef.current = Math.max(
-                              0,
-                              scheduleShiftPendingRef.current - 1
-                            );
-                            if (scheduleShiftPendingRef.current === 0) {
-                              void mutateRange();
-                            }
-                          }
-                        }}
-                      >
-                        {allDaySchedules.map((s) => {
-                          const color = getEventColorClasses(s.color_id ?? null);
-                          return (
-                            <span
-                              key={s.id}
-                              data-schedule-block="1"
-                              draggable={canShift}
-                              onDragStart={(e) => {
-                                if (!canShift) return;
-                                scheduleDragDurationMsRef.current = 0;
-                                const mode = e.ctrlKey || e.metaKey ? "copy" : "move";
-                                e.dataTransfer.setData("calendar/scheduleId", s.id);
-                                e.dataTransfer.setData("calendar/mode", mode);
-                                e.dataTransfer.setData("calendar/isAllDay", "1");
-                                e.dataTransfer.effectAllowed = mode === "copy" ? "copy" : "move";
-                              }}
-                              onClick={(ev) => {
-                                ev.stopPropagation();
-                                setSelectedDate(day.date);
-                                setSelectedScheduleId(s.id);
-                                setModalTab("schedule");
-                                setScheduleCreatePrefill(null);
-                              }}
-                              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${color.bg} ${color.text}`}
-                              title={s.title}
-                            >
-                              <span className="text-[9px]">終日</span>
-                              <span className="max-w-[120px] truncate">{s.title}</span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-
                     {/* 時間スロット */}
                     <div
                       data-week-day-grid
@@ -2014,6 +2138,7 @@ export function CalendarWithModal({
                           setScheduleCreatePrefill(null);
                           setScheduleCreateSelection(null);
                           setSelectedScheduleId(null);
+                          setWeekSchedulePreviewOpen(false);
                         } catch {
                           if (optimistic.applied) optimistic.rollback();
                           showToast("移動に失敗しました");
@@ -2036,6 +2161,7 @@ export function CalendarWithModal({
                         const offsetMinutes = pointerYToSnappedMinutes(rect, e.clientY);
 
                         setSelectedScheduleId(null);
+                        setWeekSchedulePreviewOpen(false);
                         setScheduleCreatePrefill(null);
                         setScheduleCreateSelection({
                           dayDate: day.date,
@@ -2067,6 +2193,8 @@ export function CalendarWithModal({
 
                         if (endOffset - startOffset < WEEK_VIEW_SLOT_MINUTES) {
                           setSelectedDate(day.date);
+                          setIsDayEditModalOpen(true);
+                          setWeekSchedulePreviewOpen(false);
                           setModalTab("rank");
                           setScheduleCreatePrefill(null);
                           return;
@@ -2092,6 +2220,8 @@ export function CalendarWithModal({
 
                         setSelectedDate(startDate);
                         setSelectedScheduleId(null);
+                        setIsDayEditModalOpen(true);
+                        setWeekSchedulePreviewOpen(false);
                         setModalTab("schedule");
                         setScheduleCreatePrefill({
                           is_all_day: false,
@@ -2335,6 +2465,7 @@ export function CalendarWithModal({
                                 }
                                 setScheduleCreatePrefill(null);
                                 setScheduleCreateSelection(null);
+                                setWeekSchedulePreviewOpen(false);
                               } catch {
                                 if (optimistic.applied) optimistic.rollback();
                                 showToast("リサイズに失敗しました");
@@ -2354,9 +2485,8 @@ export function CalendarWithModal({
                             window.addEventListener("pointercancel", onCancel);
                           };
 
-                          return (
+                          const timedInner = (
                             <div
-                              key={s.id}
                               data-schedule-block="1"
                               draggable={canShift}
                               className={`group absolute overflow-hidden rounded-md border text-[10px] shadow-sm transition-[box-shadow,z-index,opacity] ${color.bg} ${color.text} ${color.leftBar} ${
@@ -2392,14 +2522,21 @@ export function CalendarWithModal({
                                 scheduleDragDurationMsRef.current = 0;
                                 setScheduleDragPreview(null);
                               }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedDate(day.date);
-                                setSelectedScheduleId(s.id);
-                                setModalTab("schedule");
-                                setScheduleCreatePrefill(null);
-                                setScheduleCreateSelection(null);
-                              }}
+                              onClick={
+                                permissions.canEditSchedule
+                                  ? (e) => {
+                                      e.stopPropagation();
+                                      setSelectedDate(day.date);
+                                      setSelectedScheduleId(s.id);
+                                      setIsDayEditModalOpen(false);
+                                      setWeekSchedulePreviewOpen(true);
+                                      setModalTab("schedule");
+                                      setScheduleCreatePrefill(null);
+                                      setScheduleCreateSelection(null);
+                                      void weekTimeGridRef.current?.focus();
+                                    }
+                                  : undefined
+                              }
                               onPointerDown={(e) => {
                                 if ((e.target as HTMLElement | null)?.closest?.("[data-resize-handle]"))
                                   return;
@@ -2432,6 +2569,49 @@ export function CalendarWithModal({
                               ) : null}
                             </div>
                           );
+
+                          return (
+                            <Fragment key={s.id}>
+                              {permissions.canEditSchedule ? (
+                                <WeekScheduleBlockPopover
+                                  opened={
+                                    selectedScheduleId === s.id && weekSchedulePreviewOpen
+                                  }
+                                  onOpenChange={(open) => {
+                                    if (!open) setWeekSchedulePreviewOpen(false);
+                                  }}
+                                  schedule={s}
+                                  timeLabel={labelRange}
+                                  memoPreview={
+                                    s.memo?.trim() ? s.memo.trim().slice(0, 120) : null
+                                  }
+                                  canDelete={!!deleteScheduleAction}
+                                  onEdit={() => {
+                                    setWeekSchedulePreviewOpen(false);
+                                    setIsDayEditModalOpen(true);
+                                    setModalTab("schedule");
+                                    setScheduleCreatePrefill(null);
+                                  }}
+                                  onDelete={async () => {
+                                    if (!deleteScheduleAction) return;
+                                    try {
+                                      await deleteScheduleAction(s.id);
+                                      setWeekSchedulePreviewOpen(false);
+                                      setSelectedScheduleId(null);
+                                      showToast("削除しました");
+                                      void mutateRange();
+                                    } catch {
+                                      showToast("削除に失敗しました");
+                                    }
+                                  }}
+                                >
+                                  {timedInner}
+                                </WeekScheduleBlockPopover>
+                              ) : (
+                                timedInner
+                              )}
+                            </Fragment>
+                          );
                         });
                       })()}
                     </div>
@@ -2441,6 +2621,7 @@ export function CalendarWithModal({
               })}
             </div>
           </div>
+        </div>
         </div>
       </section>
     );
@@ -2572,7 +2753,7 @@ export function CalendarWithModal({
         </div>
       )}
 
-      {permissions.canEditSchedule && selectedDate && selectedDay && (
+      {permissions.canEditSchedule && isDayEditModalOpen && selectedDate && selectedDay && (
         <div className={`fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/40 px-0 md:px-4 py-0 md:py-8 transition-opacity duration-200 ${sheetEntered ? "opacity-100" : "opacity-0"} md:opacity-100`}>
           <div className={`w-full max-h-[85vh] md:max-h-none max-w-md md:max-w-2xl rounded-t-2xl md:rounded-2xl border border-zinc-200 border-b-0 md:border-b bg-white p-4 text-xs shadow-xl dark:border-zinc-700 dark:bg-zinc-900 overflow-y-auto transition-transform duration-200 ease-out ${sheetEntered ? "translate-y-0" : "translate-y-full md:translate-y-0"}`}>
             <div className="mb-3 flex items-center justify-between">
@@ -2591,6 +2772,8 @@ export function CalendarWithModal({
                   setSelectedScheduleId(null);
                   setScheduleCreatePrefill(null);
                   setScheduleCreateSelection(null);
+                  setIsDayEditModalOpen(false);
+                  setWeekSchedulePreviewOpen(false);
                 }}
                 className="rounded-md px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               >
@@ -2800,6 +2983,8 @@ export function CalendarWithModal({
             setSelectedScheduleId(null);
             setScheduleCreatePrefill(null);
             setScheduleCreateSelection(null);
+            setIsDayEditModalOpen(false);
+            setWeekSchedulePreviewOpen(false);
           }}
         />
       )}
