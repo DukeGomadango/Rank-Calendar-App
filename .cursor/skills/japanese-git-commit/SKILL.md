@@ -53,3 +53,4 @@ git config --local core.quotepath false
 
 - `git commit -m "日本語"` をシェルで直接実行すると、環境によっては文字化けする。日本語メッセージでは **-F** を使う。
 - 一時ファイル名は `.git-commit-msg-utf8.txt` や `msg.txt` など、プロジェクトで共有しない名前がよい。
+- PowerShell では複数コマンドを `&&` でつなぐと解釈されず失敗することがあるため、区切りは `;`（または Shell ツールを分けて実行）を推奨する。
