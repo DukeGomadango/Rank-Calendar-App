@@ -288,8 +288,33 @@ export async function updateSkipPassSnapshot(
   await setSkipPassSnapshot(calendarId, asOfDate, value);
 }
 
-export {
-  noopMoveEntry,
-  noopSaveEntry,
-  noopUpdateScheduleEntryField,
-} from "./schedule-entry-actions-noop";
+/** 開発用モック表示用。本番の Server Action モジュールから直接 export する（再エクスポートは Turbopack で Action ID が壊れることがある）。 */
+
+export async function noopMoveEntry(
+  _calendarId: string,
+  _fromDate: string,
+  _toDate: string
+) {
+  "use server";
+  void _calendarId;
+  void _fromDate;
+  void _toDate;
+}
+
+export async function noopSaveEntry(_formData: FormData) {
+  "use server";
+  void _formData;
+}
+
+export async function noopUpdateScheduleEntryField(
+  _calendarId: string,
+  _date: string,
+  _field: string,
+  _value: string | number | boolean
+) {
+  "use server";
+  void _calendarId;
+  void _date;
+  void _field;
+  void _value;
+}
