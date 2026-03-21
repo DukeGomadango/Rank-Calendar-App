@@ -17,6 +17,7 @@ import { useToast } from "@/lib/toast-context";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { useViewMode } from "@/lib/view-mode-context";
 import { DayDetailModal, type DayDetailRow } from "./DayDetailModal";
+import type { ScheduleDayRow } from "./schedule-day-row";
 import {
   inputClass,
   inputClassDisabled,
@@ -28,25 +29,7 @@ function updatingKeyFor(date: string, field: string): string {
   return `${date}-${field}`;
 }
 
-/** 日付・曜日は必ずあり、他は登録があれば入る。ランク・ランクスコアは周期対応時のみ。skip_pass_remaining_as_of はその日時点のスキパ枚数。 */
-type Row = {
-  date: string;
-  weekday: string;
-  id?: string;
-  ansuko_baseline?: number | null;
-  border_plus2?: number | null;
-  border_plus4?: number | null;
-  border_plus6?: number | null;
-  target_plus?: number | null;
-  actual_plus?: number | null;
-  skip_pass_used?: boolean;
-  current_rank?: string | null;
-  rank_cycle_boundary?: "start" | "end" | null;
-  rank_score_cumulative?: number | null;
-  skip_pass_remaining_as_of?: number | null;
-  memo?: string | null;
-  event_id?: string | null;
-};
+type Row = ScheduleDayRow;
 
 type UpdateFieldAction = (
   calendarId: string,

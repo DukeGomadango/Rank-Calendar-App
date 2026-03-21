@@ -10,25 +10,10 @@ import { getEventColorClasses } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES } from "@/lib/plus-options";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { ConfettiIcon, FireIcon, TicketIcon } from "@/components/icons/DashboardIcons";
+import type { ScheduleDayRow } from "./schedule-day-row";
+import { useDayDetailEvents } from "./useDayDetailEvents";
 
-export type DayDetailRow = {
-  date: string;
-  weekday: string;
-  id?: string;
-  ansuko_baseline?: number | null;
-  border_plus2?: number | null;
-  border_plus4?: number | null;
-  border_plus6?: number | null;
-  target_plus?: number | null;
-  actual_plus?: number | null;
-  skip_pass_used?: boolean;
-  current_rank?: string | null;
-  rank_score_cumulative?: number | null;
-  memo?: string | null;
-  event_id?: string | null;
-  stream_content?: string | null;
-  stream_content_color?: string | null;
-};
+export type DayDetailRow = ScheduleDayRow;
 
 function eventsOnDate(events: EventRow[], date: string): EventRow[] {
   return events.filter((ev) => eventOverlapsDate(ev, date));
@@ -80,51 +65,12 @@ export function DayDetailModal({
   const [row, setRow] = useState(initialRow);
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
-  const [eventsState, setEventsState] = useState<EventRow[]>(events);
-  const [eventsLoadedFor, setEventsLoadedFor] = useState<string | null>(null);
-
-  useEffect(() => {
-    setEventsState(events);
-  }, [events]);
-
-  useEffect(() => {
-    // Dataタブ側では events を同梱しないため、モーダル表示時に必要な日のみ取得する。
-    if (!calendarId) return;
-    if (!permissions.canViewEvents) return;
-    if (events.length > 0) return; // 既に親から渡っている場合は取得しない
-    if (eventsLoadedFor === row.date) return;
-
-    let cancelled = false;
-    const date = row.date;
-
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/calendar-events?calendarId=${encodeURIComponent(calendarId)}&date=${encodeURIComponent(
-            date
-          )}`,
-          { method: "GET" }
-        );
-        if (!res.ok) return;
-        const json = (await res.json()) as { events?: EventRow[] };
-        if (cancelled) return;
-        setEventsState((json.events ?? []) as EventRow[]);
-        setEventsLoadedFor(date);
-      } catch {
-        // 失敗しても編集体験を止めない
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
+  const { eventsState } = useDayDetailEvents({
     calendarId,
-    permissions.canViewEvents,
-    events.length,
-    eventsLoadedFor,
-    row.date,
-  ]);
+    canViewEvents: permissions.canViewEvents,
+    initialEvents: events,
+    rowDate: row.date,
+  });
 
   const dayEvents = eventsOnDate(eventsState, row.date);
   const canEdit = !!(permissions.canEditSchedule && calendarId && onUpdateField);

@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/toast-context";
-import { CopyInviteUrl } from "./CopyInviteUrl";
+import { CopyInviteUrl } from "@/components/sharing/CopyInviteUrl";
 import {
   assignRoleToUser,
   createInviteLinkAction,

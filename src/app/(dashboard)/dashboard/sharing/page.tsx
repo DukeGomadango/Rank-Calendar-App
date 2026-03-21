@@ -23,7 +23,7 @@ import {
   noopDeleteInviteLink,
   noopAssignRoleToUser,
 } from "./actions";
-import { CopyInviteUrl } from "./CopyInviteUrl";
+import { CopyInviteUrl } from "@/components/sharing/CopyInviteUrl";
 import { PERM_GROUP_BASIC, PERM_GROUP_SENSITIVE } from "./sharing-constants";
 
 type PageProps = { searchParams?: Promise<{ calendarId?: string }> };

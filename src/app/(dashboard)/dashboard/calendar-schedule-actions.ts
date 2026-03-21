@@ -11,6 +11,12 @@ import {
   rpcCalendarScheduleRedo,
   rpcCalendarScheduleUndo,
 } from "@/lib/data/calendar-schedule-rpc";
+import {
+  formatHhmmUtc,
+  formatYmdUtc,
+  parseYMD,
+  utcMsFromYmdAndHhmm,
+} from "@/lib/domain/calendar-schedule-datetime";
 
 export type SaveCalendarScheduleResult =
   | { ok: true }
@@ -77,14 +83,9 @@ export async function saveCalendarSchedule(
     if (!timeRegex.test(endTimeRaw)) {
       errors.end_time = ["終了時刻を HH:MM 形式で入力してください"];
     }
-    const toUtcMs = (d: string, t: string): number => {
-      const [y, mo, da] = d.split("-").map((v) => Number(v));
-      const [hh, mm] = t.split(":").map((v) => Number(v));
-      return Date.UTC(y, mo - 1, da, hh, mm, 0);
-    };
     if (timeRegex.test(startTimeRaw) && timeRegex.test(endTimeRaw)) {
-      const startMs = toUtcMs(date, startTimeRaw);
-      const endMs = toUtcMs(endDate, endTimeRaw);
+      const startMs = utcMsFromYmdAndHhmm(date, startTimeRaw);
+      const endMs = utcMsFromYmdAndHhmm(endDate, endTimeRaw);
       if (startMs > endMs) {
         errors.end_time = ["終了日時は開始日時以降にしてください"];
       }
@@ -152,37 +153,6 @@ export async function shiftCalendarSchedule(
   const existing = await getScheduleByIdInCalendar(calendarId, scheduleId);
   if (!existing) return;
 
-  const parseYMD = (d: string): { y: number; mo: number; da: number } => {
-    const [y, mo, da] = d.split("-").map((v) => Number(v));
-    return { y, mo, da };
-  };
-
-  const parseHHMM = (t: string): { hh: number; mm: number } => {
-    const [hh, mm] = t.split(":").map((v) => Number(v));
-    return { hh, mm };
-  };
-
-  const toUtcMs = (dateStr: string, timeStr: string): number => {
-    const { y, mo, da } = parseYMD(dateStr);
-    const { hh, mm } = parseHHMM(timeStr);
-    return Date.UTC(y, mo - 1, da, hh, mm, 0);
-  };
-
-  const formatYMD = (ms: number): string => {
-    const dt = new Date(ms);
-    const y = dt.getUTCFullYear();
-    const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
-    const da = String(dt.getUTCDate()).padStart(2, "0");
-    return `${y}-${mo}-${da}`;
-  };
-
-  const formatHHMM = (ms: number): string => {
-    const dt = new Date(ms);
-    const hh = String(dt.getUTCHours()).padStart(2, "0");
-    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
-  };
-
   const msPerDay = 24 * 60 * 60 * 1000;
 
   const startDate = existing.date;
@@ -217,7 +187,7 @@ export async function shiftCalendarSchedule(
     );
     const newEndMs = newStartMs + (durationDays - 1) * msPerDay;
 
-    const computedEndDate = formatYMD(newEndMs);
+    const computedEndDate = formatYmdUtc(newEndMs);
     const endDateForRow = computedEndDate === newStartDate ? null : computedEndDate;
 
     const allDayPayload: CalendarScheduleUpsertInput = {
@@ -248,17 +218,17 @@ export async function shiftCalendarSchedule(
   if (!newStartTime || !/^\d{2}:\d{2}$/.test(newStartTime)) return;
   if (!existing.start_time || !existing.end_time) return;
 
-  const existingStartMs = toUtcMs(startDate, existing.start_time);
-  const existingEndMs = toUtcMs(endDate, existing.end_time);
+  const existingStartMs = utcMsFromYmdAndHhmm(startDate, existing.start_time);
+  const existingEndMs = utcMsFromYmdAndHhmm(endDate, existing.end_time);
   const durationMs = existingEndMs - existingStartMs;
   if (durationMs < 0) return;
 
-  const newStartMs = toUtcMs(newStartDate, newStartTime);
+  const newStartMs = utcMsFromYmdAndHhmm(newStartDate, newStartTime);
   const newEndMs = newStartMs + durationMs;
 
-  const computedEndDate = formatYMD(newEndMs);
+  const computedEndDate = formatYmdUtc(newEndMs);
   const endDateForRow = computedEndDate === newStartDate ? null : computedEndDate;
-  const computedEndTime = formatHHMM(newEndMs);
+  const computedEndTime = formatHhmmUtc(newEndMs);
 
   const timedPayload: CalendarScheduleUpsertInput = {
     id: mode === "move" ? existing.id : undefined,
@@ -304,41 +274,10 @@ export async function resizeCalendarSchedule(
   if (!existing || existing.is_all_day) return;
   if (!existing.start_time || !existing.end_time) return;
 
-  const parseYMD = (d: string): { y: number; mo: number; da: number } => {
-    const [y, mo, da] = d.split("-").map((v) => Number(v));
-    return { y, mo, da };
-  };
-
-  const parseHHMM = (t: string): { hh: number; mm: number } => {
-    const [hh, mm] = t.split(":").map((v) => Number(v));
-    return { hh, mm };
-  };
-
-  const toUtcMs = (dateStr: string, timeStr: string): number => {
-    const { y, mo, da } = parseYMD(dateStr);
-    const { hh, mm } = parseHHMM(timeStr);
-    return Date.UTC(y, mo - 1, da, hh, mm, 0);
-  };
-
-  const formatYMD = (ms: number): string => {
-    const dt = new Date(ms);
-    const y = dt.getUTCFullYear();
-    const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
-    const da = String(dt.getUTCDate()).padStart(2, "0");
-    return `${y}-${mo}-${da}`;
-  };
-
-  const formatHHMM = (ms: number): string => {
-    const dt = new Date(ms);
-    const hh = String(dt.getUTCHours()).padStart(2, "0");
-    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
-  };
-
   const startDate = existing.date;
   const endDate = existing.end_date ?? existing.date;
-  const existingStartMs = toUtcMs(startDate, existing.start_time);
-  const existingEndMs = toUtcMs(endDate, existing.end_time);
+  const existingStartMs = utcMsFromYmdAndHhmm(startDate, existing.start_time);
+  const existingEndMs = utcMsFromYmdAndHhmm(endDate, existing.end_time);
   if (existingEndMs <= existingStartMs) return;
 
   const minDurationMs = 15 * 60 * 1000;
@@ -347,15 +286,15 @@ export async function resizeCalendarSchedule(
   let newEndMs = existingEndMs;
 
   if (edge === "start") {
-    newStartMs = toUtcMs(newDate, `${newTime}:00`);
+    newStartMs = utcMsFromYmdAndHhmm(newDate, `${newTime}:00`);
     if (newStartMs >= existingEndMs || existingEndMs - newStartMs < minDurationMs) return;
   } else {
-    newEndMs = toUtcMs(newDate, `${newTime}:00`);
+    newEndMs = utcMsFromYmdAndHhmm(newDate, `${newTime}:00`);
     if (newEndMs <= existingStartMs || newEndMs - existingStartMs < minDurationMs) return;
   }
 
-  const newDateStart = formatYMD(newStartMs);
-  const newDateEnd = formatYMD(newEndMs);
+  const newDateStart = formatYmdUtc(newStartMs);
+  const newDateEnd = formatYmdUtc(newEndMs);
   const endDateForRow = newDateEnd === newDateStart ? null : newDateEnd;
 
   const payload: CalendarScheduleUpsertInput = {
@@ -363,8 +302,8 @@ export async function resizeCalendarSchedule(
     date: newDateStart,
     end_date: endDateForRow,
     is_all_day: false,
-    start_time: `${formatHHMM(newStartMs)}:00`,
-    end_time: `${formatHHMM(newEndMs)}:00`,
+    start_time: `${formatHhmmUtc(newStartMs)}:00`,
+    end_time: `${formatHhmmUtc(newEndMs)}:00`,
     title: existing.title,
     kind: existing.kind,
     visibility: existing.visibility ?? null,

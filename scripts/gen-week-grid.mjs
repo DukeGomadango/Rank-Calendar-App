@@ -1,3 +1,14 @@
+/**
+ * `_week_extract.txt` から週グリッド本体（return より上のロジック＋ JSX）を読み込み、
+ * `CalendarWeekGrid.tsx` を再生成する。
+ *
+ * 期待する `_week_extract.txt` の形:
+ * - 先頭付近に `renderWeekGrid` を含む行が1行ある（その行は削除される）
+ * - 末尾がコンポーネント関数の閉じ `};` なら削除される
+ * - 残りは元ファイルで2スペースインデントされていた想定（先頭2文字を削ってフラット化）
+ *
+ * `week/calendar-week-grid-types.ts` と `week/weekGridTimeHelpers.ts` はこのスクリプトでは上書きしない。
+ */
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,34 +24,33 @@ const outPath = path.join(
   "src/components/schedule/calendar-with-modal/CalendarWeekGrid.tsx"
 );
 
+if (!fs.existsSync(extractPath)) {
+  console.error(
+    "Missing:",
+    extractPath,
+    "\nCreate it from the inner body of CalendarWeekGrid (see script header comment)."
+  );
+  process.exit(1);
+}
+
 let lines = fs.readFileSync(extractPath, "utf8").split(/\r?\n/);
 const idx = lines.findIndex((l) => l.includes("renderWeekGrid"));
-if (idx < 0) throw new Error("renderWeekGrid not found");
+if (idx < 0) throw new Error("renderWeekGrid not found in _week_extract.txt");
 lines.splice(idx, 1);
-if (!lines[lines.length - 1].trim().startsWith("};")) throw new Error("bad end");
+if (!lines[lines.length - 1].trim().startsWith("};")) throw new Error("bad end: expected last line to be };");
 lines.pop();
 const body = lines.map((l) => (l.startsWith("  ") ? l.slice(2) : l)).join("\n");
 
 const header = `"use client";
 
-import {
-  Fragment,
-  type Dispatch,
-  type KeyboardEvent,
-  type MutableRefObject,
-  type RefObject,
-  type SetStateAction,
-} from "react";
+import { Fragment, useMemo } from "react";
 import dayjs from "dayjs";
 import {
   assignWeekColumnLayout,
   MINUTES_PER_DAY,
-  snapMinutesToSlot,
   WEEK_VIEW_SLOT_MINUTES,
   type WeekViewSegment,
 } from "@/lib/domain/week-view-layout";
-import type { CalendarPermissionFlags } from "@/lib/auth/permission";
-import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
 import { getEventColorClasses } from "@/lib/event-colors";
@@ -49,95 +59,17 @@ import {
   scheduleShowsInWeekAllDayRow,
   scheduleShowsInWeekTimeGrid,
 } from "@/lib/domain/schedule-week-display";
-import { WEEKDAYS, type PeriodType } from "./calendar-display-helpers";
-import type { CycleInfoForDate, DayData } from "./types";
+import { WEEKDAYS } from "./calendar-display-helpers";
+import type { CalendarWeekGridProps } from "./week/calendar-week-grid-types";
+import { createWeekGridTimeHelpers } from "./week/weekGridTimeHelpers";
 
-type ScheduleCreatePrefill =
-  | null
-  | { is_all_day: false; startTime: string; endTime: string; endDate: string };
-
-type ScheduleCreateSelection =
-  | null
-  | { dayDate: string; startOffsetMinutes: number; endOffsetMinutes: number };
-
-type ScheduleDragPreview = null | {
-  columnDate: string;
-  startTime: string;
-  endTime: string;
-};
-
-type ScheduleResizePreview = null | {
-  columnDate: string;
-  scheduleId: string;
-  startMs: number;
-  endMs: number;
-};
-
-export type CalendarWeekGridProps = {
-  weekTimeGridRef: RefObject<HTMLDivElement | null>;
-  onWeekGridKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
-  permissions: CalendarPermissionFlags;
-  currentRankCycle: { start: string; end: string; rank: string | null } | null;
-  weekDays: DayData[];
-  localDays: DayData[];
-  eventsByDate: Map<string, EventRow[]>;
-  schedulesByDate: Map<string, CalendarScheduleRow[]>;
-  getCycleForDate: (date: string) => CycleInfoForDate;
-  getBarRoundedInRow: (
-    date: string,
-    rowDates: string[],
-    cycleStart: string,
-    cycleEnd: string
-  ) => { roundedLeft: boolean; roundedRight: boolean };
-  getPeriodCellClass: (periodType: PeriodType, isToday: boolean) => string;
-  formatCycleBandLabel: (rank: string | null, cycleStart?: string, cycleEnd?: string) => string;
-  saveScheduleAction?: (formData: FormData) => Promise<unknown>;
-  shiftScheduleAction?: (
-    scheduleId: string,
-    mode: "move" | "copy",
-    newStartDate: string,
-    newStartTime: string | null
-  ) => Promise<void>;
-  deleteScheduleAction?: (scheduleId: string) => Promise<void>;
-  resizeScheduleAction?: (
-    scheduleId: string,
-    edge: "start" | "end",
-    newDate: string,
-    newTime: string
-  ) => Promise<void>;
-  selectedScheduleId: string | null;
-  weekSchedulePreviewOpen: boolean;
-  setWeekSchedulePreviewOpen: (v: boolean) => void;
-  setSelectedDate: (d: string | null) => void;
-  setSelectedScheduleId: (id: string | null) => void;
-  setIsDayEditModalOpen: (v: boolean) => void;
-  setModalTab: (t: "rank" | "schedule") => void;
-  setScheduleCreatePrefill: Dispatch<SetStateAction<ScheduleCreatePrefill>>;
-  setScheduleCreateSelection: Dispatch<SetStateAction<ScheduleCreateSelection>>;
-  scheduleCreateSelection: ScheduleCreateSelection;
-  scheduleCreateSelectionRef: MutableRefObject<ScheduleCreateSelection>;
-  scheduleDragPreview: ScheduleDragPreview;
-  setScheduleDragPreview: Dispatch<SetStateAction<ScheduleDragPreview>>;
-  scheduleResizePreview: ScheduleResizePreview;
-  setScheduleResizePreview: Dispatch<SetStateAction<ScheduleResizePreview>>;
-  scheduleDragDurationMsRef: MutableRefObject<number>;
-  scheduleShiftPendingRef: MutableRefObject<number>;
-  applyOptimisticScheduleShift: (
-    scheduleId: string,
-    mode: "move" | "copy",
-    newStartDate: string,
-    newStartTime: string | null
-  ) => { applied: boolean; rollback: () => void };
-  applyOptimisticSchedulePatch: (
-    scheduleId: string,
-    next: CalendarScheduleRow
-  ) => { applied: boolean; rollback: () => void };
-  mutateRange: (
-    data?: ((current: unknown) => unknown) | undefined,
-    opts?: { revalidate?: boolean; populateCache?: boolean }
-  ) => Promise<unknown>;
-  showToast: (message: string) => void;
-};
+export type {
+  CalendarWeekGridProps,
+  ScheduleCreatePrefill,
+  ScheduleCreateSelection,
+  ScheduleDragPreview,
+  ScheduleResizePreview,
+} from "./week/calendar-week-grid-types";
 
 export function CalendarWeekGrid(props: CalendarWeekGridProps) {
   const {
@@ -179,6 +111,7 @@ export function CalendarWeekGrid(props: CalendarWeekGridProps) {
     mutateRange,
     showToast,
   } = props;
+
 
 `;
 

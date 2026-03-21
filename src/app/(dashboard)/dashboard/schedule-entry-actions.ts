@@ -5,16 +5,11 @@ import {
   getScheduleEntriesInRange,
 } from "@/lib/data/schedule-entries";
 import {
-  getOrCreateCalendarRankState,
-  extendRankResetDate,
-  recalculateRankResetDateFromCurrentCycle,
-  decrementSkipPassRemaining,
-  restoreSkipPassRemaining,
   updateSkipPassRemaining as updateSkipPassRemainingState,
   setSkipPassSnapshot,
   ensureSkipPassIncrementForLastWeek,
 } from "@/lib/data/calendar-rank-state";
-import { compareJstDate } from "@/lib/domain/calendar";
+import { applySkipPassRankSideEffects } from "@/lib/data/schedule-entry-skip-pass-side-effects";
 import { MAX_BORDER_VALUE } from "@/lib/border-constants";
 import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
 import { throwDataLayerError } from "@/lib/errors";
@@ -78,24 +73,12 @@ export async function saveScheduleEntry(
     stream_content_color: streamContentColor,
   });
 
-  if (!previousSkipPassUsed && skipPassUsed) {
-    const state = await getOrCreateCalendarRankState(calendarId);
-    if (
-      compareJstDate(date, state.rank_cycle_start_date) >= 0 &&
-      compareJstDate(date, state.rank_reset_date) <= 0
-    ) {
-      await extendRankResetDate(
-        calendarId,
-        date,
-        state.rank_cycle_start_date,
-        state.rank_reset_date
-      );
-    }
-    await decrementSkipPassRemaining(calendarId, date);
-  } else if (previousSkipPassUsed && !skipPassUsed) {
-    await recalculateRankResetDateFromCurrentCycle(calendarId);
-    await restoreSkipPassRemaining(calendarId, date);
-  }
+  await applySkipPassRankSideEffects(
+    calendarId,
+    date,
+    previousSkipPassUsed,
+    skipPassUsed
+  );
 
   await ensureSkipPassIncrementForLastWeek(calendarId);
 
@@ -271,27 +254,13 @@ export async function updateScheduleEntryField(
 
   const nextSkipPassUsed =
     field === "skip_pass_used" ? bool(value) : base.skip_pass_used;
-  if (field === "skip_pass_used" && !base.skip_pass_used && nextSkipPassUsed) {
-    const state = await getOrCreateCalendarRankState(calendarId);
-    if (
-      compareJstDate(date, state.rank_cycle_start_date) >= 0 &&
-      compareJstDate(date, state.rank_reset_date) <= 0
-    ) {
-      await extendRankResetDate(
-        calendarId,
-        date,
-        state.rank_cycle_start_date,
-        state.rank_reset_date
-      );
-    }
-    await decrementSkipPassRemaining(calendarId, date);
-  } else if (
-    field === "skip_pass_used" &&
-    base.skip_pass_used &&
-    !nextSkipPassUsed
-  ) {
-    await recalculateRankResetDateFromCurrentCycle(calendarId);
-    await restoreSkipPassRemaining(calendarId, date);
+  if (field === "skip_pass_used") {
+    await applySkipPassRankSideEffects(
+      calendarId,
+      date,
+      base.skip_pass_used,
+      nextSkipPassUsed
+    );
   }
 
   await ensureSkipPassIncrementForLastWeek(calendarId);
@@ -319,35 +288,8 @@ export async function updateSkipPassSnapshot(
   await setSkipPassSnapshot(calendarId, asOfDate, value);
 }
 
-export async function noopMoveEntry(
-  _calendarId: string,
-  _fromDate: string,
-  _toDate: string
-) {
-  "use server";
-  void _calendarId;
-  void _fromDate;
-  void _toDate;
-}
-
-/**
- * 開発用モック表示用。何もしないサーバーアクション。
- */
-export async function noopSaveEntry(_formData: FormData) {
-  "use server";
-  void _formData;
-}
-
-/** 開発用モック表示用。データタブのセル編集で使用。 */
-export async function noopUpdateScheduleEntryField(
-  _calendarId: string,
-  _date: string,
-  _field: string,
-  _value: string | number | boolean
-) {
-  "use server";
-  void _calendarId;
-  void _date;
-  void _field;
-  void _value;
-}
+export {
+  noopMoveEntry,
+  noopSaveEntry,
+  noopUpdateScheduleEntryField,
+} from "./schedule-entry-actions-noop";

@@ -1,24 +1,13 @@
 "use client";
 
-import {
-  Fragment,
-  type Dispatch,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type MutableRefObject,
-  type RefObject,
-  type SetStateAction,
-} from "react";
+import { Fragment, useMemo } from "react";
 import dayjs from "dayjs";
-import type { KeyedMutator } from "swr";
 import {
   assignWeekColumnLayout,
   MINUTES_PER_DAY,
-  snapMinutesToSlot,
   WEEK_VIEW_SLOT_MINUTES,
   type WeekViewSegment,
 } from "@/lib/domain/week-view-layout";
-import type { CalendarPermissionFlags } from "@/lib/auth/permission";
-import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
 import { getEventColorClasses } from "@/lib/event-colors";
@@ -27,93 +16,17 @@ import {
   scheduleShowsInWeekAllDayRow,
   scheduleShowsInWeekTimeGrid,
 } from "@/lib/domain/schedule-week-display";
-import { WEEKDAYS, type PeriodType } from "./calendar-display-helpers";
-import type { CalendarRangeResponse } from "@/lib/hooks/useCalendarRange";
-import type { CycleInfoForDate, DayData } from "./types";
+import { WEEKDAYS } from "./calendar-display-helpers";
+import type { CalendarWeekGridProps } from "./week/calendar-week-grid-types";
+import { createWeekGridTimeHelpers } from "./week/weekGridTimeHelpers";
 
-type ScheduleCreatePrefill =
-  | null
-  | { is_all_day: false; startTime: string; endTime: string; endDate: string };
-
-type ScheduleCreateSelection =
-  | null
-  | { dayDate: string; startOffsetMinutes: number; endOffsetMinutes: number };
-
-type ScheduleDragPreview = null | {
-  columnDate: string;
-  startTime: string;
-  endTime: string;
-};
-
-type ScheduleResizePreview = null | {
-  columnDate: string;
-  scheduleId: string;
-  startMs: number;
-  endMs: number;
-};
-
-export type CalendarWeekGridProps = {
-  weekTimeGridRef: RefObject<HTMLDivElement | null>;
-  onWeekGridKeyDown: (e: ReactKeyboardEvent<HTMLElement>) => void;
-  permissions: CalendarPermissionFlags;
-  currentRankCycle: { start: string; end: string; rank: string | null } | null;
-  weekDays: DayData[];
-  localDays: DayData[];
-  eventsByDate: Map<string, EventRow[]>;
-  schedulesByDate: Map<string, CalendarScheduleRow[]>;
-  getCycleForDate: (date: string) => CycleInfoForDate;
-  getBarRoundedInRow: (
-    date: string,
-    rowDates: string[],
-    cycleStart: string,
-    cycleEnd: string
-  ) => { roundedLeft: boolean; roundedRight: boolean };
-  getPeriodCellClass: (periodType: PeriodType, isToday: boolean) => string;
-  formatCycleBandLabel: (rank: string | null, cycleStart?: string, cycleEnd?: string) => string;
-  saveScheduleAction?: (formData: FormData) => Promise<unknown>;
-  shiftScheduleAction?: (
-    scheduleId: string,
-    mode: "move" | "copy",
-    newStartDate: string,
-    newStartTime: string | null
-  ) => Promise<void>;
-  deleteScheduleAction?: (scheduleId: string) => Promise<void>;
-  resizeScheduleAction?: (
-    scheduleId: string,
-    edge: "start" | "end",
-    newDate: string,
-    newTime: string
-  ) => Promise<void>;
-  selectedScheduleId: string | null;
-  weekSchedulePreviewOpen: boolean;
-  setWeekSchedulePreviewOpen: (v: boolean) => void;
-  setSelectedDate: (d: string | null) => void;
-  setSelectedScheduleId: (id: string | null) => void;
-  setIsDayEditModalOpen: (v: boolean) => void;
-  setModalTab: (t: "rank" | "schedule") => void;
-  setScheduleCreatePrefill: Dispatch<SetStateAction<ScheduleCreatePrefill>>;
-  setScheduleCreateSelection: Dispatch<SetStateAction<ScheduleCreateSelection>>;
-  scheduleCreateSelection: ScheduleCreateSelection;
-  scheduleCreateSelectionRef: MutableRefObject<ScheduleCreateSelection>;
-  scheduleDragPreview: ScheduleDragPreview;
-  setScheduleDragPreview: Dispatch<SetStateAction<ScheduleDragPreview>>;
-  scheduleResizePreview: ScheduleResizePreview;
-  setScheduleResizePreview: Dispatch<SetStateAction<ScheduleResizePreview>>;
-  scheduleDragDurationMsRef: MutableRefObject<number>;
-  scheduleShiftPendingRef: MutableRefObject<number>;
-  applyOptimisticScheduleShift: (
-    scheduleId: string,
-    mode: "move" | "copy",
-    newStartDate: string,
-    newStartTime: string | null
-  ) => { applied: boolean; rollback: () => void };
-  applyOptimisticSchedulePatch: (
-    scheduleId: string,
-    next: CalendarScheduleRow
-  ) => { applied: boolean; rollback: () => void };
-  mutateRange: KeyedMutator<CalendarRangeResponse>;
-  showToast: (message: string) => void;
-};
+export type {
+  CalendarWeekGridProps,
+  ScheduleCreatePrefill,
+  ScheduleCreateSelection,
+  ScheduleDragPreview,
+  ScheduleResizePreview,
+} from "./week/calendar-week-grid-types";
 
 export function CalendarWeekGrid(props: CalendarWeekGridProps) {
   const {
@@ -165,75 +78,15 @@ export function CalendarWeekGrid(props: CalendarWeekGridProps) {
   const canShift = permissions.canEditSchedule && !!shiftScheduleAction;
   const canResize = canShift && !!resizeScheduleAction;
 
-  const parseYMD = (d: string): { y: number; mo: number; da: number } => {
-    const [y, mo, da] = d.split("-").map((v) => Number(v));
-    return { y, mo, da };
-  };
-
-  /** DB の time 文字列（HH:MM / HH:MM:SS 等）から HH:MM を抽出 */
-  const wallClockHHMM = (t: string | null | undefined): string | null => {
-    if (t == null) return null;
-    const m = String(t).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?/);
-    if (!m) return null;
-    const hh = Math.min(23, Math.max(0, parseInt(m[1], 10)));
-    const mm = Math.min(59, Math.max(0, parseInt(m[2], 10)));
-    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-  };
-
-  const parseHHMM = (hhmm: string): { hh: number; mm: number } => {
-    const [hh, mm] = hhmm.split(":").map((v) => Number(v));
-    return { hh, mm };
-  };
-
-  const toUtcMs = (dateStr: string, timeStr: string): number => {
-    const { y, mo, da } = parseYMD(dateStr);
-    const { hh, mm } = parseHHMM(timeStr);
-    return Date.UTC(y, mo - 1, da, hh, mm, 0);
-  };
-
-  const formatHHMMFromUtcMs = (ms: number): string => {
-    const dt = new Date(ms);
-    const h = String(dt.getUTCHours()).padStart(2, "0");
-    const m = String(dt.getUTCMinutes()).padStart(2, "0");
-    return `${h}:${m}`;
-  };
-
-  const formatYMDFromUtcMs = (ms: number): string => {
-    const dt = new Date(ms);
-    const y = dt.getUTCFullYear();
-    const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
-    const da = String(dt.getUTCDate()).padStart(2, "0");
-    return `${y}-${mo}-${da}`;
-  };
-
-  const pointerYToSnappedMinutes = (rect: DOMRect, clientY: number): number => {
-    const y = clientY - rect.top;
-    const clampedY = Math.max(0, Math.min(rect.height, y));
-    const raw = (clampedY / rect.height) * totalMinutes;
-    const snapped = snapMinutesToSlot(raw, WEEK_VIEW_SLOT_MINUTES);
-    return Math.min(snapped, MINUTES_PER_DAY - WEEK_VIEW_SLOT_MINUTES);
-  };
-
-  const snapDeltaMinutesFromDrag = (rect: DOMRect, deltaY: number): number => {
-    const raw = (deltaY / rect.height) * MINUTES_PER_DAY;
-    return Math.round(raw / WEEK_VIEW_SLOT_MINUTES) * WEEK_VIEW_SLOT_MINUTES;
-  };
-
-  /** 予定の絶対開始・終了（深夜跨ぎは end_date または 終了時刻が開始より前なら翌日に補正） */
-  const getScheduleSpanMs = (
-    s: CalendarScheduleRow
-  ): { startMs: number; endMs: number } | null => {
-    const st = wallClockHHMM(s.start_time);
-    const et = wallClockHHMM(s.end_time);
-    if (!st || !et) return null;
-    const startMs = toUtcMs(s.date, st);
-    const endDay = s.end_date ?? s.date;
-    let endMs = toUtcMs(endDay, et);
-    if (endMs <= startMs) {
-      endMs = toUtcMs(dayjs(s.date).add(1, "day").format("YYYY-MM-DD"), et);
-    }
-    return { startMs, endMs };
-  };
+  const {
+    wallClockHHMM,
+    toUtcMs,
+    formatHHMMFromUtcMs,
+    formatYMDFromUtcMs,
+    pointerYToSnappedMinutes,
+    snapDeltaMinutesFromDrag,
+    getScheduleSpanMs,
+  } = useMemo(() => createWeekGridTimeHelpers(totalMinutes), [totalMinutes]);
 
   const hours: number[] = [];
   for (let h = 0; h < 24; h += 1) {
