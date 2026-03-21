@@ -52,10 +52,13 @@ export async function middleware(req: NextRequest) {
   }
 
   // 静的ファイルや Next 内部パスはスキップ
+  // /icon.png（ファビコン）・/ogp.png はクローラー向けに未ログインでも配信する（認証で弾くと検索結果に地球アイコンになる）
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    pathname.startsWith("/assets")
+    pathname.startsWith("/assets") ||
+    pathname === "/icon.png" ||
+    pathname === "/ogp.png"
   ) {
     return NextResponse.next();
   }

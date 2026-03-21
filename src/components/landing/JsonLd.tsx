@@ -6,7 +6,7 @@ function getBaseUrl(): string {
   if (typeof process.env.NEXT_PUBLIC_APP_URL === "string" && process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   }
-  return "https://iriam-rank-planner.example.com";
+  return "https://dango-schedule.vercel.app";
 }
 
 export function JsonLdWebSite() {
