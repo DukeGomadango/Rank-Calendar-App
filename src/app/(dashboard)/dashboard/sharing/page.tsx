@@ -8,31 +8,10 @@ import { listRolesForCalendar, getPermissionsForRoles } from "@/lib/data/roles";
 import { listInviteLinksForCalendar } from "@/lib/data/invite-links";
 import { listRedemptionsForCalendar } from "@/lib/data/invite-redemptions";
 import { listSharesWithProfilesForCalendar } from "@/lib/data/shares";
-import {
-  PERMISSION_LABELS,
-  type PermissionKey,
-} from "@/lib/data/permissions";
+import { PERMISSION_LABELS } from "@/lib/data/permissions";
 import { SharingPageClient } from "./SharingPageClient";
 import { SharingManagementClient, type ShareMemberItem } from "./SharingManagementClient";
 import { PendingSubmitButton } from "./PendingSubmitButton";
-
-/** 権限のグループ（基本情報 / センシティブ情報） */
-const PERM_GROUP_BASIC: PermissionKey[] = [
-  "view_calendar",
-  "view_table",
-  "view_target_actual",
-  "view_rank",
-  "view_events",
-  // スケジュール（配信）
-  "view_schedule_stream",
-];
-const PERM_GROUP_SENSITIVE: PermissionKey[] = [
-  "view_borders",
-  "view_memo",
-  // スケジュール（個人 / 秘密）
-  "view_schedule_personal",
-  "view_schedule_secret",
-];
 import {
   createRole,
   deleteRole,
@@ -45,6 +24,7 @@ import {
   noopAssignRoleToUser,
 } from "./actions";
 import { CopyInviteUrl } from "./CopyInviteUrl";
+import { PERM_GROUP_BASIC, PERM_GROUP_SENSITIVE } from "./sharing-constants";
 
 type PageProps = { searchParams?: Promise<{ calendarId?: string }> };
 
