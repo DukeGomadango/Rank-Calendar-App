@@ -1,6 +1,9 @@
 import { DataPageClient } from "./DataPageClient";
 import { parseDaysParam } from "@/lib/data-range";
-import { updateScheduleEntryField, updateSkipPassSnapshot } from "../actions";
+import {
+  updateScheduleEntryField,
+  updateSkipPassSnapshot,
+} from "../schedule-entry-actions";
 
 type PageProps = { searchParams?: Promise<{ days?: string; calendarId?: string }> | { days?: string; calendarId?: string } };
 

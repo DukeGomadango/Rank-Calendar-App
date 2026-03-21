@@ -1,6 +1,7 @@
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { DashboardHomePageClient } from "./DashboardHomePageClient";
-import { applyRankUp, saveScheduleEntry } from "./actions";
+import { applyRankUp } from "./rank-actions";
+import { saveScheduleEntry } from "./schedule-entry-actions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/data/profiles";
 

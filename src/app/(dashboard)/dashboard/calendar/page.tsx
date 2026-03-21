@@ -5,14 +5,13 @@ import { toJstDateString } from "@/lib/domain/calendar";
 import { CalendarPageClient } from "./CalendarPageClient";
 import {
   deleteCalendarSchedule,
-  moveScheduleEntry,
   redoCalendarScheduleChange,
   resizeCalendarSchedule,
   shiftCalendarSchedule,
   saveCalendarSchedule,
-  saveScheduleEntry,
   undoCalendarScheduleChange,
-} from "../actions";
+} from "../calendar-schedule-actions";
+import { moveScheduleEntry, saveScheduleEntry } from "../schedule-entry-actions";
 
 function parseMonthParam(month?: string | string[]): dayjs.Dayjs {
   const raw = typeof month === "string" ? month : Array.isArray(month) ? month[0] : undefined;

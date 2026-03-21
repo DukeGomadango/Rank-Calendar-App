@@ -1,31 +1,7 @@
+/**
+ * ダッシュボード関連の Server Action は、このファイル経由で値を再エクスポートしない。
+ * Turbopack ではバレル経由の Action を RSC から Client に渡すと ID 解決が壊れることがあるため、
+ * 各アクションは定義元（schedule-entry-actions / calendar-schedule-actions / rank-actions）から直接 import する。
+ */
 export type { SaveScheduleEntryResult } from "@/lib/validations/schedule";
-
-export {
-  saveScheduleEntry,
-  moveScheduleEntry,
-  updateScheduleEntryField,
-  updateSkipPassRemaining,
-  updateSkipPassSnapshot,
-  noopMoveEntry,
-  noopSaveEntry,
-  noopUpdateScheduleEntryField,
-} from "./schedule-entry-actions";
-
 export type { SaveCalendarScheduleResult } from "./calendar-schedule-actions";
-export {
-  saveCalendarSchedule,
-  shiftCalendarSchedule,
-  resizeCalendarSchedule,
-  deleteCalendarSchedule,
-  undoCalendarScheduleChange,
-  redoCalendarScheduleChange,
-} from "./calendar-schedule-actions";
-
-export {
-  noopApplyRankUp,
-  noopUpdateCurrentRank,
-  noopUpdateRankResetDate,
-  applyRankUp,
-  updateCurrentRank,
-  updateRankResetDate,
-} from "./rank-actions";

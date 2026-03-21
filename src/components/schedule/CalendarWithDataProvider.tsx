@@ -9,7 +9,7 @@ import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import type { SaveScheduleEntryResult } from "@/lib/validations/schedule";
-import type { SaveCalendarScheduleResult } from "@/app/(dashboard)/dashboard/actions";
+import type { SaveCalendarScheduleResult } from "@/app/(dashboard)/dashboard/calendar-schedule-actions";
 import { CalendarWithModal } from "./CalendarWithModal";
 
 type DayData = {

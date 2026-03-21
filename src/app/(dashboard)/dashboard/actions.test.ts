@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { saveScheduleEntry } from "./actions";
+import { saveScheduleEntry } from "./schedule-entry-actions";
 
 const mockUpsert = vi.fn();
 const mockRevalidatePath = vi.fn();

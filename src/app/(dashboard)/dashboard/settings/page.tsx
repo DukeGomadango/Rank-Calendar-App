@@ -10,7 +10,7 @@ import {
   updateRankResetDate,
   noopUpdateCurrentRank,
   noopUpdateRankResetDate,
-} from "@/app/(dashboard)/dashboard/actions";
+} from "@/app/(dashboard)/dashboard/rank-actions";
 import { updateDisplayNameAction, createMyCalendarAction } from "./actions";
 import { getProfile } from "@/lib/data/profiles";
 import { ViewModeToggle } from "@/components/settings/ViewModeToggle";

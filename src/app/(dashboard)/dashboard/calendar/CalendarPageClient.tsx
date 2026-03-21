@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { EnsureCalendarIdInUrl } from "@/components/dashboard/EnsureCalendarIdInUrl";
 import { CalendarWithDataProvider } from "@/components/schedule/CalendarWithDataProvider";
-import type { SaveCalendarScheduleResult } from "@/app/(dashboard)/dashboard/actions";
+import type { SaveCalendarScheduleResult } from "@/app/(dashboard)/dashboard/calendar-schedule-actions";
 import type { SaveScheduleEntryResult } from "@/lib/validations/schedule";
 
 type Props = {
