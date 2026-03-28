@@ -7,6 +7,34 @@ export type RankEntry = {
   skip_pass_used: boolean;
 };
 
+/** ランク周期の見通し集計用（目標・実績・スキップを持つ行） */
+export type EntryForRankForecast = {
+  target_plus?: number | null;
+  actual_plus?: number | null;
+  skip_pass_used?: boolean;
+};
+
+/**
+ * ランク周期の projectedTotal 用に、その日の + を返す。
+ * - 過去日: 実績のみ（未入力は 0）。スキップ日は 0。
+ * - 今日以降: 実績が入っていれば実績、未入力なら目標。スキップ日は 0。
+ */
+export function projectedPlusForRankForecast(
+  entry: EntryForRankForecast | undefined,
+  dateStr: string,
+  todayJst: string
+): number {
+  if (entry?.skip_pass_used) return 0;
+  if (dateStr < todayJst) {
+    if (entry?.actual_plus == null) return 0;
+    return Math.max(0, entry.actual_plus);
+  }
+  if (entry?.actual_plus != null) {
+    return Math.max(0, entry.actual_plus);
+  }
+  return Math.max(0, entry?.target_plus ?? 0);
+}
+
 export type WeeklyRankProgress = {
   weekStart: JstDateString;
   totalPlus: number;

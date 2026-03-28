@@ -13,6 +13,7 @@ import {
   judgeCycleRank,
   getNextRank,
   getPreviousRank,
+  projectedPlusForRankForecast,
   type RankLabel,
 } from "@/lib/domain/rank";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
@@ -106,18 +107,11 @@ export function useDashboardRangeDerived(
       let cursorForecast = cycleStartForForecast;
       while (cursorForecast <= cycleEndForForecast) {
         const entry = entriesByDateForForecast.get(cursorForecast);
-        if (cursorForecast < todayJst) {
-          const plus =
-            entry?.skip_pass_used || entry?.actual_plus == null
-              ? 0
-              : Math.max(0, entry.actual_plus);
-          if (!entry?.skip_pass_used) projectedTotal += plus;
-        } else {
-          const target = entry?.target_plus ?? entry?.actual_plus ?? 0;
-          if (!entry?.skip_pass_used) {
-            projectedTotal += Math.max(0, target);
-          }
-        }
+        projectedTotal += projectedPlusForRankForecast(
+          entry,
+          cursorForecast,
+          todayJst,
+        );
         cursorForecast = addDays(cursorForecast, 1);
       }
       const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
@@ -158,18 +152,7 @@ export function useDashboardRangeDerived(
         let c = periodStart;
         while (c <= periodEnd) {
           const entry = entriesByDateForForecast.get(c);
-          if (c < todayJst) {
-            const plus =
-              entry?.skip_pass_used || entry?.actual_plus == null
-                ? 0
-                : Math.max(0, entry.actual_plus);
-            if (!entry?.skip_pass_used) projectedTotal += plus;
-          } else {
-            const target = entry?.target_plus ?? entry?.actual_plus ?? 0;
-            if (!entry?.skip_pass_used) {
-              projectedTotal += Math.max(0, target);
-            }
-          }
+          projectedTotal += projectedPlusForRankForecast(entry, c, todayJst);
           c = addDays(c, 1);
         }
         futureCycles.push({

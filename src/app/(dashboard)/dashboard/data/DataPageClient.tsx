@@ -13,6 +13,7 @@ import {
   getNextRank,
   getPreviousRank,
   judgeCycleRank,
+  projectedPlusForRankForecast,
   type RankLabel,
 } from "@/lib/domain/rank";
 import type { EventRow } from "@/lib/data/events";
@@ -112,18 +113,7 @@ export function DataPageClient({
         let c = periodStart;
         while (c <= periodEnd) {
           const entry = entriesByDateForForecast.get(c);
-          if (c < todayStr) {
-            const plus =
-              entry?.skip_pass_used || entry?.actual_plus == null
-                ? 0
-                : Math.max(0, entry.actual_plus);
-            if (!entry?.skip_pass_used) projectedTotal += plus;
-          } else {
-            const target = entry?.target_plus ?? entry?.actual_plus ?? 0;
-            if (!entry?.skip_pass_used) {
-              projectedTotal += Math.max(0, target);
-            }
-          }
+          projectedTotal += projectedPlusForRankForecast(entry, c, todayStr);
           c = addDays(c, 1);
         }
 

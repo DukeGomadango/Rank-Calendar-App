@@ -32,9 +32,12 @@ export function getPredictedSkipPassRemaining(
       let cursor = prevWeekStart;
       while (cursor <= prevWeekEnd) {
         const entry = entriesByDate.get(cursor);
-        const plus = cursor < today
-          ? (entry?.actual_plus ?? 0)
-          : (entry?.target_plus ?? entry?.actual_plus ?? 0);
+        const plus =
+          cursor < today
+            ? (entry?.actual_plus ?? 0)
+            : entry?.actual_plus != null
+              ? Math.max(0, entry.actual_plus)
+              : Math.max(0, entry?.target_plus ?? 0);
         if (plus >= 1) {
           hadStream = true;
           break;

@@ -6,6 +6,7 @@ import {
   getPreviousRank,
   judgeCycleRank,
   judgeWeeklyRank,
+  projectedPlusForRankForecast,
 } from "./rank";
 
 describe("rank domain", () => {
@@ -81,6 +82,78 @@ describe("rank domain", () => {
         "2024-01-07"
       );
       expect(Object.keys(byDate)).toHaveLength(0);
+    });
+  });
+
+  describe("projectedPlusForRankForecast", () => {
+    const today = "2024-01-10";
+
+    it("past: uses actual when present, else 0", () => {
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: 3, skip_pass_used: false },
+          "2024-01-09",
+          today,
+        ),
+      ).toBe(3);
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: null, target_plus: 5, skip_pass_used: false },
+          "2024-01-09",
+          today,
+        ),
+      ).toBe(0);
+    });
+
+    it("today or future: prefers actual when set, else target", () => {
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: 7, target_plus: 3, skip_pass_used: false },
+          today,
+          today,
+        ),
+      ).toBe(7);
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: null, target_plus: 3, skip_pass_used: false },
+          today,
+          today,
+        ),
+      ).toBe(3);
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: undefined, target_plus: 2, skip_pass_used: false },
+          "2024-01-11",
+          today,
+        ),
+      ).toBe(2);
+    });
+
+    it("actual 0 counts as entered (today uses 0 not target)", () => {
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: 0, target_plus: 4, skip_pass_used: false },
+          today,
+          today,
+        ),
+      ).toBe(0);
+    });
+
+    it("skip day is always 0", () => {
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: 6, target_plus: 3, skip_pass_used: true },
+          "2024-01-09",
+          today,
+        ),
+      ).toBe(0);
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: 6, target_plus: 3, skip_pass_used: true },
+          today,
+          today,
+        ),
+      ).toBe(0);
     });
   });
 
