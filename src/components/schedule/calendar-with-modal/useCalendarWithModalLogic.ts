@@ -17,6 +17,7 @@ import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import { useToast } from "@/lib/toast-context";
 import { toJstDateString } from "@/lib/domain/calendar";
+import { canViewScheduleKind } from "@/lib/domain/schedule-visibility";
 import { useViewMode } from "@/lib/view-mode-context";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import type { DayDetailRow } from "@/components/data/DayDetailModal";
@@ -178,23 +179,8 @@ export function useCalendarWithModalLogic({
     const map = new Map<string, CalendarScheduleRow[]>();
     const dateSet = new Set(localDays.map((d) => d.date));
 
-    const canSee = (s: CalendarScheduleRow): boolean => {
-      if (permissions.isOwner) return true;
-      switch (s.kind) {
-        case "stream":
-          return permissions.canViewScheduleStream;
-        case "personal":
-          return permissions.canViewSchedulePersonal;
-        case "secret":
-          return permissions.canViewScheduleSecret;
-        default:
-          // kind 未設定の場合は「配信 or 通常個人」扱いとして、どちらかの権限があれば表示
-          return permissions.canViewScheduleStream || permissions.canViewSchedulePersonal;
-      }
-    };
-
     for (const s of localSchedules) {
-      if (!canSee(s)) continue;
+      if (!canViewScheduleKind(permissions, s.kind)) continue;
       const start = s.date;
       const end = s.end_date ?? s.date;
       if (!start || !end) continue;

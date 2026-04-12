@@ -138,6 +138,7 @@ export function CalendarWithModal(props: CalendarWithModalProps) {
           <DayDetailModal
             row={m.detailRowForModal}
             events={m.events}
+            schedulesForDay={m.selectedSchedules}
             permissions={m.permissions}
             calendarId={m.calendarId}
             onClose={m.onCloseModals}

@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import { useToast } from "@/lib/toast-context";
 import type { EventRow } from "@/lib/data/events";
+import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import { eventOverlapsDate } from "@/lib/data/event-overlaps";
+import { canViewScheduleKind } from "@/lib/domain/schedule-visibility";
 import { getRankBadgeClass } from "@/lib/rank-styles";
 import { getEventColorClasses } from "@/lib/event-colors";
 import { PLUS_SELECT_VALUES } from "@/lib/plus-options";
@@ -17,6 +19,21 @@ export type DayDetailRow = ScheduleDayRow;
 
 function eventsOnDate(events: EventRow[], date: string): EventRow[] {
   return events.filter((ev) => eventOverlapsDate(ev, date));
+}
+
+function scheduleTimeLabel(s: CalendarScheduleRow): string {
+  if (s.is_all_day) return "終日";
+  if (s.start_time && s.end_time)
+    return `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}`;
+  if (s.start_time) return s.start_time.slice(0, 5);
+  return "時間未設定";
+}
+
+function memoPreview(memo: string | null, maxLen = 72): string | null {
+  const t = memo?.trim();
+  if (!t) return null;
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, maxLen)}…`;
 }
 
 function EmptyOrValue({
@@ -46,6 +63,8 @@ type UpdateFieldAction = (
 type Props = {
   row: DayDetailRow;
   events: EventRow[];
+  /** その日の時間付き予定（権限に応じて親が絞り込み済み。省略時は表示しない） */
+  schedulesForDay?: CalendarScheduleRow[];
   permissions: CalendarPermissionFlags;
   calendarId?: string;
   onUpdateField?: UpdateFieldAction;
@@ -55,6 +74,7 @@ type Props = {
 export function DayDetailModal({
   row: initialRow,
   events,
+  schedulesForDay = [],
   permissions,
   calendarId,
   onUpdateField,
@@ -73,6 +93,9 @@ export function DayDetailModal({
   });
 
   const dayEvents = eventsOnDate(eventsState, row.date);
+  const visibleDaySchedules = schedulesForDay.filter((s) =>
+    canViewScheduleKind(permissions, s.kind),
+  );
   const canEdit = !!(permissions.canEditSchedule && calendarId && onUpdateField);
   const isSkip = !!row.skip_pass_used;
 
@@ -367,6 +390,36 @@ export function DayDetailModal({
                       </>
                     );
                   })()}
+                </section>
+              )}
+
+              {visibleDaySchedules.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    配信・予定（時間）
+                  </h3>
+                  <ul className="space-y-1.5">
+                    {visibleDaySchedules.map((s) => {
+                      const { leftBar, text } = getEventColorClasses(s.color_id ?? null);
+                      const memo = memoPreview(s.memo);
+                      return (
+                        <li
+                          key={s.id}
+                          className={`flex flex-col gap-0.5 rounded-md border border-zinc-200 bg-white py-1.5 pl-3 pr-2 dark:border-zinc-700 dark:bg-slate-900 ${leftBar} ${text}`}
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                            <span className="font-medium">{s.title || "（無題）"}</span>
+                            <span className="shrink-0 text-[10px] font-normal opacity-90">
+                              {scheduleTimeLabel(s)}
+                            </span>
+                          </div>
+                          {memo && (
+                            <p className="text-[10px] font-normal opacity-80 line-clamp-2">{memo}</p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </section>
               )}
 

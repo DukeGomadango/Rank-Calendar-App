@@ -101,6 +101,7 @@ const footer = `
         <DayDetailModal
           row={detailRowForModal}
           events={events}
+          schedulesForDay={selectedSchedules}
           permissions={permissions}
           calendarId={calendarId}
           onClose={() => {
