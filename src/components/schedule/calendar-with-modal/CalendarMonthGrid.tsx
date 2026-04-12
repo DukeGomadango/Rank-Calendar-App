@@ -222,7 +222,7 @@ export function CalendarMonthGrid({
                             ここに予定を追加
                           </p>
                         )}
-                        {isSkip ? (
+                        {isSkip && (
                           <div className="mt-1 flex min-h-0 flex-1 items-center justify-center">
                             <span
                               className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80"
@@ -231,40 +231,6 @@ export function CalendarMonthGrid({
                               スキパ
                             </span>
                           </div>
-                        ) : (
-                          hasEntry &&
-                          permissions.canViewTargetActual && (
-                            <div className="mt-1 flex w-full min-w-0 flex-col items-stretch gap-0.5">
-                              {day.entries.map((e) => {
-                                const disp = getTargetActualDisplay(
-                                  e.target_plus,
-                                  e.actual_plus,
-                                  day.date > todayStr,
-                                  true
-                                );
-                                return (
-                                  <div
-                                    key={e.id}
-                                    className="flex w-full min-w-0 items-center justify-center gap-0.5"
-                                  >
-                                    <span
-                                      className={`min-w-0 max-w-[48%] truncate text-center ${disp.targetClass}`}
-                                      title="目標"
-                                    >
-                                      {disp.targetLabel}
-                                    </span>
-                                    <span className="shrink-0 text-[7px] text-zinc-400 dark:text-zinc-500">/</span>
-                                    <span
-                                      className={`min-w-0 max-w-[48%] truncate text-center ${disp.actualClass}`}
-                                      title="実績"
-                                    >
-                                      {disp.actualLabel}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )
                         )}
                       </div>
                       <div className="hidden md:flex flex-1 flex-col">
