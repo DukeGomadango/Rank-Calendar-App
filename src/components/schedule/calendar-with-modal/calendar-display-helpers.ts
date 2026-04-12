@@ -46,14 +46,27 @@ export function getTargetActualDisplay(
   }
   const targetLabel = t !== null ? `+${t}` : "—";
   const actualVal = a ?? 0;
-  const actualLabel = t !== null ? `+${actualVal}` : a !== null ? `+${a}` : "—";
+  const actualLabel =
+    isFuture && a === null
+      ? "—"
+      : t !== null
+        ? `+${actualVal}`
+        : a !== null
+          ? `+${a}`
+          : "—";
   const achievedClass =
     "rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200";
   const notAchievedClass =
     "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-400" +
     futureBorder;
   const actualClass =
-    t === null ? neutralClass : actualVal >= (t ?? 0) ? achievedClass : notAchievedClass;
+    isFuture && a === null
+      ? neutralClass
+      : t === null
+        ? neutralClass
+        : actualVal >= (t ?? 0)
+          ? achievedClass
+          : notAchievedClass;
   return {
     targetLabel,
     targetClass:

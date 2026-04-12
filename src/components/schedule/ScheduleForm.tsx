@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 
 import { PLUS_SELECT_VALUES, normalizePlusValue } from "@/lib/plus-options";
 import { MAX_BORDER_VALUE } from "@/lib/border-constants";
+import { toJstDateString } from "@/lib/domain/calendar";
 
 const BorderOcrButton = dynamic(
   () => import("@/components/ocr/BorderOcrButton").then((m) => m.BorderOcrButton),
@@ -80,6 +81,9 @@ export function ScheduleForm({
   const [skipPassUsed, setSkipPassUsed] = useState(defaultSkipPassUsed);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const todayJst = toJstDateString(new Date());
+  const isFutureDate = defaultDate > todayJst;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -296,11 +300,18 @@ export function ScheduleForm({
             <select
               id={`${idPrefix}-actual`}
               name="actual_plus"
-              defaultValue={String(normalizePlusValue(defaultActualPlus))}
+              defaultValue={
+                isFutureDate && defaultActualPlus == null
+                  ? ""
+                  : String(normalizePlusValue(defaultActualPlus))
+              }
               disabled={skipPassUsed}
               aria-invalid={!!getError("actual_plus")}
               className={`${getError("actual_plus") ? `${inputBaseClass} ${inputErrorClass}` : inputBaseClass} disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-zinc-100 dark:disabled:bg-slate-800`}
             >
+              {isFutureDate && (
+                <option value="">未入力（見込みは目標を使用）</option>
+              )}
               {PLUS_SELECT_VALUES.map((n) => (
                 <option key={n} value={n}>
                   +{n}

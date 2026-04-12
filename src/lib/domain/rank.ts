@@ -17,7 +17,9 @@ export type EntryForRankForecast = {
 /**
  * ランク周期の projectedTotal 用に、その日の + を返す。
  * - 過去日: 実績のみ（未入力は 0）。スキップ日は 0。
- * - 今日以降: 実績が入っていれば実績、未入力なら目標。スキップ日は 0。
+ * - 今日: 実績が入っていれば実績（+0 も確定扱い）、未入力なら目標。
+ * - 未来日: 上記に加え、実績 +0 かつ目標が正のときは目標を採用（UI が null を +0 として保存していた場合の救済）。
+ * - スキップ日は 0。
  */
 export function projectedPlusForRankForecast(
   entry: EntryForRankForecast | undefined,
@@ -28,6 +30,12 @@ export function projectedPlusForRankForecast(
   if (dateStr < todayJst) {
     if (entry?.actual_plus == null) return 0;
     return Math.max(0, entry.actual_plus);
+  }
+  if (dateStr > todayJst && entry?.actual_plus === 0) {
+    const t = entry?.target_plus ?? null;
+    if (t != null && t > 0) {
+      return Math.max(0, t);
+    }
   }
   if (entry?.actual_plus != null) {
     return Math.max(0, entry.actual_plus);

@@ -139,6 +139,26 @@ describe("rank domain", () => {
       ).toBe(0);
     });
 
+    it("future: actual 0 with positive target uses target (saved +0 from form default)", () => {
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: 0, target_plus: 6, skip_pass_used: false },
+          "2024-01-11",
+          today,
+        ),
+      ).toBe(6);
+    });
+
+    it("future: actual 0 with target 0 stays 0", () => {
+      expect(
+        projectedPlusForRankForecast(
+          { actual_plus: 0, target_plus: 0, skip_pass_used: false },
+          "2024-01-11",
+          today,
+        ),
+      ).toBe(0);
+    });
+
     it("skip day is always 0", () => {
       expect(
         projectedPlusForRankForecast(
