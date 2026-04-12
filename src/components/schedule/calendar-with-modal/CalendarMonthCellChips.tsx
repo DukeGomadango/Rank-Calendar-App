@@ -21,8 +21,9 @@ export function MonthEventChips(props: {
   const { events, dayDate, density } = props;
   if (events.length === 0) return null;
   const textSize = density === "compact" ? "text-[9px]" : "text-[10px]";
+  const bleed = density === "compact" ? "" : "-mx-1.5";
   return (
-    <div className="mt-0.5 flex shrink-0 flex-col gap-px -mx-1.5">
+    <div className={`mt-0.5 flex min-w-0 shrink-0 flex-col gap-px ${bleed}`}>
       {events.map((ev) => {
         const isStart = ev.start_date != null && ev.start_date === dayDate;
         const isEnd = ev.end_date != null && ev.end_date === dayDate;
@@ -59,8 +60,9 @@ export function MonthScheduleChips(props: {
   const overflowSize = density === "compact" ? "text-[7px]" : "text-[8px]";
   const showInlineTime = density === "comfortable";
 
+  const bleed = density === "compact" ? "" : "-mx-1.5";
   return (
-    <div className="mt-0.5 flex shrink-0 flex-col gap-px -mx-1.5">
+    <div className={`mt-0.5 flex min-w-0 shrink-0 flex-col gap-px ${bleed}`}>
       {visible.map((s) => {
         const labelTime = formatScheduleTimeRangeLabel(s);
         const color = getEventColorClasses(s.color_id ?? null);

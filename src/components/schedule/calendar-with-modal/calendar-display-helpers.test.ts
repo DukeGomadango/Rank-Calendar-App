@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 
-import { filterSchedulesForMonthCell, formatScheduleTimeRangeLabel } from "./calendar-display-helpers";
+import {
+  filterSchedulesForMonthCell,
+  formatScheduleTimeRangeLabel,
+  getTargetActualDisplay,
+} from "./calendar-display-helpers";
 
 function row(partial: Partial<CalendarScheduleRow>): CalendarScheduleRow {
   return {
@@ -43,6 +47,15 @@ describe("formatScheduleTimeRangeLabel", () => {
 
   it("時刻なし", () => {
     expect(formatScheduleTimeRangeLabel(row({ start_time: null, end_time: null }))).toBe("--:--");
+  });
+});
+
+describe("getTargetActualDisplay", () => {
+  it("compact では字と余白を詰める", () => {
+    const d = getTargetActualDisplay(6, 3, false, true);
+    expect(d.actualClass).toContain("text-[8px]");
+    expect(d.actualClass).toContain("px-1");
+    expect(d.actualClass).not.toContain("px-1.5");
   });
 });
 

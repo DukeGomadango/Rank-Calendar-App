@@ -149,7 +149,7 @@ export function CalendarMonthGrid({
                       onMoveEntryToDate(fromDate, day.date);
                     }}
                     style={{ gridColumn: dayIdx + 1 }}
-                    className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-0 flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
+                    className={`${isSkip ? SKIP_STRIPE_CLASS : bg} relative flex min-h-0 min-w-0 flex-col border p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${day.isToday ? "border-2 border-accent-500 ring-2 ring-accent-500/30 dark:border-accent-400 dark:ring-accent-400/30" : "border-zinc-200/80 dark:border-zinc-800/80"}`}
                   >
                     {cycle && permissions.canViewRank && (() => {
                       const showBracket = !isSkip;
@@ -183,8 +183,8 @@ export function CalendarMonthGrid({
                         </div>
                       );
                     })()}
-                    <div className="flex flex-1 flex-col p-1">
-                      <div className="flex flex-1 flex-col md:hidden">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1">
+                      <div className="flex min-h-0 min-w-0 flex-1 flex-col md:hidden">
                         <div className="flex items-center justify-between gap-0.5">
                           <span className={`flex items-center gap-0.5 text-[11px] font-medium ${textColor}`}>
                             {dateObj.date()}
@@ -234,23 +234,33 @@ export function CalendarMonthGrid({
                         ) : (
                           hasEntry &&
                           permissions.canViewTargetActual && (
-                            <div className="mt-1 flex flex-wrap items-center gap-0.5">
+                            <div className="mt-1 flex w-full min-w-0 flex-col items-stretch gap-0.5">
                               {day.entries.map((e) => {
                                 const disp = getTargetActualDisplay(
                                   e.target_plus,
                                   e.actual_plus,
-                                  day.date > todayStr
+                                  day.date > todayStr,
+                                  true
                                 );
                                 return (
-                                  <span key={e.id} className="inline-flex items-center gap-0.5">
-                                    <span className={disp.targetClass} title="目標">
+                                  <div
+                                    key={e.id}
+                                    className="flex w-full min-w-0 items-center justify-center gap-0.5"
+                                  >
+                                    <span
+                                      className={`min-w-0 max-w-[48%] truncate text-center ${disp.targetClass}`}
+                                      title="目標"
+                                    >
                                       {disp.targetLabel}
                                     </span>
-                                    <span className="text-[7px] text-zinc-400 dark:text-zinc-500">/</span>
-                                    <span className={disp.actualClass} title="実績">
+                                    <span className="shrink-0 text-[7px] text-zinc-400 dark:text-zinc-500">/</span>
+                                    <span
+                                      className={`min-w-0 max-w-[48%] truncate text-center ${disp.actualClass}`}
+                                      title="実績"
+                                    >
                                       {disp.actualLabel}
                                     </span>
-                                  </span>
+                                  </div>
                                 );
                               })}
                             </div>
