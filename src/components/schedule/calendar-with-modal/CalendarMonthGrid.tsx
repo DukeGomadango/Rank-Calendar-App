@@ -6,7 +6,6 @@ import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
-import { getEventColorDotClass } from "@/lib/event-colors";
 import { SparklesIcon, NoteIcon } from "@/components/icons/DashboardIcons";
 import type { ViewMode } from "@/lib/view-mode-context";
 import {
@@ -218,17 +217,45 @@ export function CalendarMonthGrid({
                         {!isSkip && monthSchedules.length > 0 && (
                           <MonthScheduleChips schedules={monthSchedules} density="compact" />
                         )}
-                        <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
-                          {isSkip && (
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" title="スキパ" />
-                          )}
-                          {!isSkip && hasEntry && (
+                        {!hasEntry && !isSkip && permissions.canEditSchedule && (
+                          <p className="mt-1 flex-1 text-[8px] text-zinc-400 dark:text-zinc-500 line-clamp-2">
+                            ここに予定を追加
+                          </p>
+                        )}
+                        {isSkip ? (
+                          <div className="mt-1 flex min-h-0 flex-1 items-center justify-center">
                             <span
-                              className={`h-1.5 w-1.5 shrink-0 rounded-full ${getEventColorDotClass(entry?.stream_content_color ?? "blue")}`}
-                              title={entry?.stream_content ?? "予定"}
-                            />
-                          )}
-                        </div>
+                              className="text-[8px] font-medium text-teal-600/80 dark:text-teal-400/80"
+                              title="スキパ使用日"
+                            >
+                              スキパ
+                            </span>
+                          </div>
+                        ) : (
+                          hasEntry &&
+                          permissions.canViewTargetActual && (
+                            <div className="mt-1 flex flex-wrap items-center gap-0.5">
+                              {day.entries.map((e) => {
+                                const disp = getTargetActualDisplay(
+                                  e.target_plus,
+                                  e.actual_plus,
+                                  day.date > todayStr
+                                );
+                                return (
+                                  <span key={e.id} className="inline-flex items-center gap-0.5">
+                                    <span className={disp.targetClass} title="目標">
+                                      {disp.targetLabel}
+                                    </span>
+                                    <span className="text-[7px] text-zinc-400 dark:text-zinc-500">/</span>
+                                    <span className={disp.actualClass} title="実績">
+                                      {disp.actualLabel}
+                                    </span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )
+                        )}
                       </div>
                       <div className="hidden md:flex flex-1 flex-col">
                         <div className="flex items-center justify-between gap-0.5">

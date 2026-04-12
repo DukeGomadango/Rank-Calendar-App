@@ -41,6 +41,11 @@ export function MonthEventChips(props: {
   );
 }
 
+function scheduleChipTitle(labelTime: string, prefix: string, title: string): string {
+  const body = `${prefix}${title}`.trim();
+  return body ? `${labelTime} ${body}` : labelTime;
+}
+
 export function MonthScheduleChips(props: {
   schedules: CalendarScheduleRow[];
   density: Density;
@@ -52,6 +57,7 @@ export function MonthScheduleChips(props: {
 
   const textSize = density === "compact" ? "text-[8px]" : "text-[9px]";
   const overflowSize = density === "compact" ? "text-[7px]" : "text-[8px]";
+  const showInlineTime = density === "comfortable";
 
   return (
     <div className="mt-0.5 flex shrink-0 flex-col gap-px -mx-1.5">
@@ -59,17 +65,27 @@ export function MonthScheduleChips(props: {
         const labelTime = formatScheduleTimeRangeLabel(s);
         const color = getEventColorClasses(s.color_id ?? null);
         const prefix = scheduleKindPrefix(s.kind);
+        const tip = scheduleChipTitle(labelTime, prefix, s.title);
         return (
           <div
             key={s.id}
-            className={`flex items-center gap-1 rounded-r py-px pl-1 font-medium line-clamp-1 ${textSize} ${color.leftBar} ${color.bg} ${color.text}`}
-            title={s.title}
+            className={`flex min-w-0 items-center gap-1 rounded-r py-px pl-1 font-medium line-clamp-1 ${textSize} ${color.leftBar} ${color.bg} ${color.text}`}
+            title={tip}
           >
-            <span className="shrink-0 tabular-nums">{labelTime}</span>
-            <span className="min-w-0 truncate">
-              {prefix}
-              {s.title}
-            </span>
+            {showInlineTime ? (
+              <>
+                <span className="shrink-0 tabular-nums">{labelTime}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {prefix}
+                  {s.title}
+                </span>
+              </>
+            ) : (
+              <span className="min-w-0 flex-1 truncate">
+                {prefix}
+                {s.title}
+              </span>
+            )}
           </div>
         );
       })}
