@@ -6,7 +6,7 @@ import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import { getRankBarDashedLineColorClass, getRankBarLineClass, getRankBarTextClass, getRankBarVerticalBorderClass } from "@/lib/rank-styles";
-import { getEventColorClasses, getEventColorDotClass } from "@/lib/event-colors";
+import { getEventColorDotClass } from "@/lib/event-colors";
 import { SparklesIcon, NoteIcon } from "@/components/icons/DashboardIcons";
 import type { ViewMode } from "@/lib/view-mode-context";
 import {
@@ -14,8 +14,10 @@ import {
   SKIP_STRIPE_CLASS,
   getTargetActualDisplay,
   formatMinutesAsHoursMinutes,
+  filterSchedulesForMonthCell,
   type PeriodType,
 } from "./calendar-display-helpers";
+import { MonthEventChips, MonthScheduleChips } from "./CalendarMonthCellChips";
 import type { CycleInfoForDate, DayData } from "./types";
 
 export type CalendarMonthGridProps = {
@@ -131,9 +133,7 @@ export function CalendarMonthGrid({
                 const daySchedules = (schedulesByDate.get(day.date) ?? []).filter(
                   (s) => s.date === day.date
                 );
-                const streamSchedules = daySchedules.filter((s) => s.kind === "stream");
-                const streamToDisplay = streamSchedules.slice(0, 2);
-                const remainingStreamCount = streamSchedules.length - streamToDisplay.length;
+                const monthSchedules = filterSchedulesForMonthCell(daySchedules);
 
                 return (
                   <button
@@ -212,18 +212,16 @@ export function CalendarMonthGrid({
                             <span className="min-w-0 truncate">{day.holidayName}</span>
                           </span>
                         )}
-                        <div className="mt-0.5 flex flex-wrap items-center gap-0.5" aria-hidden>
+                        {permissions.canViewEvents && eventsOnDay.length > 0 && (
+                          <MonthEventChips events={eventsOnDay} dayDate={day.date} density="compact" />
+                        )}
+                        {!isSkip && monthSchedules.length > 0 && (
+                          <MonthScheduleChips schedules={monthSchedules} density="compact" />
+                        )}
+                        <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
                           {isSkip && (
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" title="スキパ" />
                           )}
-                          {!isSkip &&
-                            eventsOnDay.map((ev) => (
-                              <span
-                                key={ev.id}
-                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${getEventColorDotClass(ev.color ?? null)}`}
-                                title={ev.name}
-                              />
-                            ))}
                           {!isSkip && hasEntry && (
                             <span
                               className={`h-1.5 w-1.5 shrink-0 rounded-full ${getEventColorDotClass(entry?.stream_content_color ?? "blue")}`}
@@ -259,52 +257,11 @@ export function CalendarMonthGrid({
                             <span className="min-w-0 truncate">{day.holidayName}</span>
                           </span>
                         )}
-                        {eventsOnDay.length > 0 && (
-                          <div className="mt-0.5 flex flex-col gap-px -mx-1.5 shrink-0">
-                            {eventsOnDay.map((ev) => {
-                              const isStart = ev.start_date != null && ev.start_date === day.date;
-                              const isEnd = ev.end_date != null && ev.end_date === day.date;
-                              const { border, bg, text } = getEventColorClasses(ev.color ?? null);
-                              return (
-                                <div
-                                  key={ev.id}
-                                  className={`${bg} py-px text-[10px] font-medium line-clamp-1 ${text} ${isStart ? "rounded-l border-l-4 pl-1 " + border : "pl-0.5"} ${isEnd ? "rounded-r" : ""}`}
-                                  title={ev.name}
-                                >
-                                  {isStart ? ev.name : "\u00A0"}
-                                </div>
-                              );
-                            })}
-                          </div>
+                        {permissions.canViewEvents && eventsOnDay.length > 0 && (
+                          <MonthEventChips events={eventsOnDay} dayDate={day.date} density="comfortable" />
                         )}
-                        {!isSkip && streamToDisplay.length > 0 && (
-                          <div className="mt-0.5 flex flex-col gap-px -mx-1.5 shrink-0">
-                            {streamToDisplay.map((s) => {
-                              const labelTime = s.is_all_day
-                                ? "終日"
-                                : s.start_time && s.end_time
-                                  ? `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}`
-                                  : s.start_time
-                                    ? s.start_time.slice(0, 5)
-                                    : "--:--";
-                              const color = getEventColorClasses(s.color_id ?? null);
-                              return (
-                                <div
-                                  key={s.id}
-                                  className={`flex items-center gap-1 rounded-r py-px pl-1 text-[9px] font-medium line-clamp-1 ${color.leftBar} ${color.bg} ${color.text}`}
-                                  title={s.title}
-                                >
-                                  <span className="shrink-0 tabular-nums">{labelTime}</span>
-                                  <span className="min-w-0 truncate">{s.title}</span>
-                                </div>
-                              );
-                            })}
-                            {remainingStreamCount > 0 && (
-                              <div className="pl-1 text-[8px] text-zinc-500 dark:text-zinc-400">
-                                +{remainingStreamCount}件
-                              </div>
-                            )}
-                          </div>
+                        {!isSkip && monthSchedules.length > 0 && (
+                          <MonthScheduleChips schedules={monthSchedules} density="comfortable" />
                         )}
                         {!hasEntry && !isSkip && permissions.canEditSchedule && (
                           <p className="mt-1 flex-1 text-[9px] text-zinc-400 dark:text-zinc-500 line-clamp-2">

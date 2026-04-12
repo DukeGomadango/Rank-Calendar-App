@@ -1,3 +1,25 @@
+import type { CalendarScheduleRow } from "@/lib/data/schedules";
+
+/** 月ビュー・週ビュー共通: スケジュール行の左に並べる時刻ラベル */
+export function formatScheduleTimeRangeLabel(s: CalendarScheduleRow): string {
+  if (s.is_all_day) return "終日";
+  if (s.start_time && s.end_time) {
+    return `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}`;
+  }
+  if (s.start_time) return s.start_time.slice(0, 5);
+  return "--:--";
+}
+
+/** 月セルに列挙するスケジュール（権限は schedulesByDate 側で済ませている前提） */
+export function filterSchedulesForMonthCell(
+  daySchedules: CalendarScheduleRow[]
+): CalendarScheduleRow[] {
+  return daySchedules.filter((x) => {
+    const k = x.kind;
+    return k === null || k === "stream" || k === "personal" || k === "secret";
+  });
+}
+
 /** 目標と実績を並べて表示する用（目標ラベル＋実績ラベル、実績は達成/未達で色分け） */
 export function getTargetActualDisplay(
   target: number | null | undefined,
