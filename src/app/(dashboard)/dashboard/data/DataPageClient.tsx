@@ -16,7 +16,10 @@ import {
   projectedPlusForRankForecast,
   type RankLabel,
 } from "@/lib/domain/rank";
-import { getUsablePredictedSkipPassDates } from "@/lib/domain/skip-pass-prediction";
+import {
+  getPredictedSkipPassRemaining,
+  getUsablePredictedSkipPassDates,
+} from "@/lib/domain/skip-pass-prediction";
 import type { EventRow } from "@/lib/data/events";
 
 type UpdateFieldAction = (
@@ -66,6 +69,9 @@ export function DataPageClient({
     const skipPassSnapshotsSorted = skipPassSnapshots
       .slice()
       .sort((a, b) => a.as_of_date.localeCompare(b.as_of_date));
+    const skipPassSnapshotByDate = new Map(
+      skipPassSnapshotsSorted.map((s) => [s.as_of_date, s.remaining] as const),
+    );
     let skipPassSnapshotIdx = 0;
     let latestSkipPassRemaining: number | null = null;
     const baseRemaining: number | null =
@@ -187,6 +193,13 @@ export function DataPageClient({
         d = dayjs(d, "YYYY-MM-DD").add(1, "day").format("YYYY-MM-DD");
       }
     }
+    const remainingAsOfToday = (() => {
+      let latest: number | null = null;
+      for (const s of skipPassSnapshotsSorted) {
+        if (s.as_of_date <= todayStr) latest = s.remaining;
+      }
+      return latest ?? baseRemaining;
+    })();
     const cumulativeByDate =
       rankState && permissions.canViewRank
         ? calculateCycleCumulativeByDate(
@@ -263,7 +276,18 @@ export function DataPageClient({
           permissions.canViewRank && rankState
             ? (cumulativeByDate[dateStr] ?? null)
             : undefined,
-        skip_pass_remaining_as_of: latestSkipPassRemaining ?? baseRemaining,
+        skip_pass_remaining_as_of:
+          dateStr > todayStr &&
+          !skipPassSnapshotByDate.has(dateStr) &&
+          remainingAsOfToday != null
+            ? getPredictedSkipPassRemaining(
+                remainingAsOfToday,
+                addDays(todayStr, 1),
+                dateStr,
+                entriesByDate,
+                todayStr,
+              )
+            : (latestSkipPassRemaining ?? baseRemaining),
       });
 
       cursor = cursor.add(1, "day");
