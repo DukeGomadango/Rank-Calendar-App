@@ -56,3 +56,52 @@ export function getPredictedSkipPassRemaining(
   }
   return remaining;
 }
+
+/**
+ * 予測レンジ内で「実際に適用できる」スキップ使用日を返す。
+ * `skip_pass_used=true` が立っていても残数が 0 の日は適用不可として除外する。
+ */
+export function getUsablePredictedSkipPassDates(
+  baseRemaining: number,
+  fromDate: JstDateString,
+  toDate: JstDateString,
+  entriesByDate: Map<string, EntryForPrediction>,
+  today: JstDateString
+): Set<JstDateString> {
+  const usable = new Set<JstDateString>();
+  let remaining = Math.max(0, Math.min(SKIP_PASS_MAX, baseRemaining));
+  let d = fromDate;
+  while (d <= toDate) {
+    const isMonday = d === getJstWeekStart(d);
+    if (isMonday) {
+      const prevWeekStart = addDays(d, -7);
+      const prevWeekEnd = addDays(d, -1);
+      let hadStream = false;
+      let cursor = prevWeekStart;
+      while (cursor <= prevWeekEnd) {
+        const entry = entriesByDate.get(cursor);
+        const plus =
+          cursor < today
+            ? (entry?.actual_plus ?? 0)
+            : entry?.actual_plus != null
+              ? Math.max(0, entry.actual_plus)
+              : Math.max(0, entry?.target_plus ?? 0);
+        if (plus >= 1) {
+          hadStream = true;
+          break;
+        }
+        cursor = addDays(cursor, 1);
+      }
+      if (hadStream) {
+        remaining = Math.min(SKIP_PASS_MAX, remaining + 1);
+      }
+    }
+    const entry = entriesByDate.get(d);
+    if (entry?.skip_pass_used && remaining > 0) {
+      usable.add(d);
+      remaining = Math.max(0, remaining - 1);
+    }
+    d = addDays(d, 1);
+  }
+  return usable;
+}

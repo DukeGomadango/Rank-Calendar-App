@@ -16,6 +16,7 @@ import {
   projectedPlusForRankForecast,
   type RankLabel,
 } from "@/lib/domain/rank";
+import { getUsablePredictedSkipPassDates } from "@/lib/domain/skip-pass-prediction";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import type { EventRow } from "@/lib/data/events";
@@ -98,6 +99,26 @@ export function useDashboardRangeDerived(
     const entriesByDateForForecast = new Map<string, ScheduleEntryRow>(
       entries.map((e) => [e.date, e]),
     );
+    const forecastToDate = dayjs(baseMonth + "-15")
+      .endOf("month")
+      .endOf("week")
+      .format("YYYY-MM-DD");
+    const skipPredictionEnd = addDays(rankState.rank_reset_date, 90);
+    const usableFutureSkipDates = getUsablePredictedSkipPassDates(
+      rankState.skip_pass_remaining ?? 0,
+      todayJst,
+      skipPredictionEnd,
+      entriesByDateForForecast,
+      todayJst,
+    );
+    const getEntryForForecast = (date: string): ScheduleEntryRow | undefined => {
+      const entry = entriesByDateForForecast.get(date);
+      if (!entry) return undefined;
+      if (date >= todayJst && entry.skip_pass_used && !usableFutureSkipDates.has(date)) {
+        return { ...entry, skip_pass_used: false };
+      }
+      return entry;
+    };
 
     let forecastRankForNextCycle: RankLabel | null = null;
     if (rankState.current_rank != null) {
@@ -106,7 +127,7 @@ export function useDashboardRangeDerived(
       let projectedTotal = 0;
       let cursorForecast = cycleStartForForecast;
       while (cursorForecast <= cycleEndForForecast) {
-        const entry = entriesByDateForForecast.get(cursorForecast);
+        const entry = getEntryForForecast(cursorForecast);
         projectedTotal += projectedPlusForRankForecast(
           entry,
           cursorForecast,
@@ -138,10 +159,7 @@ export function useDashboardRangeDerived(
     if (forecastRankForNextCycle != null) {
       let periodStart = addDays(rankState.rank_reset_date, 1);
       let rankForThisPeriod: RankLabel | null = forecastRankForNextCycle;
-      const toDate = dayjs(baseMonth + "-15")
-        .endOf("month")
-        .endOf("week")
-        .format("YYYY-MM-DD");
+      const toDate = forecastToDate;
 
       while (periodStart <= toDate && rankForThisPeriod != null) {
         const periodEnd = getCycleEndDateIncludingSkips(
@@ -151,7 +169,7 @@ export function useDashboardRangeDerived(
         let projectedTotal = 0;
         let c = periodStart;
         while (c <= periodEnd) {
-          const entry = entriesByDateForForecast.get(c);
+          const entry = getEntryForForecast(c);
           projectedTotal += projectedPlusForRankForecast(entry, c, todayJst);
           c = addDays(c, 1);
         }

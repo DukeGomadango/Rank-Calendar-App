@@ -16,6 +16,7 @@ import {
   projectedPlusForRankForecast,
   type RankLabel,
 } from "@/lib/domain/rank";
+import { getUsablePredictedSkipPassDates } from "@/lib/domain/skip-pass-prediction";
 import type { EventRow } from "@/lib/data/events";
 
 type UpdateFieldAction = (
@@ -48,12 +49,12 @@ export function DataPageClient({
     useDashboardCalendar();
 
   const todayStr = toJstDateString(new Date());
-  const fromStr = dayjs(todayStr)
-    .add(-daysRange, "day")
-    .format("YYYY-MM-DD");
-  const toStr = dayjs(todayStr).add(daysRange, "day").format("YYYY-MM-DD");
 
   const { rows, events } = useMemo(() => {
+    const fromStr = dayjs(todayStr)
+      .add(-daysRange, "day")
+      .format("YYYY-MM-DD");
+    const toStr = dayjs(todayStr).add(daysRange, "day").format("YYYY-MM-DD");
     const entries = rangeData?.entries ?? [];
     const rankState = rangeData?.rankState ?? null;
     const rankCycleHistory = rangeData?.rankCycleHistory ?? [];
@@ -96,6 +97,22 @@ export function DataPageClient({
       const entriesByDateForForecast = new Map(
         entries.map((e) => [e.date, e] as const),
       );
+      const skipPredictionEnd = addDays(rankState.rank_reset_date, 120);
+      const usableFutureSkipDates = getUsablePredictedSkipPassDates(
+        rankState.skip_pass_remaining ?? 0,
+        todayStr,
+        skipPredictionEnd,
+        entriesByDateForForecast,
+        todayStr,
+      );
+      const getEntryForForecast = (date: string) => {
+        const entry = entriesByDateForForecast.get(date);
+        if (!entry) return undefined;
+        if (date >= todayStr && entry.skip_pass_used && !usableFutureSkipDates.has(date)) {
+          return { ...entry, skip_pass_used: false };
+        }
+        return entry;
+      };
       const sortedByEnd = rankCycles
         .slice()
         .sort((a, b) => a.end.localeCompare(b.end));
@@ -112,7 +129,7 @@ export function DataPageClient({
         let projectedTotal = 0;
         let c = periodStart;
         while (c <= periodEnd) {
-          const entry = entriesByDateForForecast.get(c);
+          const entry = getEntryForForecast(c);
           projectedTotal += projectedPlusForRankForecast(entry, c, todayStr);
           c = addDays(c, 1);
         }
@@ -260,11 +277,11 @@ export function DataPageClient({
     }
     return { rows, events };
   }, [
-    fromStr,
+    daysRange,
     futureCycles,
-    permissions.canViewRank,
+    permissions,
     rangeData,
-    toStr,
+    todayStr,
   ]);
 
   useEffect(() => {
