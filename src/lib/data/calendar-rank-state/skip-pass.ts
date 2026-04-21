@@ -86,7 +86,8 @@ export async function setSkipPassSnapshot(
 }
 
 /**
- * 前週に actual_plus >= 1 の日が1日でもあれば、月曜にスキパ+1（上限10）。二重加算防止のため last_increment_week を記録。
+ * 前週までの未処理週について、actual_plus >= 1 の日が1日でもあれば週ごとにスキパ+1（上限10）。
+ * 二重加算防止のため last_increment_week を記録する。
  * ランク状態を取得するページ（データタブ等）で呼ぶ。
  */
 export async function ensureSkipPassIncrementForLastWeek(
@@ -98,22 +99,40 @@ export async function ensureSkipPassIncrementForLastWeek(
   const prevWeekMonday = addDays(thisWeekMonday, -7);
   const lastIncrement = state.skip_pass_last_increment_week_start ?? "";
   if (lastIncrement >= prevWeekMonday) return;
-  const prevWeekEnd = addDays(prevWeekMonday, 6);
-  const entries = await getScheduleEntriesInRange(
-    calendarId,
-    prevWeekMonday,
-    prevWeekEnd
-  );
-  const hadStream = entries.some((e) => (e.actual_plus ?? 0) >= 1);
-  if (!hadStream) return;
-  const nextRemaining = Math.min(SKIP_PASS_MAX, (state.skip_pass_remaining ?? 0) + 1);
+
+  const firstWeekToCheck =
+    lastIncrement === "" ? prevWeekMonday : addDays(lastIncrement, 7);
+
+  let weekStart = firstWeekToCheck;
+  let nextRemaining = state.skip_pass_remaining ?? 0;
+  let latestProcessedWeek = lastIncrement;
+  let incremented = false;
+
+  while (weekStart <= prevWeekMonday) {
+    const weekEnd = addDays(weekStart, 6);
+    const entries = await getScheduleEntriesInRange(
+      calendarId,
+      weekStart,
+      weekEnd
+    );
+    const hadStream = entries.some((e) => (e.actual_plus ?? 0) >= 1);
+    if (hadStream) {
+      nextRemaining = Math.min(SKIP_PASS_MAX, nextRemaining + 1);
+      incremented = true;
+    }
+    latestProcessedWeek = weekStart;
+    weekStart = addDays(weekStart, 7);
+  }
+
+  if (!incremented || latestProcessedWeek === "") return;
+
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .schema("iriam")
     .from("calendar_rank_state")
     .update({
       skip_pass_remaining: nextRemaining,
-      skip_pass_last_increment_week_start: prevWeekMonday,
+      skip_pass_last_increment_week_start: latestProcessedWeek,
     })
     .eq("calendar_id", calendarId);
   if (error) {
