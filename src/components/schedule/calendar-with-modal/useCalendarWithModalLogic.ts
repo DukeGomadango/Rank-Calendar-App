@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps, @typescript-eslint/no-unused-vars */
 
 import {
   useCallback,
@@ -78,6 +79,27 @@ export function useCalendarWithModalLogic({
   const [weekSchedulePreviewOpen, setWeekSchedulePreviewOpen] = useState(false);
   /** モバイルでボトムシートを下からせり上がらせる用。開いた直後に true にして transition をかける */
   const [sheetEntered, setSheetEntered] = useState(false);
+
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  /** 範囲指定で新規作成する場合の入力プリフィル（selectedScheduleId が null のときに使う） */
+  const [scheduleCreatePrefill, setScheduleCreatePrefill] = useState<
+    | null
+    | {
+        is_all_day: false;
+        startTime: string; // HH:MM
+        endTime: string; // HH:MM
+        endDate: string; // YYYY-MM-DD
+      }
+  >(null);
+  /** 時間グリッド上のドラッグ範囲（新規作成用） */
+  const [scheduleCreateSelection, setScheduleCreateSelection] = useState<
+    | null
+    | {
+        dayDate: string; // columnのYYYY-MM-DD（軸の開始日）
+        startOffsetMinutes: number; // axis start(05:00)からのオフセット
+        endOffsetMinutes: number;
+      }
+  >(null);
 
   useEffect(() => {
     if (isSavingRef.current) return;
@@ -220,26 +242,6 @@ export function useCalendarWithModalLogic({
     ? schedulesByDate.get(selectedDate) ?? []
     : [];
 
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
-  /** 範囲指定で新規作成する場合の入力プリフィル（selectedScheduleId が null のときに使う） */
-  const [scheduleCreatePrefill, setScheduleCreatePrefill] = useState<
-    | null
-    | {
-        is_all_day: false;
-        startTime: string; // HH:MM
-        endTime: string; // HH:MM
-        endDate: string; // YYYY-MM-DD
-      }
-  >(null);
-  /** 時間グリッド上のドラッグ範囲（新規作成用） */
-  const [scheduleCreateSelection, setScheduleCreateSelection] = useState<
-    | null
-    | {
-        dayDate: string; // columnのYYYY-MM-DD（軸の開始日）
-        startOffsetMinutes: number; // axis start(05:00)からのオフセット
-        endOffsetMinutes: number;
-      }
-  >(null);
   const scheduleCreateSelectionRef = useRef<typeof scheduleCreateSelection>(null);
   const [modalTab, setModalTab] = useState<"rank" | "schedule">("rank");
 

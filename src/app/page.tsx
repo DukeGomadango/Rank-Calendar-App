@@ -6,13 +6,11 @@ import { Features } from "@/components/landing/Features";
 import { Footer } from "@/components/landing/Footer";
 import { Hero } from "@/components/landing/Hero";
 import { HowItWorks } from "@/components/landing/HowItWorks";
-import { LandingHeader } from "@/components/landing/LandingHeader";
 import { Trust } from "@/components/landing/Trust";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
-      <LandingHeader />
       <main>
         <Hero />
         <Trust />

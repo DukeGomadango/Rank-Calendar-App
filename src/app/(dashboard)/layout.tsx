@@ -50,7 +50,7 @@ export default async function DashboardLayout({
     <MockScheduleProvider initialEntries={initialEntries}>
     <ViewModeProvider>
     <ToastProvider>
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background dashboard-root">
       {/* PC: 画面右上に固定（サイドバー表示時のみ。sm〜lg はハンバーガーバー内に ThemeToggle） */}
       <div className="fixed top-4 right-4 z-50 hidden flex-wrap items-center justify-end gap-2 lg:flex">
         {showMockRoleSwitcher && <MockRoleSwitcher currentRole={mockRole} />}
