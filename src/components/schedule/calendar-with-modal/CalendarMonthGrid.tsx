@@ -214,7 +214,7 @@ export function CalendarMonthGrid({
                         {permissions.canViewEvents && eventsOnDay.length > 0 && (
                           <MonthEventChips events={eventsOnDay} dayDate={day.date} density="compact" />
                         )}
-                        {!isSkip && monthSchedules.length > 0 && (
+                        {monthSchedules.length > 0 && (
                           <MonthScheduleChips schedules={monthSchedules} density="compact" />
                         )}
                         {!hasEntry && !isSkip && permissions.canEditSchedule && (
@@ -263,7 +263,7 @@ export function CalendarMonthGrid({
                         {permissions.canViewEvents && eventsOnDay.length > 0 && (
                           <MonthEventChips events={eventsOnDay} dayDate={day.date} density="comfortable" />
                         )}
-                        {!isSkip && monthSchedules.length > 0 && (
+                        {monthSchedules.length > 0 && (
                           <MonthScheduleChips schedules={monthSchedules} density="comfortable" />
                         )}
                         {!hasEntry && !isSkip && permissions.canEditSchedule && (

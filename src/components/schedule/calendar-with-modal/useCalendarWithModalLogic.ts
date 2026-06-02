@@ -48,6 +48,7 @@ export function useCalendarWithModalLogic({
   events,
   currentRankCycle = null,
   rankCycleHistory = [],
+  displayRankCycles = [],
   futureCycles = [],
   todayJst,
   skipPassRemaining,
@@ -698,46 +699,59 @@ export function useCalendarWithModalLogic({
     [mutateRange]
   );
 
-  /** この日付が属する周期（現在 > 履歴 > 予測）と周期種別・予測フラグ */
+  /** この日付が属する周期（履歴・現在・予測）と周期種別・予測フラグ */
   const getCycleForDate = useCallback(
     (date: string): { start: string; end: string; rank: string | null; isCurrent: boolean; cycleTotal?: number | null; periodType: PeriodType; isPredicted?: boolean } | null => {
       if (!permissions.canViewRank) return null;
-      if (currentRankCycle && dateInCycle(date, currentRankCycle.start, currentRankCycle.end)) {
-        return {
-          start: currentRankCycle.start,
-          end: currentRankCycle.end,
-          rank: currentRankCycle.rank,
-          isCurrent: true,
-          periodType: getPeriodType(currentRankCycle.start, currentRankCycle.end, todayStr),
-        };
-      }
-      for (const h of rankCycleHistory) {
-        if (dateInCycle(date, h.cycle_start_date, h.cycle_end_date)) {
+
+      const cycles =
+        displayRankCycles.length > 0
+          ? displayRankCycles
+          : [
+              ...(currentRankCycle
+                ? [{ ...currentRankCycle, isPredicted: false, rank: currentRankCycle.rank ?? "—" }]
+                : []),
+              ...rankCycleHistory.map((h) => ({
+                start: h.cycle_start_date,
+                end: h.cycle_end_date,
+                rank: h.rank_during ?? "—",
+                isPredicted: false,
+                cycleTotal: h.cycle_total ?? null,
+              })),
+              ...futureCycles.map((fc) => ({
+                ...fc,
+                isPredicted: true,
+                cycleTotal: null as number | null,
+              })),
+            ];
+
+      for (const c of cycles) {
+        if (dateInCycle(date, c.start, c.end)) {
+          const isCurrent =
+            !c.isPredicted && dateInCycle(todayStr, c.start, c.end);
           return {
-            start: h.cycle_start_date,
-            end: h.cycle_end_date,
-            rank: h.rank_during,
-            isCurrent: false,
-            cycleTotal: h.cycle_total ?? null,
-            periodType: getPeriodType(h.cycle_start_date, h.cycle_end_date, todayStr),
-          };
-        }
-      }
-      for (const fc of futureCycles) {
-        if (dateInCycle(date, fc.start, fc.end)) {
-          return {
-            start: fc.start,
-            end: fc.end,
-            rank: fc.rank,
-            isCurrent: false,
-            periodType: "future",
-            isPredicted: true,
+            start: c.start,
+            end: c.end,
+            rank: c.rank,
+            isCurrent,
+            cycleTotal: "cycleTotal" in c ? (c.cycleTotal ?? null) : null,
+            periodType: c.isPredicted
+              ? "future"
+              : getPeriodType(c.start, c.end, todayStr),
+            isPredicted: c.isPredicted,
           };
         }
       }
       return null;
     },
-    [permissions.canViewRank, currentRankCycle, rankCycleHistory, futureCycles, todayStr]
+    [
+      permissions.canViewRank,
+      displayRankCycles,
+      currentRankCycle,
+      rankCycleHistory,
+      futureCycles,
+      todayStr,
+    ],
   );
 
   /** リスナー用詳細モーダルに渡す DayDetailRow。selectedDay とランク周期（現在・履歴・予測）から組み立てる。 */

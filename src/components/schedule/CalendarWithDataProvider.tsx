@@ -7,6 +7,7 @@ import type { CalendarPermissionFlags } from "@/lib/auth/permission";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { EventRow } from "@/lib/data/events";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
+import { dateInCycle } from "@/components/schedule/calendar-with-modal/calendar-display-helpers";
 import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import type { SaveScheduleEntryResult } from "@/lib/validations/schedule";
 import type { SaveCalendarScheduleResult } from "@/app/(dashboard)/dashboard/calendar-schedule-actions";
@@ -75,7 +76,7 @@ export function CalendarWithDataProvider({
   const {
     rangeData,
     isLoading,
-    futureCycles,
+    displayRankCycles,
     forecastLabel,
     todayJst,
     baseMonth,
@@ -147,21 +148,15 @@ export function CalendarWithDataProvider({
         skip_pass_remaining?: number | null;
       }
     | undefined;
-  const rankCycleHistory = (rangeData?.rankCycleHistory ?? []) as {
-    cycle_start_date: string;
-    cycle_end_date: string;
-    rank_during: string | null;
-    cycle_total?: number | null;
-  }[];
-
-  const currentRankCycle =
-    rankState && permissions.canViewRank
-      ? {
-          start: rankState.rank_cycle_start_date,
-          end: rankState.rank_reset_date,
-          rank: rankState.current_rank,
-        }
+  const currentRankCycle = useMemo(() => {
+    if (!permissions.canViewRank) return null;
+    const cycle = displayRankCycles.find(
+      (c) => !c.isPredicted && dateInCycle(todayJst, c.start, c.end),
+    );
+    return cycle
+      ? { start: cycle.start, end: cycle.end, rank: cycle.rank }
       : null;
+  }, [displayRankCycles, permissions.canViewRank, todayJst]);
 
   return (
     <>
@@ -200,9 +195,8 @@ export function CalendarWithDataProvider({
         }}
         events={events}
         currentRankCycle={currentRankCycle}
-        rankCycleHistory={rankCycleHistory}
+        displayRankCycles={displayRankCycles}
         forecastLabel={forecastLabel}
-        futureCycles={futureCycles}
         todayJst={todayJst}
         skipPassRemaining={rankState?.skip_pass_remaining ?? 0}
         schedules={schedules}

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
 import {
   Home,
   Calendar,
@@ -172,5 +172,38 @@ export function DashboardNavLinks({
         );
       })}
     </nav>
+  );
+}
+
+function DashboardNavLinksFallback({ variant }: { variant: Props["variant"] }) {
+  if (variant === "bottom") {
+    return (
+      <ul className="flex items-stretch justify-between gap-1" aria-hidden>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <li key={i} className="flex-1">
+            <div className="mx-auto h-8 w-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <nav className={variant === "sidebar" ? "space-y-2" : "space-y-1"} aria-hidden>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-7 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700"
+        />
+      ))}
+    </nav>
+  );
+}
+
+/** useSearchParams を使うため Suspense 境界内で描画する */
+export function DashboardNavLinksSuspense(props: Props) {
+  return (
+    <Suspense fallback={<DashboardNavLinksFallback variant={props.variant} />}>
+      <DashboardNavLinks {...props} />
+    </Suspense>
   );
 }

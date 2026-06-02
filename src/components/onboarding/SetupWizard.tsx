@@ -14,7 +14,7 @@ import {
   saveOnboardingStep5,
   saveOnboardingStep5AndFinish,
   finishOnboardingWithoutEvent,
-} from "@/app/(dashboard)/dashboard/onboarding/actions";
+} from "@/app/(onboarding)/dashboard/onboarding/actions";
 
 const STEPS = [
   { id: 1, title: "ライバーネーム" },

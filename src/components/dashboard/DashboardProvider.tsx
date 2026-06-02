@@ -17,6 +17,7 @@ import {
   type CalendarRangeResponse,
 } from "@/lib/hooks/useCalendarRange";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
+import type { SimulatedRankCycle } from "@/lib/domain/rank-simulation";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import type { EventRow } from "@/lib/data/events";
 import { useDashboardRangeDerived } from "./useDashboardRangeDerived";
@@ -53,6 +54,7 @@ type DashboardContextValue = {
       }
     | null;
   futureCycles: { start: string; end: string; rank: string }[];
+  displayRankCycles: SimulatedRankCycle[];
   forecastLabel: string | null;
   isLoading: boolean;
   todayJst: string;
@@ -99,9 +101,9 @@ export function DashboardProvider({
     needsRangeData ? baseMonth : null,
     rangeMode,
     includeEvents,
-    includeSchedules
+    includeSchedules,
   );
-  const { rangeData, futureCycles, forecastLabel, todayJst } =
+  const { rangeData, futureCycles, displayRankCycles, forecastLabel, todayJst } =
     useDashboardRangeDerived(data, permissions.canViewRank, baseMonth);
 
   const refreshRange = (options?: { modes?: CalendarRangeMode[] }) => {
@@ -140,6 +142,7 @@ export function DashboardProvider({
     mutateRange: mutate,
     rangeData,
     futureCycles,
+    displayRankCycles,
     forecastLabel,
     isLoading,
     todayJst,

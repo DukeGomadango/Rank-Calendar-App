@@ -45,6 +45,14 @@ export type CalendarWithModalProps = {
   events: EventRow[];
   currentRankCycle?: { start: string; end: string; rank: string | null } | null;
   rankCycleHistory?: RankCycleBand[];
+  /** 履歴 + シミュレーション済み周期（指定時は rankCycleHistory / futureCycles より優先） */
+  displayRankCycles?: {
+    start: string;
+    end: string;
+    rank: string;
+    isPredicted: boolean;
+    cycleTotal?: number | null;
+  }[];
   forecastLabel?: string | null;
   futureCycles?: { start: string; end: string; rank: string }[];
   todayJst?: string | null;

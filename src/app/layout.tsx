@@ -100,17 +100,25 @@ export default function RootLayout({
         <ThemeProvider>
           <JsonLdWebSite />
           <style dangerouslySetInnerHTML={{ __html: `
-            body:has(.dashboard-root) dango-header {
+            body:has(.dashboard-root) dango-header,
+            body:has(.onboarding-root) dango-header {
               display: none !important;
             }
             @media (min-width: 768px) {
-              body:not(:has(.dashboard-root)) {
+              body:not(:has(.dashboard-root)):not(:has(.onboarding-root)) {
                 padding-top: 92px;
               }
             }
           `}} />
-          <dango-header active-tool="calendar" portal-url={process.env.NODE_ENV === "production" ? "https://dango-portal.vercel.app" : "http://localhost:3000"}></dango-header>
-          <Script src={process.env.NODE_ENV === "production" ? "https://dango-portal.vercel.app/dango-header.js" : "http://localhost:3000/dango-header.js"} strategy="afterInteractive" />
+          {process.env.NODE_ENV === "production" && (
+            <>
+              <dango-header active-tool="calendar" portal-url="https://dango-portal.vercel.app" />
+              <Script
+                src="https://dango-portal.vercel.app/dango-header.js"
+                strategy="afterInteractive"
+              />
+            </>
+          )}
           {children}
         </ThemeProvider>
       </body>

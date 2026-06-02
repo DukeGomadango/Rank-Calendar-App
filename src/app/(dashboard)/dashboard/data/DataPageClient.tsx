@@ -7,19 +7,14 @@ import { useDashboardCalendar } from "@/components/dashboard/DashboardProvider";
 import { EnsureCalendarIdInUrl } from "@/components/dashboard/EnsureCalendarIdInUrl";
 import { DataTable } from "@/components/data/DataTable";
 import { DataRangeSelect } from "@/components/data/DataRangeSelect";
-import { addDays, getCycleEndDateIncludingSkips, toJstDateString } from "@/lib/domain/calendar";
+import { addDays, toJstDateString } from "@/lib/domain/calendar";
 import {
-  calculateCycleCumulativeByDate,
-  getNextRank,
-  getPreviousRank,
-  judgeCycleRank,
-  projectedPlusForRankForecast,
-  type RankLabel,
-} from "@/lib/domain/rank";
-import {
-  getPredictedSkipPassRemaining,
-  getUsablePredictedSkipPassDates,
-} from "@/lib/domain/skip-pass-prediction";
+  buildDisplayRankCycles,
+  simulateRankCyclesForward,
+  createGetEntryForForecast,
+} from "@/lib/domain/rank-simulation";
+import { calculateCycleCumulativeByDate } from "@/lib/domain/rank";
+import { getPredictedSkipPassRemaining } from "@/lib/domain/skip-pass-prediction";
 import type { EventRow } from "@/lib/data/events";
 
 type UpdateFieldAction = (
@@ -48,7 +43,7 @@ export function DataPageClient({
   onUpdateField,
   onUpdateSkipPassSnapshot,
 }: Props) {
-  const { calendarId, calendarName, permissions, rangeData, futureCycles } =
+  const { calendarId, calendarName, permissions, rangeData } =
     useDashboardCalendar();
 
   const todayStr = toJstDateString(new Date());
@@ -80,86 +75,46 @@ export function DataPageClient({
     const entriesByDate = new Map(entries.map((e) => [e.date, e]));
 
     type RankCycle = { start: string; end: string; rank: string | null };
-    const rankCycles: RankCycle[] = [];
+    let rankCycles: RankCycle[] = [];
 
-    for (const h of rankCycleHistory) {
-      rankCycles.push({
-        start: h.cycle_start_date,
-        end: h.cycle_end_date,
-        rank: h.rank_during,
-      });
-    }
-    if (rankState) {
-      rankCycles.push({
-        start: rankState.rank_cycle_start_date,
-        end: rankState.rank_reset_date,
-        rank: rankState.current_rank,
-      });
-    }
-    for (const fc of futureCycles ?? []) {
-      rankCycles.push({ start: fc.start, end: fc.end, rank: fc.rank });
-    }
     if (permissions.canViewRank && rankState) {
       const entriesByDateForForecast = new Map(
         entries.map((e) => [e.date, e] as const),
       );
-      const skipPredictionEnd = addDays(rankState.rank_reset_date, 120);
-      const usableFutureSkipDates = getUsablePredictedSkipPassDates(
-        rankState.skip_pass_remaining ?? 0,
-        todayStr,
-        skipPredictionEnd,
-        entriesByDateForForecast,
-        todayStr,
-      );
-      const getEntryForForecast = (date: string) => {
-        const entry = entriesByDateForForecast.get(date);
-        if (!entry) return undefined;
-        if (date >= todayStr && entry.skip_pass_used && !usableFutureSkipDates.has(date)) {
-          return { ...entry, skip_pass_used: false };
-        }
-        return entry;
-      };
-      const sortedByEnd = rankCycles
-        .slice()
-        .sort((a, b) => a.end.localeCompare(b.end));
-      const lastCycle = sortedByEnd[sortedByEnd.length - 1];
-      let periodStart = lastCycle ? addDays(lastCycle.end, 1) : addDays(rankState.rank_reset_date, 1);
-      let rankForThisPeriod = (lastCycle?.rank ??
-        rankState.current_rank) as RankLabel | null;
+      const { displayCycles } = buildDisplayRankCycles({
+        history: rankCycleHistory,
+        rankState,
+        entriesByDate: entriesByDateForForecast,
+        todayJst: todayStr,
+        simulateToDate: toStr,
+      });
+      rankCycles = displayCycles.map((c) => ({
+        start: c.start,
+        end: c.end,
+        rank: c.rank,
+      }));
 
-      while (periodStart <= toStr && rankForThisPeriod != null) {
-        const periodEnd = getCycleEndDateIncludingSkips(
-          periodStart,
+      const lastCycle = displayCycles[displayCycles.length - 1];
+      if (lastCycle && lastCycle.end < toStr) {
+        const skipPredictionEnd = addDays(rankState.rank_reset_date, 120);
+        const getEntryForForecast = createGetEntryForForecast(
           entriesByDateForForecast,
+          todayStr,
+          rankState.skip_pass_remaining ?? 0,
+          skipPredictionEnd,
         );
-        let projectedTotal = 0;
-        let c = periodStart;
-        while (c <= periodEnd) {
-          const entry = getEntryForForecast(c);
-          projectedTotal += projectedPlusForRankForecast(entry, c, todayStr);
-          c = addDays(c, 1);
-        }
-
-        rankCycles.push({
-          start: periodStart,
-          end: periodEnd,
-          rank: rankForThisPeriod,
+        const lastRank = lastCycle.rank;
+        const extra = simulateRankCyclesForward({
+          cycleStart: addDays(lastCycle.end, 1),
+          initialRank: lastRank,
+          entriesByDate: entriesByDateForForecast,
+          getEntryForForecast,
+          todayJst: todayStr,
+          simulateToDate: toStr,
         });
-
-        const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
-        if (canRankUp) {
-          rankForThisPeriod =
-            getNextRank(rankForThisPeriod as RankLabel) ??
-            (rankForThisPeriod as RankLabel);
-        } else if (isKeep) {
-          // keep
-        } else {
-          rankForThisPeriod =
-            (getPreviousRank(
-              rankForThisPeriod as RankLabel,
-            ) as RankLabel | null) ?? rankForThisPeriod;
-        }
-        periodStart = addDays(periodEnd, 1);
+        rankCycles.push(
+          ...extra.map((c) => ({ start: c.start, end: c.end, rank: c.rank })),
+        );
       }
     }
     const rankByDate = new Map<string, string | null>();
@@ -200,21 +155,23 @@ export function DataPageClient({
       }
       return latest ?? baseRemaining;
     })();
-    const cumulativeByDate =
-      rankState && permissions.canViewRank
-        ? calculateCycleCumulativeByDate(
-            entries.map((e) => ({
-              date: e.date,
-              actual_plus:
-                e.date >= todayStr
-                  ? (e.target_plus ?? e.actual_plus)
-                  : e.actual_plus,
-              skip_pass_used: e.skip_pass_used,
-            })),
-            rankState.rank_cycle_start_date,
-            rankState.rank_reset_date,
-          )
-        : ({} as Record<string, number>);
+    const rankEntriesForCumulative = entries.map((e) => ({
+      date: e.date,
+      actual_plus:
+        e.date >= todayStr ? (e.target_plus ?? e.actual_plus) : e.actual_plus,
+      skip_pass_used: e.skip_pass_used,
+    }));
+    const cumulativeByDate: Record<string, number> = {};
+    if (permissions.canViewRank) {
+      for (const c of rankCycles) {
+        const partial = calculateCycleCumulativeByDate(
+          rankEntriesForCumulative,
+          c.start,
+          c.end,
+        );
+        Object.assign(cumulativeByDate, partial);
+      }
+    }
 
     const rows: {
       date: string;
@@ -302,7 +259,6 @@ export function DataPageClient({
     return { rows, events };
   }, [
     daysRange,
-    futureCycles,
     permissions,
     rangeData,
     todayStr,

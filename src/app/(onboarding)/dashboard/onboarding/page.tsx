@@ -37,7 +37,7 @@ export default async function OnboardingPage() {
   const initialRankResetDate = rankState.rank_reset_date ?? thisWeekEnd;
 
   return (
-    <div className="min-h-[60vh] py-8">
+    <div className="min-h-[60vh] py-2">
       <SetupWizard
         initialStep={initialStep}
         initialLiverName={profile?.display_name ?? ""}

@@ -1,3 +1,5 @@
+"use server";
+
 import { revalidatePath } from "next/cache";
 
 import { ensureUserCanEditCalendar } from "@/lib/auth/permission";
@@ -35,10 +37,30 @@ export async function applyRankUp(calendarId: string) {
   const { getOrCreateCalendarRankState, applyRankUp: applyRankUpState } = await import(
     "@/lib/data/calendar-rank-state"
   );
-  const { toJstDateString } = await import("@/lib/domain/calendar");
+  const { getScheduleEntriesInRange } = await import("@/lib/data/schedule-entries");
+  const { findRankUpAchievedDateInCycle } = await import("@/lib/domain/rank-simulation");
+
   const state = await getOrCreateCalendarRankState(calendarId);
-  const todayJst = toJstDateString(new Date());
-  await applyRankUpState(calendarId, todayJst, state.current_rank);
+  const entries = await getScheduleEntriesInRange(
+    calendarId,
+    state.rank_cycle_start_date,
+    state.rank_reset_date,
+  );
+  const achievedDate = findRankUpAchievedDateInCycle(
+    entries.map((e) => ({
+      date: e.date,
+      actual_plus: e.actual_plus,
+      skip_pass_used: e.skip_pass_used,
+    })),
+    state.rank_cycle_start_date,
+    state.rank_reset_date,
+  );
+
+  if (!achievedDate) {
+    return;
+  }
+
+  await applyRankUpState(calendarId, achievedDate, state.current_rank);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/calendar");
   revalidatePath("/dashboard/data");

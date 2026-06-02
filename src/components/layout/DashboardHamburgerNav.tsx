@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { DashboardNavLinks } from "@/components/layout/DashboardNavLinks";
+import { DashboardNavLinksSuspense } from "@/components/layout/DashboardNavLinks";
 
 type Props = { isOwner: boolean; ownedCalendarIds: string[] };
 
@@ -52,7 +52,7 @@ export function DashboardHamburgerNav({ isOwner, ownedCalendarIds }: Props) {
                 閉じる
               </button>
             </div>
-            <DashboardNavLinks
+            <DashboardNavLinksSuspense
               isOwner={isOwner}
               ownedCalendarIds={ownedCalendarIds}
               variant="drawer"

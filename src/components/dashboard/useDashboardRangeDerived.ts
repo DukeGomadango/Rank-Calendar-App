@@ -4,19 +4,12 @@ import { useMemo } from "react";
 import dayjs from "dayjs";
 
 import type { CalendarRangeResponse } from "@/lib/hooks/useCalendarRange";
+import { toJstDateString } from "@/lib/domain/calendar";
 import {
-  addDays,
-  getCycleEndDateIncludingSkips,
-  toJstDateString,
-} from "@/lib/domain/calendar";
-import {
-  judgeCycleRank,
-  getNextRank,
-  getPreviousRank,
-  projectedPlusForRankForecast,
-  type RankLabel,
-} from "@/lib/domain/rank";
-import { getUsablePredictedSkipPassDates } from "@/lib/domain/skip-pass-prediction";
+  buildDisplayRankCycles,
+  type SimulatedRankCycle,
+} from "@/lib/domain/rank-simulation";
+import type { EntryForRankForecast } from "@/lib/domain/rank";
 import type { ScheduleEntryRow } from "@/lib/data/schedule-entries";
 import type { CalendarScheduleRow } from "@/lib/data/schedules";
 import type { EventRow } from "@/lib/data/events";
@@ -44,6 +37,9 @@ type RangeSlice = {
 
 export type DashboardRangeDerived = {
   rangeData: RangeSlice | null;
+  /** 履歴 + シミュレーション済みの表示用ランク周期 */
+  displayRankCycles: SimulatedRankCycle[];
+  /** @deprecated displayRankCycles の isPredicted な周期。互換用 */
   futureCycles: { start: string; end: string; rank: string }[];
   forecastLabel: string | null;
   todayJst: string;
@@ -55,7 +51,7 @@ export type DashboardRangeDerived = {
 export function useDashboardRangeDerived(
   data: CalendarRangeResponse | undefined,
   canViewRank: boolean,
-  baseMonth: string
+  baseMonth: string,
 ): DashboardRangeDerived {
   const todayJst = useMemo(() => toJstDateString(new Date()), []);
 
@@ -63,6 +59,7 @@ export function useDashboardRangeDerived(
     if (!data) {
       return {
         rangeData: null,
+        displayRankCycles: [] as SimulatedRankCycle[],
         futureCycles: [] as { start: string; end: string; rank: string }[],
         forecastLabel: null as string | null,
         todayJst,
@@ -71,9 +68,7 @@ export function useDashboardRangeDerived(
 
     const entries = (data.entries ?? []) as ScheduleEntryRow[];
     const rankState = data.rankState as RangeSlice["rankState"];
-
     const rankCycleHistory = (data.rankCycleHistory ?? []) as RangeSlice["rankCycleHistory"];
-
     const schedules = (data.schedules ?? []) as CalendarScheduleRow[];
     const events = (data.events ?? []) as EventRow[];
     const skipPassSnapshots = (data.skipPassSnapshots ?? []) as RangeSlice["skipPassSnapshots"];
@@ -90,112 +85,41 @@ export function useDashboardRangeDerived(
     if (!rankState || !canViewRank) {
       return {
         rangeData,
+        displayRankCycles: [] as SimulatedRankCycle[],
         futureCycles: [] as { start: string; end: string; rank: string }[],
         forecastLabel: null as string | null,
         todayJst,
       };
     }
 
-    const entriesByDateForForecast = new Map<string, ScheduleEntryRow>(
-      entries.map((e) => [e.date, e]),
-    );
     const forecastToDate = dayjs(baseMonth + "-15")
       .endOf("month")
       .endOf("week")
       .format("YYYY-MM-DD");
-    const skipPredictionEnd = addDays(rankState.rank_reset_date, 90);
-    const usableFutureSkipDates = getUsablePredictedSkipPassDates(
-      rankState.skip_pass_remaining ?? 0,
-      todayJst,
-      skipPredictionEnd,
-      entriesByDateForForecast,
-      todayJst,
+
+    const entriesByDate = new Map<string, EntryForRankForecast>(
+      entries.map((e) => [e.date, e]),
     );
-    const getEntryForForecast = (date: string): ScheduleEntryRow | undefined => {
-      const entry = entriesByDateForForecast.get(date);
-      if (!entry) return undefined;
-      if (date >= todayJst && entry.skip_pass_used && !usableFutureSkipDates.has(date)) {
-        return { ...entry, skip_pass_used: false };
-      }
-      return entry;
+
+    const { displayCycles, forecastLabel } = buildDisplayRankCycles({
+      history: rankCycleHistory,
+      rankState,
+      entriesByDate,
+      todayJst,
+      simulateToDate: forecastToDate,
+    });
+
+    const futureCycles = displayCycles
+      .filter((c) => c.isPredicted)
+      .map((c) => ({ start: c.start, end: c.end, rank: c.rank as string }));
+
+    return {
+      rangeData,
+      displayRankCycles: displayCycles,
+      futureCycles,
+      forecastLabel,
+      todayJst,
     };
-
-    let forecastRankForNextCycle: RankLabel | null = null;
-    if (rankState.current_rank != null) {
-      const cycleStartForForecast = rankState.rank_cycle_start_date;
-      const cycleEndForForecast = rankState.rank_reset_date;
-      let projectedTotal = 0;
-      let cursorForecast = cycleStartForForecast;
-      while (cursorForecast <= cycleEndForForecast) {
-        const entry = getEntryForForecast(cursorForecast);
-        projectedTotal += projectedPlusForRankForecast(
-          entry,
-          cursorForecast,
-          todayJst,
-        );
-        cursorForecast = addDays(cursorForecast, 1);
-      }
-      const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
-      if (canRankUp) {
-        forecastRankForNextCycle =
-          getNextRank(rankState.current_rank as RankLabel) ??
-          (rankState.current_rank as RankLabel);
-      } else if (isKeep) {
-        forecastRankForNextCycle = rankState.current_rank as RankLabel;
-      } else {
-        forecastRankForNextCycle =
-          (getPreviousRank(
-            rankState.current_rank as RankLabel,
-          ) as RankLabel | null) ?? (rankState.current_rank as RankLabel);
-      }
-    }
-
-    const forecastLabel =
-      forecastRankForNextCycle && rankState.current_rank
-        ? `${rankState.current_rank} → ${forecastRankForNextCycle}`
-        : null;
-
-    const futureCycles: { start: string; end: string; rank: string }[] = [];
-    if (forecastRankForNextCycle != null) {
-      let periodStart = addDays(rankState.rank_reset_date, 1);
-      let rankForThisPeriod: RankLabel | null = forecastRankForNextCycle;
-      const toDate = forecastToDate;
-
-      while (periodStart <= toDate && rankForThisPeriod != null) {
-        const periodEnd = getCycleEndDateIncludingSkips(
-          periodStart,
-          entriesByDateForForecast,
-        );
-        let projectedTotal = 0;
-        let c = periodStart;
-        while (c <= periodEnd) {
-          const entry = getEntryForForecast(c);
-          projectedTotal += projectedPlusForRankForecast(entry, c, todayJst);
-          c = addDays(c, 1);
-        }
-        futureCycles.push({
-          start: periodStart,
-          end: periodEnd,
-          rank: rankForThisPeriod as string,
-        });
-        const { canRankUp, isKeep } = judgeCycleRank(projectedTotal);
-        if (canRankUp) {
-          rankForThisPeriod =
-            getNextRank(rankForThisPeriod as RankLabel) ??
-            (rankForThisPeriod as RankLabel);
-        } else if (isKeep) {
-          // keep
-        } else {
-          rankForThisPeriod =
-            (getPreviousRank(
-              rankForThisPeriod as RankLabel,
-            ) as RankLabel | null) ?? rankForThisPeriod;
-        }
-        periodStart = addDays(periodEnd, 1);
-      }
-    }
-
-    return { rangeData, futureCycles, forecastLabel, todayJst };
   }, [data, canViewRank, baseMonth, todayJst]);
 
   return slice;

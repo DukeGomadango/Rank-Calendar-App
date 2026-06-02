@@ -39,7 +39,6 @@ export default async function DashboardShellLayout({
 
   const requestHeaders = await headers();
   const pathname = requestHeaders.get(DASHBOARD_PATHNAME_HEADER) ?? "";
-  const isOnboardingPath = pathname.startsWith("/dashboard/onboarding");
   const isSettingsPath = pathname.startsWith("/dashboard/settings");
   const isInvitePendingPath = pathname.startsWith("/dashboard/invite-pending");
   const headerCalendarId =
@@ -57,7 +56,7 @@ export default async function DashboardShellLayout({
     redirect("/login");
   }
 
-  if (isOnboardingPath || isInvitePendingPath) {
+  if (isInvitePendingPath) {
     return children;
   }
 
@@ -100,8 +99,7 @@ export default async function DashboardShellLayout({
   if (
     currentCalendar.isOwner &&
     !fromInvite &&
-    !profile?.setup_wizard_done &&
-    !isOnboardingPath
+    !profile?.setup_wizard_done
   ) {
     redirect("/dashboard/onboarding");
   }

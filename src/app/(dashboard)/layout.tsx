@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { ToastProvider } from "@/lib/toast-context";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { DashboardHamburgerNav } from "@/components/layout/DashboardHamburgerNav";
-import { DashboardNavLinks } from "@/components/layout/DashboardNavLinks";
+import { DashboardNavLinksSuspense } from "@/components/layout/DashboardNavLinks";
 import { MockRoleSwitcher } from "@/components/mock/MockRoleSwitcher";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasOwnedCalendar, listCalendarsAccessibleToUser } from "@/lib/data/calendars";
@@ -87,7 +87,7 @@ export default async function DashboardLayout({
           <div className="mb-6 text-xs font-semibold tracking-wide text-accent-500">
             IRIAM だんごスケジュール
           </div>
-          <DashboardNavLinks isOwner={isOwner} ownedCalendarIds={ownedCalendarIds} variant="sidebar" />
+          <DashboardNavLinksSuspense isOwner={isOwner} ownedCalendarIds={ownedCalendarIds} variant="sidebar" />
         </aside>
 
           <main className="min-w-0 flex-1 px-4 pb-16 pt-4 sm:px-8 sm:pb-6 sm:pt-6 lg:pr-14">
@@ -98,7 +98,7 @@ export default async function DashboardLayout({
 
       {/* モバイル: ボトムナビゲーション（データ表の sticky より前面に） */}
       <nav className="sticky bottom-0 z-30 border-t border-zinc-200 bg-white/90 px-2 py-1.5 text-[11px] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] backdrop-blur dark:border-zinc-800 dark:bg-slate-800/95 sm:hidden">
-        <DashboardNavLinks isOwner={isOwner} ownedCalendarIds={ownedCalendarIds} variant="bottom" />
+        <DashboardNavLinksSuspense isOwner={isOwner} ownedCalendarIds={ownedCalendarIds} variant="bottom" />
       </nav>
     </div>
     </ToastProvider>
