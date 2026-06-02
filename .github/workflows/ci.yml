@@ -33,12 +33,13 @@ jobs:
       - name: Coverage
         run: npm run test:coverage
 
-  # E2E: Secrets に以下を設定すると実行される。未設定ならスキップ（フォーク時も CI は通る）
+  # E2E: リポジトリ Variables で E2E_ENABLED=true にし、Secrets を設定すると実行される。
+  # job の if では secrets を参照できないため Variable でオン/オフする。
   # - NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY（アプリが Supabase に接続するため）
   # - E2E_TEST_SECRET / E2E_TEST_USER_EMAIL / E2E_TEST_USER_PASSWORD（認証付き E2E 用）
   e2e:
     runs-on: ubuntu-latest
-    if: ${{ secrets.E2E_TEST_SECRET != '' }}
+    if: ${{ vars.E2E_ENABLED == 'true' }}
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

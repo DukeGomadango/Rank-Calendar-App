@@ -3,7 +3,7 @@
 ## 概要
 
 - **lint-and-test**: 毎回実行（GitHub Actions）。`npx eslint .` → `npx tsc --noEmit` → `npm run test:run` → `npm run test:coverage` の順で実行。
-- **e2e**: `E2E_TEST_SECRET` がリポジトリの Secrets に設定されているときのみ実行。`npx playwright install --with-deps` の後に `npm run test:e2e` を実行。
+- **e2e**: リポジトリ Variables の `E2E_ENABLED` が `true` のときのみ実行（Secrets だけでは job を条件分岐できない）。`npx playwright install --with-deps` の後に `npm run test:e2e` を実行。
 
 ## 必要な Secrets（E2E を有効にする場合）
 
